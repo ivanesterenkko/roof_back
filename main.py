@@ -33,7 +33,7 @@ app.include_router(roof_router)
 origins = [
     "http://localhost:8000",
     "http://localhost:5173", 
-    "https://roof-2d-editor.vercel.app/"
+    "https://roof-2d-editor.vercel.app"
 ]
 
 app.add_middleware(
