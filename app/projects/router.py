@@ -19,7 +19,7 @@ wight = 0.9
 @router.post("", description="Добавление нового проекта с линиями чертежа и его разделение на скаты")
 async def add_project(project_id: int,
                       lines: List[LineData],
-                      user: Users = Depends(get_current_user)) -> List[SlopeResponse]:
+                      user: Users = Depends(get_current_user)) -> List[SSlope]:
     already_project = await ProjectsDAO.find_by_id(project_id)
     if already_project is not None:
         raise ProjectAlreadyExists
@@ -34,14 +34,14 @@ async def add_project(project_id: int,
     slopes_answer = []
     for slope in slopes_bd:
         points_list = json.loads(slope.points)
-        slopes_answer.append(SlopeResponse(id=slope.id, points=points_list))
+        slopes_answer.append(SSlope(id=slope.id, points=points_list))
 
     return slopes_answer 
 
 @router.patch("/my_projects/{projects_id}/add_line", description="Добавление новой линии в чертеж (обновление)")
 async def add_line(project_id: int, 
                      line: LineData, 
-                     user: Users = Depends(get_current_user)) -> List[SlopeResponse]:
+                     user: Users = Depends(get_current_user)) -> List[SSlope]:
     project = await ProjectsDAO.find_by_id(project_id)
     if not project:
         raise ProjectNotFound
@@ -64,7 +64,7 @@ async def add_line(project_id: int,
     slopes_answer = []
     for slope in slopes_bd:
         points_list = json.loads(slope.points)
-        slopes_answer.append(SlopeResponse(id=slope.id, points=points_list))
+        slopes_answer.append(SSlope(id=slope.id, points=points_list))
     return slopes_answer 
 
 @router.get("/my_projects", description="Получение всех проектов пользователя")
@@ -87,7 +87,7 @@ async def get_project(project_id: int, user: Users = Depends(get_current_user)) 
 
 @router.get("/my_projects/{project_id}/slopes", description="Получение скатов в данном проекте")
 async def get_slopes(project_id: int, 
-                     user: Users = Depends(get_current_user)) -> List[SlopeResponse]:
+                     user: Users = Depends(get_current_user)) -> List[SSlope]:
     project = await ProjectsDAO.find_by_id(project_id)
     if not project:
         raise ProjectNotFound
@@ -97,16 +97,16 @@ async def get_slopes(project_id: int,
     slopes_answer = []
     for slope in slopes:
         points_list = json.loads(slope.points)
-        slopes_answer.append(SlopeResponse(id=slope.id, points=points_list))
+        slopes_answer.append(SSlope(id=slope.id, points=points_list))
     return slopes_answer 
 
 @router.get("/my_projects/{project_id}/slopes/{slope_id}", description="Получение ската в данном проекте")
 async def get_slope(slope_id: int, 
-                     user: Users = Depends(get_current_user)) -> SlopeResponse:
+                     user: Users = Depends(get_current_user)) -> SSlope:
     slope = await SlopesDAO.find_by_id(slope_id)
     if not slope:
         raise SlopeNotFound
-    return SlopeResponse(id=slope.id, points=json.loads(slope.points))
+    return SSlope(id=slope.id, points=json.loads(slope.points))
 
 @router.patch("/my_projects/{project_id}/slopes/{slope_id}", description="Создание выреза в скате")
 async def add_hole(slope_id: int, 

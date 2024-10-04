@@ -24,7 +24,7 @@ class LineData(BaseModel):
 
 class SProject(BaseModel):
     id: int
-    lines: str
+    lines: List[LineData]
 
 class SSlope(BaseModel):
     id: int
@@ -32,11 +32,11 @@ class SSlope(BaseModel):
 
 class SlopeResponse(BaseModel):
     id: int
-    points: str
+    points: List[PointData]
 
 class SRoof(BaseModel):
     id: int
-    points: str
+    points: List[PointData]
     lenght: float
     square: float
     
