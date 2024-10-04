@@ -7,14 +7,14 @@ from app.users.auth import (authenticate_user, create_access_token,
 from app.users.dao import UsersDAO
 from app.users.dependencies import get_current_user
 from app.users.models import Users
-from app.users.schemas import SUserAuth, SUserRegister
+from app.users.schemas import SUserAuth, SUserRegister, TokenResponse
 
 
 router = APIRouter(prefix="/auth", tags=["Auth & Пользователи"])
 
 
 @router.post("/register")
-async def register_user(user_data: SUserRegister):
+async def register_user(user_data: SUserRegister) -> None:
     existing_user = await UsersDAO.find_one_or_none(login=user_data.login)
 
     if existing_user:
@@ -25,7 +25,7 @@ async def register_user(user_data: SUserRegister):
 
 
 @router.post("/login")
-async def login_user(user_data: SUserAuth, response: Response):
+async def login_user(user_data: SUserAuth, response: Response) -> TokenResponse:
 
     user = await authenticate_user(login=user_data.login, password=user_data.password)
 
@@ -37,15 +37,10 @@ async def login_user(user_data: SUserAuth, response: Response):
         {"sub": str(user.id)}
     )
     response.set_cookie("access_token", access_token, httponly=True)
-    return {"access_token": access_token}
+    return TokenResponse(access_token=access_token)
 
 
 @router.post("/logout")
-async def logout_user(response: Response):
+async def logout_user(response: Response) -> None:
 
     response.delete_cookie("access_token")
-
-@router.get("/me")
-async def read_user_me(user: Users = Depends(get_current_user)):  
-     
-    return user

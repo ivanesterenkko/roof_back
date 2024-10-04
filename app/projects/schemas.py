@@ -22,13 +22,23 @@ class LineData(BaseModel):
     start: PointData
     end: PointData
 
-class SProjects(BaseModel):
+class SProject(BaseModel):
     id: int
     lines: str
 
-class SSlopes(BaseModel):
+class SSlope(BaseModel):
     id: int
     points: List[PointData]
 
+class SlopeResponse(BaseModel):
+    id: int
+    points: str
+
+class SRoof(BaseModel):
+    id: int
+    points: str
+    lenght: float
+    square: float
+    
 class Sid(BaseModel):
     id: int
