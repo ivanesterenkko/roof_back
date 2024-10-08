@@ -1,5 +1,5 @@
 from app.dao.base import BaseDAO
-from app.projects.models import Projects, Roofs, Slopes
+from app.projects.models import Lines, Projects, Roofs, Slopes
 
 
 class ProjectsDAO(BaseDAO):
@@ -12,3 +12,6 @@ class SlopesDAO(BaseDAO):
 
 class RoofsDAO(BaseDAO):
     model = Roofs
+
+class LinesDAO(BaseDAO):
+    model = Lines

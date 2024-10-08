@@ -1,5 +1,5 @@
 from typing import List, Tuple
-from pydantic import BaseModel
+from pydantic import UUID4, BaseModel
 
 
 class PointData(BaseModel):
@@ -22,18 +22,24 @@ class LineData(BaseModel):
     start: PointData
     end: PointData
 
-class SProject(BaseModel):
-    id: int
-    lines: List[LineData]
-
-class SSlope(BaseModel):
-    id: int
-    points: List[PointData]
 
 class SlopeResponse(BaseModel):
     id: int
     points: List[PointData]
 
+class ProjectResponce(BaseModel):
+    project_id: UUID4
+    project_name: str
+    datatime_created: str
+
+class ProjectRequest(BaseModel):
+    name: str
+    full_name_customer: str
+    is_company: bool
+    company_name: str
+    customer_contacts: str
+    address: str
+    
 class SRoof(BaseModel):
     id: int
     points: List[PointData]

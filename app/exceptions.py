@@ -24,7 +24,7 @@ class ProjectNotFound(AutoException):
 
 class ProjectAlreadyExists(AutoException):
     status_code = status.HTTP_409_CONFLICT
-    detail = "Проект с данным id уже существует."
+    detail = "Проект с данным названием уже существует."
 
 class UserAlreadyExistsException(AutoException):
     status_code = status.HTTP_409_CONFLICT

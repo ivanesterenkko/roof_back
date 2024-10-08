@@ -3,11 +3,11 @@ import json
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi_cache.decorator import cache
 from typing import List
-from pydantic import TypeAdapter
+from pydantic import UUID4, TypeAdapter
 from shapely.geometry import Polygon
 from app.exceptions import ProjectAlreadyExists, ProjectNotFound, SlopeNotFound
-from app.projects.schemas import LineData, PointData, SProject, SRoof, SSlope, SlopeResponse
-from app.projects.dao import ProjectsDAO, RoofsDAO, SlopesDAO
+from app.projects.schemas import LineData, PointData, ProjectRequest, ProjectResponce, SProject, SRoof, SSlope, SlopeResponse
+from app.projects.dao import LinesDAO, ProjectsDAO, RoofsDAO, SlopesDAO
 from app.projects.slope import SlopeExtractor, create_hole, create_roofs
 from app.users.dependencies import get_current_user
 from app.users.models import Users
@@ -16,65 +16,44 @@ router = APIRouter(prefix="/roofs", tags=["Roofs"])
 
 wight = 0.9
 
-@router.post("", description="Добавление нового проекта с линиями чертежа и его разделение на скаты")
-async def add_project(project_id: int,
-                      lines: List[LineData],
-                      user: Users = Depends(get_current_user)) -> List[SSlope]:
-    already_project = await ProjectsDAO.find_by_id(project_id)
+@router.get("/projects", description="Получить список проектов")
+async def get_projects(user: Users = Depends(get_current_user)) -> List[ProjectResponce]:
+    projects = await ProjectsDAO.find_all(user_id=user.id)
+    projects_answer = []
+    for project in projects:
+        projects_answer.append(ProjectResponce(project_id=project.id, project_name=project.name, datatime_created=(project.datetime_created).strftime("%d.%m.%Y в %H:%M")))
+    return projects_answer
+
+@router.post("/projects", description="Создание проекта кровли")
+async def add_project(project:ProjectRequest,
+                      user: Users = Depends(get_current_user)) -> ProjectResponce:
+    already_project = await ProjectsDAO.find_one_or_none(name=project.name)
     if already_project is not None:
-        raise ProjectAlreadyExists
-    lines_json = json.dumps([line.dict() for line in lines])  
-    await ProjectsDAO.add(id=project_id, lines=lines_json, user_id=user.id)
-    slope_extractor = SlopeExtractor(lines)
-    slopes = slope_extractor.extract_slopes()
-    for slope in slopes:
-        slope_points_json = json.dumps([slope_point.dict() for slope_point in slope])
-        await SlopesDAO.add(project_id=project_id, points=slope_points_json)
-    slopes_bd = await SlopesDAO.find_all(project_id=project_id)
-    slopes_answer = []
-    for slope in slopes_bd:
-        points_list = json.loads(slope.points)
-        slopes_answer.append(SSlope(id=slope.id, points=points_list))
+         raise ProjectAlreadyExists 
+    result = await ProjectsDAO.add(name=project.name,
+                          full_name_customer=project.full_name_customer,
+                          is_company=project.is_company,
+                          company_name=project.company_name if project.is_company else None, 
+                          customer_contacts=project.customer_contacts,
+                          address=project.address,
+                          user_id=user.id)
+    return ProjectResponce(project_id=result.id, project_name=result.name, datatime_created=(result.datetime_created).strftime("%d.%m.%Y в %H:%M"))
 
-    return slopes_answer 
-
-@router.patch("/my_projects/{projects_id}/add_line", description="Добавление новой линии в чертеж (обновление)")
-async def add_line(project_id: int, 
-                     line: LineData, 
-                     user: Users = Depends(get_current_user)) -> List[SSlope]:
+@router.patch("/projects/{project_id}/add_line", description="Создание геометрии крыши")
+async def add_line(project_id: UUID4, 
+                   line: LineData, 
+                   user: Users = Depends(get_current_user)) -> List[SSlope]:
     project = await ProjectsDAO.find_by_id(project_id)
     if not project:
         raise ProjectNotFound
     if project.user_id != user.id:
         raise ProjectNotFound
-    lines_list = json.loads(project.lines)
-    lines = [LineData(**line_dict) for line_dict in lines_list]
-    lines.append(line)
-    lines_json = json.dumps([line.dict() for line in lines])
-    await ProjectsDAO.update_(model_id=project_id, lines=lines_json)
-    slopes_old = await SlopesDAO.find_all(project_id=project.id)
-    for slope_old in slopes_old:
-        await SlopesDAO.delete_(model_id=slope_old.id)
-    slope_extractor = SlopeExtractor(lines)
-    slopes = slope_extractor.extract_slopes()
-    for slope in slopes:
-        slope_points_json = json.dumps([slope_point.dict() for slope_point in slope])
-        await SlopesDAO.add(project_id=project_id, points=slope_points_json)
-    slopes_bd = await SlopesDAO.find_all(project_id=project_id)
-    slopes_answer = []
-    for slope in slopes_bd:
-        points_list = json.loads(slope.points)
-        slopes_answer.append(SSlope(id=slope.id, points=points_list))
-    return slopes_answer 
-
-@router.get("/my_projects", description="Получение всех проектов пользователя")
-async def get_projects(user: Users = Depends(get_current_user)) -> List[SProject]:
-    projects = await ProjectsDAO.find_all(user_id=user.id)
-    projects_answer = []
-    for project in projects:
-        lines_list = json.loads(project.lines)
-        projects_answer.append(SProject(id=project.id, lines=lines_list))
-    return projects_answer
+    result = await LinesDAO.add(project_id=project_id, 
+                                x_start=line.start.x, 
+                                y_start=line.start.y, 
+                                x_end=line.end.x, 
+                                y_end=line.end.y, 
+                                length=round(((line.start.x-line.end.x)**2 + (line.start.y-line.end.y)**2)**0.5, 2))
 
 @router.get("/my_projects/{project_id}", description="Получение проекта пользователя")
 async def get_project(project_id: int, user: Users = Depends(get_current_user)) -> SProject:
