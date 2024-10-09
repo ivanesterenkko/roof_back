@@ -1,4 +1,6 @@
 from collections import defaultdict
+from typing import List
+import itertools
 from shapely.geometry import Polygon
 
 from app.projects.schemas import PointData
@@ -8,14 +10,17 @@ class SlopeExtractor:
         self.lines = lines
         self.graph = defaultdict(list)
         self.line_set = set()
+        self.lines_id = {}
 
     def build_graph(self):
         """Построение графа точек, соединённых линиями."""
         for line in self.lines:
-            self.graph[line.start].append(line.end)
-            self.graph[line.end].append(line.start)
-            self.line_set.add(tuple(sorted((line.start, line.end))))
-
+            id, line_obj = line
+            start, end = line_obj.start, line_obj.end
+            self.graph[start].append(end)
+            self.graph[end].append(start)
+            self.line_set.add(tuple(sorted((start, end))))
+            self.lines_id[tuple(sorted((start, end)))] = id
     def find_cycles(self):
         """Поиск всех циклов в графе."""
         self.build_graph()
@@ -64,7 +69,22 @@ class SlopeExtractor:
     def extract_slopes(self):
         """Извлечение всех фигур из точек и линий."""
         cycles = self.find_cycles()
-        return self.filter_cycles(cycles)
+        cycles = self.filter_cycles(cycles)
+        slopes = []
+        for cycle in cycles:
+            slope_lines = []
+            for i in range(len(cycle)):
+                start = cycle[i]
+                end = cycle[(i + 1) % len(cycle)]
+                line_id = self.lines_id.get(tuple(sorted((start, end))))
+                if line_id:
+                    slope_lines.append(line_id)
+            slopes.append(slope_lines)
+        return slopes
+
+
+
+
 
 async def create_roofs(figure):
     """Создание листов для покрытия полигона."""
@@ -116,3 +136,17 @@ def create_hole(figure, hole_points):
     coordinates = [(point.x, point.y) for point in hole_points]
     figure2 = Polygon(coordinates)
     return figure.difference(figure2)
+
+#  Генерирует следующее имя для линии в формате Excel-стиля
+def get_next_name(existing_names: List[str]) -> str:
+    alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+    def generate_names():
+        for length in range(1, 3): 
+            for letters in itertools.product(alphabet, repeat=length):
+                yield ''.join(letters)
+
+    name_generator = generate_names()
+
+    for name in name_generator:
+        if name not in existing_names:
+            return name

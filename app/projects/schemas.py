@@ -24,8 +24,9 @@ class LineData(BaseModel):
 
 
 class SlopeResponse(BaseModel):
-    id: int
-    points: List[PointData]
+    id: UUID4
+    slope_name: str
+    lines_id: list[UUID4]
 
 class ProjectResponce(BaseModel):
     project_id: UUID4
@@ -39,6 +40,11 @@ class ProjectRequest(BaseModel):
     company_name: str
     customer_contacts: str
     address: str
+
+class LineResponce(BaseModel):
+    line_id: UUID4
+    line_name: str
+    line_length: float
     
 class SRoof(BaseModel):
     id: int

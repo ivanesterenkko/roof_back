@@ -14,6 +14,7 @@ from redis import asyncio as aioredis
 from app.db import delete_tables, create_tables, engine
 from app.users.router import router as user_router
 from app.projects.router import router as roof_router
+from app.base.router import router as base_router
 from app.config import settings
 from app.logging import setup
 
@@ -29,6 +30,7 @@ app = FastAPI(lifespan=lifespan)
 
 app.include_router(user_router)
 app.include_router(roof_router)
+app.include_router(base_router)
 
 origins = [
     "http://localhost:8000",
