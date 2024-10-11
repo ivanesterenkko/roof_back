@@ -1,10 +1,12 @@
 from collections import defaultdict
+from itertools import product
 from typing import List
-import itertools
+
 import numpy as np
 from shapely.geometry import Polygon
 
 from app.projects.schemas import PointData
+
 
 class SlopeExtractor:
     def __init__(self, lines):
@@ -16,12 +18,14 @@ class SlopeExtractor:
     def build_graph(self):
         """Построение графа точек, соединённых линиями."""
         for line in self.lines:
-            id, line_obj = line
+            line_id, line_obj = line
             start, end = line_obj.start, line_obj.end
+            edge = tuple(sorted((start, end)))
             self.graph[start].append(end)
             self.graph[end].append(start)
-            self.line_set.add(tuple(sorted((start, end))))
-            self.lines_id[tuple(sorted((start, end)))] = id
+            self.line_set.add(edge)
+            self.lines_id[edge] = line_id
+
     def find_cycles(self):
         """Поиск всех циклов в графе."""
         self.build_graph()
@@ -43,17 +47,21 @@ class SlopeExtractor:
         """Фильтрует циклы, исключая составные фигуры и дубликаты."""
         unique_cycles = []
         for cycle in cycles:
-            cycle_coordinates = [(point.x, point.y) for point in cycle]
-            polygon = Polygon(cycle_coordinates)
+            cycle_coords = [(point.x, point.y) for point in cycle]
+            polygon = Polygon(cycle_coords)
             is_unique = True
-            for other_cycle in unique_cycles:
-                other_coordinates = [(point.x, point.y) for point in other_cycle]
-                other_polygon = Polygon(other_coordinates)
+            remove_cycles = []
+            for idx, other_cycle in enumerate(unique_cycles):
+                other_coords = [(point.x, point.y) for point in other_cycle]
+                other_polygon = Polygon(other_coords)
                 if polygon.contains(other_polygon) or polygon.equals(other_polygon):
                     is_unique = False
                     break
                 elif other_polygon.contains(polygon):
-                    unique_cycles.remove(other_cycle)
+                    remove_cycles.append(idx)
+            # Удаляем более крупные циклы, которые содержат текущий полигон
+            for idx in sorted(remove_cycles, reverse=True):
+                del unique_cycles[idx]
             if is_unique:
                 unique_cycles.append(cycle)
         return unique_cycles
@@ -63,10 +71,11 @@ class SlopeExtractor:
         for i in range(len(cycle)):
             p1 = cycle[i]
             p2 = cycle[(i + 1) % len(cycle)]
-            if tuple(sorted((p1, p2))) not in self.line_set:
+            edge = tuple(sorted((p1, p2)))
+            if edge not in self.line_set:
                 return False
         return True
-    
+
     def extract_slopes(self):
         """Извлечение всех фигур из точек и линий."""
         cycles = self.find_cycles()
@@ -77,37 +86,40 @@ class SlopeExtractor:
             for i in range(len(cycle)):
                 start = cycle[i]
                 end = cycle[(i + 1) % len(cycle)]
-                line_id = self.lines_id.get(tuple(sorted((start, end))))
+                edge = tuple(sorted((start, end)))
+                line_id = self.lines_id.get(edge)
                 if line_id:
                     slope_lines.append(line_id)
             slopes.append(slope_lines)
         return slopes
 
 
-
-
-
-async def create_sheets(figure, roof):
+def create_sheets(figure, roof):
     """Создание листов для покрытия полигона."""
     sheets = []
-    overal_width =roof.overal_width
-    delta_width = roof.overal_width - roof.useful_width
+    overall_width = roof.overall_width
+    delta_width = roof.overall_width - roof.useful_width
     length_max = roof.max_length
     length_min = roof.min_length
-    overlap = roof.overlap 
+    overlap = roof.overlap
 
     x_min, y_min, x_max, y_max = figure.bounds
     x = x_min
 
     while x < x_max:
-        x_ls = x
-        x += overal_width
+        x_start = x
+        x += overall_width
         y = y_min
 
         while y < y_max:
-            y_ls = y
+            y_start = y
             y += length_max
-            sheet = Polygon([(x_ls, y_ls), (x, y_ls), (x, y), (x_ls, y)])
+            sheet = Polygon([
+                (x_start, y_start),
+                (x, y_start),
+                (x, y),
+                (x_start, y)
+            ])
             intersection = figure.intersection(sheet)
 
             if not intersection.is_empty:
@@ -119,10 +131,12 @@ async def create_sheets(figure, roof):
                     continue
                 elif sheet_height < length_min:
                     coords[3] = coords[1] + length_min
-                
-                sheets.append([round(x_ls,2), 
-                               round(coords[3]-coords[1],2),
-                               round(overal_width*(coords[3]-coords[1]),2)])
+
+                sheets.append([
+                    round(x_start, 2),
+                    round(coords[3] - coords[1], 2),
+                    round(overall_width * (coords[3] - coords[1]), 2)
+                ])
             if y + length_min - overlap < y_max:
                 y -= overlap
 
@@ -131,17 +145,21 @@ async def create_sheets(figure, roof):
 
     return sheets
 
-def create_hole(figure, hole_points):
-    coordinates = [(point.x, point.y) for point in hole_points]
-    figure2 = Polygon(coordinates)
-    return figure.difference(figure2)
 
-#  Генерирует следующее имя для линии в формате Excel-стиля
+def create_hole(figure, hole_points):
+    """Создает отверстие в фигуре, вырезая полигон из заданных точек."""
+    coordinates = [(point.x, point.y) for point in hole_points]
+    hole_polygon = Polygon(coordinates)
+    return figure.difference(hole_polygon)
+
+
 def get_next_name(existing_names: List[str]) -> str:
+    """Генерирует следующее имя для линии в формате Excel-стиля."""
     alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+
     def generate_names():
-        for length in range(1, 3): 
-            for letters in itertools.product(alphabet, repeat=length):
+        for length in range(1, 3):
+            for letters in product(alphabet, repeat=length):
                 yield ''.join(letters)
 
     name_generator = generate_names()
@@ -149,19 +167,21 @@ def get_next_name(existing_names: List[str]) -> str:
     for name in name_generator:
         if name not in existing_names:
             return name
-        
-# Класс для представления линии
+
+
 class LineRotate:
-    def __init__(self, id, start, end, line_type):
-        self.id = id
-        self.start = np.array(start)  # Начало линии
-        self.end = np.array(end)      # Конец линии
-        self.line_type = line_type    # Тип линии
+    def __init__(self, line_id, start, end, line_type):
+        self.id = line_id
+        self.start = np.array(start) 
+        self.end = np.array(end)      
+        self.line_type = line_type    
 
     def rotate(self, angle, origin=(0, 0)):
         """Поворачивает линию на заданный угол относительно точки origin."""
-        rotation_matrix = np.array([[np.cos(angle), -np.sin(angle)],
-                                    [np.sin(angle), np.cos(angle)]])
+        rotation_matrix = np.array([
+            [np.cos(angle), -np.sin(angle)],
+            [np.sin(angle),  np.cos(angle)]
+        ])
         origin = np.array(origin)
 
         # Поворот начала и конца линии
@@ -178,7 +198,7 @@ class LineRotate:
         # Представляем линию для отражения как вектор
         line_vec = line.end - line.start
         line_vec_norm = line_vec / np.linalg.norm(line_vec)
-        
+
         def reflect_point(point):
             point_vec = point - line.start
             projection_length = np.dot(point_vec, line_vec_norm)
@@ -193,38 +213,33 @@ class LineRotate:
     def __repr__(self):
         return f"Line(start={self.start}, end={self.end}, type={self.line_type})"
 
+
 def align_figure(lines):
     """
     Разворачивает фигуру так, чтобы линия с типом 'Карниз' была параллельна оси OX
     и находилась в первой четверти, начиная с точки (0, 0).
     """
-    # 1. Найти линию с типом 'Карниз'
     cornice_line = next((line for line in lines if line.line_type == 'Карниз'), None)
     if cornice_line is None:
         raise ValueError("Линия с типом 'Карниз' не найдена")
 
-    # 2. Рассчитать угол, на который нужно повернуть линию 'Карниз'
     dx = cornice_line.end[0] - cornice_line.start[0]
     dy = cornice_line.end[1] - cornice_line.start[1]
     angle = -np.arctan2(dy, dx)  # Угол поворота для выравнивания по оси OX
 
-    # 3. Повернуть все линии на найденный угол
     for line in lines:
         line.rotate(angle)
 
-    # 4. Сдвинуть все линии, чтобы начало линии 'Карниз' было в точке (0, 0)
     translation_vector = -cornice_line.start  # Сдвиг для начала координат
     for line in lines:
         line.translate(translation_vector)
 
-    # 5. Отразить линии ниже карниза относительно линии 'Карниз'
     for line in lines:
         if line.line_type != 'Карниз':
             # Проверяем, если хотя бы одна из точек линии ниже карниза
             if line.start[1] < cornice_line.start[1] or line.end[1] < cornice_line.start[1]:
                 line.reflect_over_line(cornice_line)
 
-    # 6. Убедиться, что 'Карниз' находится в первой четверти координатной плоскости
     if cornice_line.end[0] < 0 or cornice_line.end[1] < 0:
         raise ValueError("После трансформации 'Карниз' не находится в первой четверти")
 

@@ -21,7 +21,7 @@ class Roofs(Base):
     name: Mapped[str] = mapped_column(String, nullable=False)
     price: Mapped[float] = mapped_column(Float, nullable=False)
     type: Mapped[str] = mapped_column(String, nullable=False)
-    overal_width: Mapped[float] = mapped_column(Float, nullable=False)
+    overall_width: Mapped[float] = mapped_column(Float, nullable=False)
     useful_width: Mapped[float] = mapped_column(Float, nullable=False)
     overlap: Mapped[float] = mapped_column(Float, nullable=False)
     material: Mapped[str] = mapped_column(String, nullable=False)

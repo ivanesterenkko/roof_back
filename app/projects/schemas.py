@@ -28,7 +28,7 @@ class SlopeResponse(BaseModel):
     slope_name: str
     lines_id: list[UUID4]
 
-class ProjectResponce(BaseModel):
+class ProjectResponse(BaseModel):
     project_id: UUID4
     project_name: str
     datatime_created: str
@@ -42,7 +42,7 @@ class ProjectRequest(BaseModel):
     address: str
     roof_id: UUID4
 
-class LineResponce(BaseModel):
+class LineResponse(BaseModel):
     line_id: UUID4
     line_name: str
     line_type: str = ''
@@ -51,7 +51,7 @@ class LineResponce(BaseModel):
 class LineRequest(BaseModel):
     type: str
 
-class SheetResponce(BaseModel):
+class SheetResponse(BaseModel):
     id: UUID4
     sheet_name: str
     sheet_x_start: float
