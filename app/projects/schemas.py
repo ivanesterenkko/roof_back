@@ -40,17 +40,20 @@ class ProjectRequest(BaseModel):
     company_name: str
     customer_contacts: str
     address: str
+    roof_id: UUID4
 
 class LineResponce(BaseModel):
     line_id: UUID4
     line_name: str
+    line_type: str = ''
     line_length: float
-    
-class SRoof(BaseModel):
-    id: int
-    points: List[PointData]
-    lenght: float
-    square: float
-    
-class Sid(BaseModel):
-    id: int
+
+class LineRequest(BaseModel):
+    type: str
+
+class SheetResponce(BaseModel):
+    id: UUID4
+    sheet_name: str
+    sheet_x_start: float
+    sheet_length: float
+    sheet_area: float

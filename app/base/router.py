@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Depends
-from pydantic import UUID4, TypeAdapter
-from app.base.dao import RoofbaseDAO
+from app.base.dao import RoofsDAO
 from app.base.schemas import RoofRequest, RoofResponce
 from app.users.dependencies import get_current_user
 from app.users.models import Users
@@ -10,7 +9,7 @@ router = APIRouter(prefix="/base", tags=["Base"])
 @router.post("/roofs_base", description="Добавление покрытия в библиотеку")
 async def add_roof_base(roof: RoofRequest,
                         user: Users = Depends(get_current_user)) -> RoofResponce:
-    result = await RoofbaseDAO.add(name=roof.name,
+    result = await RoofsDAO.add(name=roof.name,
                                  type=roof.type,
                                  price=roof.price,
                                  overal_width=roof.overal_width,

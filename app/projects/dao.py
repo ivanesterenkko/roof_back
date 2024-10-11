@@ -1,6 +1,6 @@
 from sqlalchemy import UUID, select
 from app.dao.base import BaseDAO
-from app.projects.models import Lines, Projects, Roofs, Slopes
+from app.projects.models import Lines, Projects, Sheets, Slopes
 from app.db import async_session_maker
 
 
@@ -12,8 +12,8 @@ class SlopesDAO(BaseDAO):
 
     model = Slopes
 
-class RoofsDAO(BaseDAO):
-    model = Roofs
+class SheetsDAO(BaseDAO):
+    model = Sheets
 
 class LinesDAO(BaseDAO):
     model = Lines

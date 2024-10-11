@@ -1,6 +1,7 @@
 from collections import defaultdict
 from typing import List
 import itertools
+import numpy as np
 from shapely.geometry import Polygon
 
 from app.projects.schemas import PointData
@@ -86,21 +87,21 @@ class SlopeExtractor:
 
 
 
-async def create_roofs(figure):
+async def create_sheets(figure, roof):
     """Создание листов для покрытия полигона."""
     sheets = []
-    width_full = 0.9  # Ширина листа
-    overlap_horizontal = 0.06  # Горизонтальный перехлест
-    length_max = 2.0  # Максимальная длина листа
-    length_min = 0.5  # Минимальная длина листа
-    overlap_vertical = 0.15  # Вертикальный перехлест
+    overal_width =roof.overal_width
+    delta_width = roof.overal_width - roof.useful_width
+    length_max = roof.max_length
+    length_min = roof.min_length
+    overlap = roof.overlap 
 
     x_min, y_min, x_max, y_max = figure.bounds
     x = x_min
 
     while x < x_max:
         x_ls = x
-        x += width_full
+        x += overal_width
         y = y_min
 
         while y < y_max:
@@ -114,21 +115,19 @@ async def create_roofs(figure):
                 sheet_height = coords[3] - coords[1]
                 sheet_width = coords[2] - coords[0]
 
-                if sheet_height < overlap_vertical or sheet_width < overlap_horizontal:
+                if sheet_height < overlap or sheet_width < delta_width:
                     continue
                 elif sheet_height < length_min:
                     coords[3] = coords[1] + length_min
                 
-                sheets.append([
-    PointData(x=round(x_ls, 2), y=round(coords[1], 2)), 
-    PointData(x=round(x, 2), y=round(coords[1], 2)), 
-    PointData(x=round(x, 2), y=round(coords[3], 2)), 
-    PointData(x=round(x_ls, 2), y=round(coords[3], 2))
-])
-            if y + length_min - overlap_vertical < y_max:
-                y -= overlap_vertical
+                sheets.append([round(x_ls,2), 
+                               round(coords[3]-coords[1],2),
+                               round(overal_width*(coords[3]-coords[1]),2)])
+            if y + length_min - overlap < y_max:
+                y -= overlap
 
-        x -= overlap_horizontal
+        if x < x_max:
+            x -= delta_width
 
     return sheets
 
@@ -150,3 +149,83 @@ def get_next_name(existing_names: List[str]) -> str:
     for name in name_generator:
         if name not in existing_names:
             return name
+        
+# Класс для представления линии
+class LineRotate:
+    def __init__(self, id, start, end, line_type):
+        self.id = id
+        self.start = np.array(start)  # Начало линии
+        self.end = np.array(end)      # Конец линии
+        self.line_type = line_type    # Тип линии
+
+    def rotate(self, angle, origin=(0, 0)):
+        """Поворачивает линию на заданный угол относительно точки origin."""
+        rotation_matrix = np.array([[np.cos(angle), -np.sin(angle)],
+                                    [np.sin(angle), np.cos(angle)]])
+        origin = np.array(origin)
+
+        # Поворот начала и конца линии
+        self.start = np.dot(rotation_matrix, self.start - origin) + origin
+        self.end = np.dot(rotation_matrix, self.end - origin) + origin
+
+    def translate(self, offset):
+        """Сдвигает линию на заданное смещение."""
+        self.start += offset
+        self.end += offset
+
+    def reflect_over_line(self, line):
+        """Отражает линию относительно заданной линии."""
+        # Представляем линию для отражения как вектор
+        line_vec = line.end - line.start
+        line_vec_norm = line_vec / np.linalg.norm(line_vec)
+        
+        def reflect_point(point):
+            point_vec = point - line.start
+            projection_length = np.dot(point_vec, line_vec_norm)
+            projection = projection_length * line_vec_norm
+            perpendicular = point_vec - projection
+            reflected_point = line.start + projection - perpendicular
+            return reflected_point
+
+        self.start = reflect_point(self.start)
+        self.end = reflect_point(self.end)
+
+    def __repr__(self):
+        return f"Line(start={self.start}, end={self.end}, type={self.line_type})"
+
+def align_figure(lines):
+    """
+    Разворачивает фигуру так, чтобы линия с типом 'Карниз' была параллельна оси OX
+    и находилась в первой четверти, начиная с точки (0, 0).
+    """
+    # 1. Найти линию с типом 'Карниз'
+    cornice_line = next((line for line in lines if line.line_type == 'Карниз'), None)
+    if cornice_line is None:
+        raise ValueError("Линия с типом 'Карниз' не найдена")
+
+    # 2. Рассчитать угол, на который нужно повернуть линию 'Карниз'
+    dx = cornice_line.end[0] - cornice_line.start[0]
+    dy = cornice_line.end[1] - cornice_line.start[1]
+    angle = -np.arctan2(dy, dx)  # Угол поворота для выравнивания по оси OX
+
+    # 3. Повернуть все линии на найденный угол
+    for line in lines:
+        line.rotate(angle)
+
+    # 4. Сдвинуть все линии, чтобы начало линии 'Карниз' было в точке (0, 0)
+    translation_vector = -cornice_line.start  # Сдвиг для начала координат
+    for line in lines:
+        line.translate(translation_vector)
+
+    # 5. Отразить линии ниже карниза относительно линии 'Карниз'
+    for line in lines:
+        if line.line_type != 'Карниз':
+            # Проверяем, если хотя бы одна из точек линии ниже карниза
+            if line.start[1] < cornice_line.start[1] or line.end[1] < cornice_line.start[1]:
+                line.reflect_over_line(cornice_line)
+
+    # 6. Убедиться, что 'Карниз' находится в первой четверти координатной плоскости
+    if cornice_line.end[0] < 0 or cornice_line.end[1] < 0:
+        raise ValueError("После трансформации 'Карниз' не находится в первой четверти")
+
+    return lines

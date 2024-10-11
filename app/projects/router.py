@@ -1,14 +1,13 @@
-from asyncio import sleep
 import json
-from fastapi import APIRouter, Depends, HTTPException
-from fastapi_cache.decorator import cache
+from fastapi import APIRouter, Depends
 from typing import List
-from pydantic import UUID4, TypeAdapter
+from pydantic import UUID4
 from shapely.geometry import Polygon
-from app.exceptions import ProjectAlreadyExists, ProjectNotFound, SlopeNotFound
-from app.projects.schemas import LineData, LineResponce, PointData, ProjectRequest, ProjectResponce, SRoof,  SlopeResponse
-from app.projects.dao import LinesDAO, ProjectsDAO, RoofsDAO, SlopesDAO
-from app.projects.slope import SlopeExtractor, create_hole, create_roofs, get_next_name
+from app.base.dao import RoofsDAO
+from app.exceptions import LineNotFound, ProjectAlreadyExists, ProjectNotFound, SlopeNotFound
+from app.projects.schemas import LineData, LineRequest, LineResponce, PointData, ProjectRequest, ProjectResponce, SheetResponce,  SlopeResponse
+from app.projects.dao import LinesDAO, ProjectsDAO, SheetsDAO, SlopesDAO
+from app.projects.slope import LineRotate, SlopeExtractor, align_figure, create_hole, create_sheets, get_next_name
 from app.users.dependencies import get_current_user
 from app.users.models import Users
 
@@ -36,6 +35,7 @@ async def add_project(project:ProjectRequest,
                           company_name=project.company_name if project.is_company else None, 
                           customer_contacts=project.customer_contacts,
                           address=project.address,
+                          roof_id=project.roof_id,
                           user_id=user.id)
     return ProjectResponce(project_id=result.id, 
                            project_name=result.name, 
@@ -43,7 +43,7 @@ async def add_project(project:ProjectRequest,
 
 @router.post("/projects/{project_id}/add_line", description="Создание геометрии крыши")
 async def add_line(project_id: UUID4, 
-                   line: LineData, 
+                   line: LineData,
                    user: Users = Depends(get_current_user)) -> LineResponce:
     project = await ProjectsDAO.find_by_id(project_id)
     if not project:
@@ -64,6 +64,54 @@ async def add_line(project_id: UUID4,
                         line_name=result.name,
                         line_length=result.length)
 
+@router.patch("/projects/{project_id}/lines/{line_id}/add_node", description="Добавление узла кровли")
+async def add_node(project_id: UUID4,
+                   line_id: UUID4, 
+                   line_data: LineRequest,
+                   user: Users = Depends(get_current_user)) -> LineResponce:
+    project = await ProjectsDAO.find_by_id(project_id)
+    if not project:
+        raise ProjectNotFound
+    if project.user_id != user.id:
+        raise ProjectNotFound
+    line = await LinesDAO.find_by_id(line_id)
+    if not line:
+        raise LineNotFound
+    if line.project_id != project_id:
+        raise LineNotFound
+    result = await LinesDAO.update_(model_id=line_id, 
+                                    type=line_data.type)
+    return LineResponce(line_id=result.id,
+                        line_type=result.type,
+                        line_name=result.name,
+                        line_length=result.length)
+
+@router.patch("/projects/{project_id}/lines/{line_id}/update_line", description="Изменение размеров линии ")
+async def update_line(project_id: UUID4,
+                   line_id: UUID4, 
+                   line_data: LineData,
+                   user: Users = Depends(get_current_user)) -> LineResponce:
+    project = await ProjectsDAO.find_by_id(project_id)
+    if not project:
+        raise ProjectNotFound
+    if project.user_id != user.id:
+        raise ProjectNotFound
+    line = await LinesDAO.find_by_id(line_id)
+    if not line:
+        raise LineNotFound
+    if line.project_id != project_id:
+        raise LineNotFound
+    result = await LinesDAO.update_(model_id=line_id, 
+                                    x_start=line_data.start.x, 
+                                    y_start=line_data.start.y, 
+                                    x_end=line_data.end.x, 
+                                    y_end=line_data.end.y,
+                                    length=round(((line_data.start.x-line_data.end.x)**2 + (line_data.start.y-line_data.end.y)**2)**0.5, 2))
+    return LineResponce(line_id=result.id,
+                        line_type=result.type,
+                        line_name=result.name,
+                        line_length=result.length)
+
 @router.post("/projects/{project_id}/add_line/slopes", description="Разметка скатов")
 async def add_slope(project_id: UUID4, 
                     user: Users = Depends(get_current_user)) -> List[SlopeResponse]:
@@ -74,9 +122,9 @@ async def add_slope(project_id: UUID4,
         raise ProjectNotFound
     lines = await LinesDAO.find_all(project_id=project.id)
     lines_data = [ [line.id,
-                    LineData(start=PointData(x=line.x_start, y=line.y_start),
-                             end=PointData(x=line.x_end, y=line.y_end))]
-                  for line in lines]
+                    LineData(start=PointData(x=line.x_start_projection, y=line.y_start_projection),
+                             end=PointData(x=line.x_end_projection, y=line.y_end_projection))]
+                             for line in lines ]
     slopes = SlopeExtractor(lines_data).extract_slopes()
     existing_slopes = await SlopesDAO.find_all(project_id=project.id)
     existing_names = [slope.name for slope in existing_slopes]
@@ -87,7 +135,17 @@ async def add_slope(project_id: UUID4,
         result = await SlopesDAO.add(name=slope_name,
                                      lines_id = slope,
                                      project_id=project.id)
-        # !!! добавить развернутые линии (not _projection)
+        lines = []
+        for line_id in slope:
+            line = await LinesDAO.find_by_id(line_id)
+            lines.append(LineRotate(line.id, (line.x_start_projection, line.y_start_projection), (line.x_end_projection, line.y_end_projection), line.type))
+        lines_rotate = align_figure(lines)
+        for line_rotate in lines_rotate:
+            await LinesDAO.update_(model_id=line_rotate.id, 
+                                   x_start=round(line_rotate.start[0],2), 
+                                   y_start=round(line_rotate.start[1],2),
+                                   x_end=round(line_rotate.end[0],2), 
+                                   y_end=round(line_rotate.end[1],2))
         slopes_list.append(SlopeResponse(id=result.id, 
                                          slope_name=result.name,
                                          lines_id=result.lines_id))
@@ -106,69 +164,52 @@ async def get_slope(project_id: UUID4,
     if not slope or slope.project_id != project_id:
         raise SlopeNotFound
     return SlopeResponse(id=slope.id, 
-                                         slope_name=slope.name,
-                                         lines_id=slope.lines_id)
+                         slope_name=slope.name,
+                         lines_id=slope.lines_id)
 
-# @router.get("/my_projects/{project_id}", description="Получение проекта пользователя")
-# async def get_project(project_id: int, user: Users = Depends(get_current_user)) -> SProject:
-#     project = await ProjectsDAO.find_by_id(project_id)
-#     if not project:
-#         raise ProjectNotFound
-#     if project.user_id != user.id:
-#         raise ProjectNotFound
-#     return SProject(id=project.id, lines=json.loads(project.lines)) 
+# @router.patch("/my_projects/{project_id}/slopes/{slope_id}", description="Создание выреза в скате")
+# async def add_hole(slope_id: int, 
+#                    points: List[PointData],
+#                    user: Users = Depends(get_current_user)) -> None:
+#     slope = await SlopesDAO.find_by_id(slope_id)
+#     if not slope:
+#         raise SlopeNotFound
+#     hole_points_json = json.dumps([point.dict() for point in points])
+#     await SlopesDAO.update_(model_id=slope_id, hole_points=hole_points_json)
 
-# @router.get("/my_projects/{project_id}/slopes", description="Получение скатов в данном проекте")
-# async def get_slopes(project_id: int, 
-#                      user: Users = Depends(get_current_user)) -> List[SSlope]:
-#     project = await ProjectsDAO.find_by_id(project_id)
-#     if not project:
-#         raise ProjectNotFound
-#     if project.user_id != user.id:
-#         raise ProjectNotFound
-#     slopes = await SlopesDAO.find_all(project_id=project.id)
-#     slopes_answer = []
-#     for slope in slopes:
-#         points_list = json.loads(slope.points)
-#         slopes_answer.append(SSlope(id=slope.id, points=points_list))
-#     return slopes_answer 
-
-@router.patch("/my_projects/{project_id}/slopes/{slope_id}", description="Создание выреза в скате")
-async def add_hole(slope_id: int, 
-                   points: List[PointData],
-                   user: Users = Depends(get_current_user)) -> None:
+@router.post("/my_projects/{project_id}/slopes/{slope_id}/roofs", description="Рассчет кровельных листов для ската")
+async def add_sheets(project_id: UUID4,
+                     slope_id: UUID4,
+                     user: Users = Depends(get_current_user)) -> List[SheetResponce]:
+    project = await ProjectsDAO.find_by_id(project_id)
+    if not project:
+        raise ProjectNotFound
+    if project.user_id != user.id:
+        raise ProjectNotFound
     slope = await SlopesDAO.find_by_id(slope_id)
-    if not slope:
+    if not slope or slope.project_id != project_id:
         raise SlopeNotFound
-    hole_points_json = json.dumps([point.dict() for point in points])
-    await SlopesDAO.update_(model_id=slope_id, hole_points=hole_points_json)
-
-@router.post("/my_projects/{project_id}/slopes/{slope_id}/roofs", description="Создание кровли для ската")
-async def add_roofs(slope_id: int,
-                    user: Users = Depends(get_current_user)) -> List[SRoof]:
-    slope = await SlopesDAO.find_by_id(slope_id)
-    if not slope:
-        raise SlopeNotFound
-    points_list = json.loads(slope.points)
-    points = [PointData(**point_dict) for point_dict in points_list]
-    coordinates = [(point.x, point.y) for point in points]
-    figure = Polygon(coordinates)
-    if slope.hole_points is not None:
-        hole_points_list = json.loads(slope.hole_points)
-        hole_points = [PointData(**point_dict) for point_dict in hole_points_list]
-        figure = create_hole(figure, hole_points)
-    roofs = await create_roofs(figure)
-    for roof in roofs:
-        roof_lenght = roof[3].y - roof[0].y
-        roof_square = wight * roof_lenght
-        roof_points_json = json.dumps([roof_point.dict() for roof_point in roof])
-        await RoofsDAO.add(slope_id=slope_id, points=roof_points_json, lenght=roof_lenght, square=roof_square)
-    roofs_bd = await RoofsDAO.find_all(slope_id=slope_id)
-    roofs_answer = []
-    for roof in roofs_bd:
-        points_list = json.loads(roof.points)
-        roofs_answer.append(SRoof(id=roof.id, points=points_list, lenght=roof.lenght, square=roof.square))
-    return roofs_answer 
+    lines = [await LinesDAO.find_by_id(line_id) for line_id in slope.lines_id]
+    points = [(line.x_start, line.y_start) for line in lines ]
+    roof = await RoofsDAO.find_by_id(project.roof_id)
+    sheets = await create_sheets(Polygon(points), roof)
+    existing_sheets = await SheetsDAO.find_all(slope_id=slope_id)
+    existing_names = [sheet.name for sheet in existing_sheets]
+    sheets_data = []
+    for sheet in sheets:
+        sheet_name = get_next_name(existing_names)
+        existing_names.append(sheet_name)
+        result = await SheetsDAO.add(name=sheet_name,
+                               x_start=sheet[0], 
+                               length=sheet[1], 
+                               area=sheet[2],
+                               slope_id=slope_id)
+        sheets_data.append(SheetResponce(id=result.id, 
+                                         sheet_name=result.name, 
+                                         sheet_x_start=result.x_start,
+                                         sheet_length=result.length,
+                                         sheet_area=result.area ))
+    return sheets_data
 
 
 

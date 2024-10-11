@@ -5,8 +5,8 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db import Base
 
 
-class Accessoriesbase(Base):
-    __tablename__ = 'accessory_base'
+class Accessories(Base):
+    __tablename__ = 'accessory'
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(nullable=False)
@@ -14,8 +14,8 @@ class Accessoriesbase(Base):
     description: Mapped[str] = mapped_column(nullable=True)
     sale: Mapped[float] = mapped_column(nullable=False)
     
-class Roofsbase(Base):
-    __tablename__ = 'roofs_base'
+class Roofs(Base):
+    __tablename__ = 'roof'
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
     name: Mapped[str] = mapped_column(String, nullable=False)
@@ -28,5 +28,7 @@ class Roofsbase(Base):
     color: Mapped[str] = mapped_column(String, nullable=False)
     min_length: Mapped[float] = mapped_column(Float, nullable=False)
     max_length: Mapped[float] = mapped_column(Float, nullable=False)
+
+    projects = relationship("Projects", back_populates="roof")
 
     

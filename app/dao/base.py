@@ -52,9 +52,11 @@ class BaseDAO:
     async def update_(cls, model_id, **data):
         async with async_session_maker() as session:
 
-            query = update(cls.model).where(cls.model.id == model_id).values(**data)
-            await session.execute(query)
+            query = update(cls.model).where(cls.model.id == model_id).values(**data).returning(cls.model.__table__.columns)
+            result = await session.execute(query)
             await session.commit()
+
+            return result.mappings().first()
 
     @classmethod
     async def find_with_filters(cls, *filters):

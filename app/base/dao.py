@@ -1,11 +1,11 @@
-from app.base.models import Accessoriesbase, Roofsbase
+from app.base.models import Accessories, Roofs
 from app.dao.base import BaseDAO
 
 
-class AccessoriesbaseDAO(BaseDAO):
+class AccessoriesDAO(BaseDAO):
 
-    model = Accessoriesbase
+    model = Accessories
 
-class RoofbaseDAO(BaseDAO):
+class RoofsDAO(BaseDAO):
 
-    model = Roofsbase
+    model = Roofs
