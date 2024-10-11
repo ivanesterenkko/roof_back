@@ -31,7 +31,7 @@ class SlopeResponse(BaseModel):
 class ProjectResponse(BaseModel):
     project_id: UUID4
     project_name: str
-    datatime_created: str
+    datetime_created: str
 
 class ProjectRequest(BaseModel):
     name: str

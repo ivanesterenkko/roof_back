@@ -22,7 +22,7 @@ async def get_projects(user: Users = Depends(get_current_user)) -> List[ProjectR
         ProjectResponse(
             project_id=project.id,
             project_name=project.name,
-            datetime_created=project.datetime_created.strftime("%d.%m.%Y at %H:%M")
+            datetime_created=(project.datetime_created).strftime("%d.%m.%Y at %H:%M")
         ) for project in projects
     ]
 
@@ -49,7 +49,7 @@ async def add_project(
     return ProjectResponse(
         project_id=new_project.id,
         project_name=new_project.name,
-        datetime_created=new_project.datetime_created.strftime("%d.%m.%Y at %H:%M")
+        datetime_created=(new_project.datetime_created).strftime("%d.%m.%Y at %H:%M")
     )
 
 
