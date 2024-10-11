@@ -43,8 +43,8 @@ async def add_project(project:ProjectRequest,
 
 @router.post("/projects/{project_id}/add_line", description="Создание геометрии крыши")
 async def add_line(project_id: UUID4, 
-                   line: LineData, 
-                   user: Users = Depends(get_current_user)) -> List[SSlope]:
+                   line: LineData,
+                   user: Users = Depends(get_current_user)) -> LineResponce:
     project = await ProjectsDAO.find_by_id(project_id)
     if not project:
         raise ProjectNotFound
@@ -60,15 +60,57 @@ async def add_line(project_id: UUID4,
                                 x_end_projection=line.end.x, 
                                 y_end_projection=line.end.y, 
                                 length=round(((line.start.x-line.end.x)**2 + (line.start.y-line.end.y)**2)**0.5, 2))
+    return LineResponce(line_id=result.id,
+                        line_name=result.name,
+                        line_length=result.length)
 
-@router.get("/my_projects/{project_id}", description="Получение проекта пользователя")
-async def get_project(project_id: int, user: Users = Depends(get_current_user)) -> SProject:
+@router.patch("/projects/{project_id}/lines/{line_id}/add_node", description="Добавление узла кровли")
+async def add_node(project_id: UUID4,
+                   line_id: UUID4, 
+                   line_data: LineRequest,
+                   user: Users = Depends(get_current_user)) -> LineResponce:
     project = await ProjectsDAO.find_by_id(project_id)
     if not project:
         raise ProjectNotFound
     if project.user_id != user.id:
         raise ProjectNotFound
-    return SProject(id=project.id, lines=json.loads(project.lines)) 
+    line = await LinesDAO.find_by_id(line_id)
+    if not line:
+        raise LineNotFound
+    if line.project_id != project_id:
+        raise LineNotFound
+    result = await LinesDAO.update_(model_id=line_id, 
+                                    type=line_data.type)
+    return LineResponce(line_id=result.id,
+                        line_type=result.type,
+                        line_name=result.name,
+                        line_length=result.length)
+
+@router.patch("/projects/{project_id}/lines/{line_id}/update_line", description="Изменение размеров линии ")
+async def update_line(project_id: UUID4,
+                   line_id: UUID4, 
+                   line_data: LineData,
+                   user: Users = Depends(get_current_user)) -> LineResponce:
+    project = await ProjectsDAO.find_by_id(project_id)
+    if not project:
+        raise ProjectNotFound
+    if project.user_id != user.id:
+        raise ProjectNotFound
+    line = await LinesDAO.find_by_id(line_id)
+    if not line:
+        raise LineNotFound
+    if line.project_id != project_id:
+        raise LineNotFound
+    result = await LinesDAO.update_(model_id=line_id, 
+                                    x_start=line_data.start.x, 
+                                    y_start=line_data.start.y, 
+                                    x_end=line_data.end.x, 
+                                    y_end=line_data.end.y,
+                                    length=round(((line_data.start.x-line_data.end.x)**2 + (line_data.start.y-line_data.end.y)**2)**0.5, 2))
+    return LineResponce(line_id=result.id,
+                        line_type=result.type,
+                        line_name=result.name,
+                        line_length=result.length)
 
 @router.post("/projects/{project_id}/add_line/slopes", description="Разметка скатов")
 async def add_slope(project_id: UUID4, 
