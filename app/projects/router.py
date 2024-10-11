@@ -55,10 +55,10 @@ async def add_line(project_id: UUID4,
     line_name = get_next_name(existing_names)
     result = await LinesDAO.add(project_id=project_id,
                                 name=line_name,
-                                x_start=line.start.x, 
-                                y_start=line.start.y, 
-                                x_end=line.end.x, 
-                                y_end=line.end.y, 
+                                x_start_projection=line.start.x, 
+                                y_start_projection=line.start.y, 
+                                x_end_projection=line.end.x, 
+                                y_end_projection=line.end.y, 
                                 length=round(((line.start.x-line.end.x)**2 + (line.start.y-line.end.y)**2)**0.5, 2))
     return LineResponce(line_id=result.id,
                         line_name=result.name,
@@ -81,13 +81,13 @@ async def add_slope(project_id: UUID4,
     existing_slopes = await SlopesDAO.find_all(project_id=project.id)
     existing_names = [slope.name for slope in existing_slopes]
     slopes_list = []
-    print(slopes)
     for slope in slopes:
         slope_name = get_next_name(existing_names)
         existing_names.append(slope_name)
         result = await SlopesDAO.add(name=slope_name,
                                      lines_id = slope,
                                      project_id=project.id)
+        # !!! добавить развернутые линии (not _projection)
         slopes_list.append(SlopeResponse(id=result.id, 
                                          slope_name=result.name,
                                          lines_id=result.lines_id))

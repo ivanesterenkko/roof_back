@@ -36,10 +36,14 @@ class Lines(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
     name: Mapped[str] = mapped_column(String, nullable=False)
-    x_start: Mapped[float] = mapped_column(Float, nullable=False)
-    y_start: Mapped[float] = mapped_column(Float, nullable=False)
-    x_end: Mapped[float] = mapped_column(Float, nullable=False)
-    y_end: Mapped[float] = mapped_column(Float, nullable=False)
+    x_start_projection: Mapped[float] = mapped_column(Float, nullable=False)
+    y_start_projection: Mapped[float] = mapped_column(Float, nullable=False)
+    x_end_projection: Mapped[float] = mapped_column(Float, nullable=False)
+    y_end_projection: Mapped[float] = mapped_column(Float, nullable=False)
+    x_start: Mapped[float] = mapped_column(Float, nullable=True)
+    y_start: Mapped[float] = mapped_column(Float, nullable=True)
+    x_end: Mapped[float] = mapped_column(Float, nullable=True)
+    y_end: Mapped[float] = mapped_column(Float, nullable=True)
     length: Mapped[float] = mapped_column(Float, nullable=False)
 
     project_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('project.id'), nullable=False)
