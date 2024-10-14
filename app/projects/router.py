@@ -59,7 +59,7 @@ async def delete_project(
     await ProjectsDAO.delete_(model_id=project_id)
 
 @router.post("/projects/{project_id}/add_line", description="Create roof geometry")
-async def add_line(
+async def add_line_perimeter(
     project_id: UUID4,
     line: LineData,
     user: Users = Depends(get_current_user)
@@ -119,10 +119,10 @@ async def update_line_perimeter(
 
     updated_line = await LinesDAO.update_(
         model_id=line_id,
-        x_start=line_data.start.x,
-        y_start=line_data.start.y,
-        x_end=line_data.end.x,
-        y_end=line_data.end.y,
+        x_start_projection=line_data.start.x,
+        y_start_projection=line_data.start.y,
+        x_end_projection=line_data.end.x,
+        y_end_projection=line_data.end.y,
         length=round(((line_data.start.x - line_data.end.x) ** 2 + (line_data.start.y - line_data.end.y) ** 2) ** 0.5, 2)
     )
     return LineResponse(
@@ -157,8 +157,41 @@ async def add_node(
     )
 
 
+@router.post("/projects/{project_id}/add_line", description="Create roof geometry")
+async def add_line_slope(
+    project_id: UUID4,
+    line: LineData,
+    user: Users = Depends(get_current_user)
+) -> LineResponse:
+    project = await ProjectsDAO.find_by_id(project_id)
+    if not project or project.user_id != user.id:
+        raise ProjectNotFound
+
+    existing_lines = await LinesDAO.find_all(project_id=project.id)
+    existing_names = [line.name for line in existing_lines]
+    line_name = get_next_name(existing_names)
+
+    new_line = await LinesDAO.add(
+        project_id=project_id,
+        name=line_name,
+        x_start_projection=line.start.x,
+        y_start_projection=line.start.y,
+        x_end_projection=line.end.x,
+        y_end_projection=line.end.y,
+        x_start=line.start.x,
+        y_start=line.start.y,
+        x_end=line.end.x,
+        y_end=line.end.y,
+        length=round(((line.start.x - line.end.x) ** 2 + (line.start.y - line.end.y) ** 2) ** 0.5, 2)
+    )
+    return LineResponse(
+        line_id=new_line.id,
+        line_name=new_line.name,
+        line_length=new_line.length
+    )
+
 @router.patch("/projects/{project_id}/lines/{line_id}/update_line", description="Update line dimensions")
-async def update_line(
+async def update_line_slope(
     project_id: UUID4,
     line_id: UUID4,
     line_data: LineData,
@@ -260,6 +293,38 @@ async def get_slope(
         lines_id=slope.lines_id
     )
 
+@router.post("/projects/{project_id}/add_line/slopes/{slope_id}/holes", description="Create roof geometry")
+async def add_hole(
+    project_id: UUID4,
+    line: LineData,
+    user: Users = Depends(get_current_user)
+) -> LineResponse:
+    project = await ProjectsDAO.find_by_id(project_id)
+    if not project or project.user_id != user.id:
+        raise ProjectNotFound
+
+    existing_lines = await LinesDAO.find_all(project_id=project.id)
+    existing_names = [line.name for line in existing_lines]
+    line_name = get_next_name(existing_names)
+
+    new_line = await LinesDAO.add(
+        project_id=project_id,
+        name=line_name,
+        x_start_projection=line.start.x,
+        y_start_projection=line.start.y,
+        x_end_projection=line.end.x,
+        y_end_projection=line.end.y,
+        x_start=line.start.x,
+        y_start=line.start.y,
+        x_end=line.end.x,
+        y_end=line.end.y,
+        length=round(((line.start.x - line.end.x) ** 2 + (line.start.y - line.end.y) ** 2) ** 0.5, 2)
+    )
+    return LineResponse(
+        line_id=new_line.id,
+        line_name=new_line.name,
+        line_length=new_line.length
+    )
 
 @router.post("/my_projects/{project_id}/slopes/{slope_id}/roofs", description="Calculate roof sheets for slope")
 async def add_sheets(
