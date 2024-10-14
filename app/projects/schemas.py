@@ -1,3 +1,4 @@
+import datetime
 from typing import List, Tuple
 from pydantic import UUID4, BaseModel
 
@@ -31,14 +32,10 @@ class SlopeResponse(BaseModel):
 class ProjectResponse(BaseModel):
     project_id: UUID4
     project_name: str
-    datetime_created: str
+    datetime_created: datetime
 
 class ProjectRequest(BaseModel):
     name: str
-    full_name_customer: str
-    is_company: bool
-    company_name: str
-    customer_contacts: str
     address: str
     roof_id: UUID4
 

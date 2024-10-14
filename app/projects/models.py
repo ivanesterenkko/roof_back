@@ -12,25 +12,17 @@ class Projects(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
     name: Mapped[str] = mapped_column(String, nullable=False)
-    full_name_customer: Mapped[str] = mapped_column(String, nullable=False)
-    is_company: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    company_name: Mapped[str] = mapped_column(String, nullable=False)
-    customer_contacts: Mapped[str] = mapped_column(String, nullable=False)
     address: Mapped[str] = mapped_column(String, nullable=False)
     datetime_created: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
     
     user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True),ForeignKey('users.id'), nullable=False)
     roof_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True),ForeignKey('roof.id'), nullable=True)
     
-    lines = relationship("Lines", back_populates="project")
+    lines = relationship("Lines", back_populates="project", cascade="all, delete-orphan")
     user = relationship("Users", back_populates="projects")
     roof = relationship("Roofs", back_populates="projects")
     slopes = relationship("Slopes", back_populates="project", cascade="all, delete-orphan")
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        if not self.is_company:
-            self.company_name = None
 
 class Lines(Base):
     __tablename__ = 'line'

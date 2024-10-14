@@ -22,7 +22,7 @@ async def get_projects(user: Users = Depends(get_current_user)) -> List[ProjectR
         ProjectResponse(
             project_id=project.id,
             project_name=project.name,
-            datetime_created=(project.datetime_created).strftime("%d.%m.%Y at %H:%M")
+            datetime_created=project.datetime_created
         ) for project in projects
     ]
 
@@ -38,10 +38,6 @@ async def add_project(
 
     new_project = await ProjectsDAO.add(
         name=project.name,
-        full_name_customer=project.full_name_customer,
-        is_company=project.is_company,
-        company_name=project.company_name if project.is_company else None,
-        customer_contacts=project.customer_contacts,
         address=project.address,
         roof_id=project.roof_id,
         user_id=user.id
@@ -49,9 +45,18 @@ async def add_project(
     return ProjectResponse(
         project_id=new_project.id,
         project_name=new_project.name,
-        datetime_created=(new_project.datetime_created).strftime("%d.%m.%Y at %H:%M")
+        datetime_created=new_project.datetime_created
     )
 
+@router.delete("/projects", description="Delete a roofing project")
+async def delete_project(
+    project_id: UUID4,
+    user: Users = Depends(get_current_user)
+) -> None:
+    project = await ProjectsDAO.find_by_id(project_id)
+    if not project or project.user_id != user.id:
+        raise ProjectNotFound
+    await ProjectsDAO.delete_(model_id=project_id)
 
 @router.post("/projects/{project_id}/add_line", description="Create roof geometry")
 async def add_line(
@@ -80,6 +85,51 @@ async def add_line(
         line_id=new_line.id,
         line_name=new_line.name,
         line_length=new_line.length
+    )
+
+@router.delete("/projects/{project_id}/lines/{line_id}", description="Delete a line")
+async def delete_line(
+    project_id: UUID4,
+    line_id: UUID4,
+    user: Users = Depends(get_current_user)
+) -> None:
+    project = await ProjectsDAO.find_by_id(project_id)
+    if not project or project.user_id != user.id:
+        raise ProjectNotFound
+
+    line = await LinesDAO.find_by_id(line_id)
+    if not line or line.project_id != project_id:
+        raise LineNotFound
+    await LinesDAO.delete_(model_id=line_id)
+
+@router.patch("/projects/{project_id}/lines/{line_id}/update_line", description="Update line dimensions")
+async def update_line_perimeter(
+    project_id: UUID4,
+    line_id: UUID4,
+    line_data: LineData,
+    user: Users = Depends(get_current_user)
+) -> LineResponse:
+    project = await ProjectsDAO.find_by_id(project_id)
+    if not project or project.user_id != user.id:
+        raise ProjectNotFound
+
+    line = await LinesDAO.find_by_id(line_id)
+    if not line or line.project_id != project_id:
+        raise LineNotFound
+
+    updated_line = await LinesDAO.update_(
+        model_id=line_id,
+        x_start=line_data.start.x,
+        y_start=line_data.start.y,
+        x_end=line_data.end.x,
+        y_end=line_data.end.y,
+        length=round(((line_data.start.x - line_data.end.x) ** 2 + (line_data.start.y - line_data.end.y) ** 2) ** 0.5, 2)
+    )
+    return LineResponse(
+        line_id=updated_line.id,
+        line_type=updated_line.type,
+        line_name=updated_line.name,
+        line_length=updated_line.length
     )
 
 
@@ -240,6 +290,7 @@ async def add_sheets(
         new_sheet = await SheetsDAO.add(
             name=sheet_name,
             x_start=sheet[0],
+            
             length=sheet[1],
             area=sheet[2],
             slope_id=slope_id

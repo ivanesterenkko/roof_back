@@ -12,11 +12,13 @@ from app.users.dao import UsersDAO
 
 def get_token(request: Request):
 
-    token = request.cookies.get("access_token")
+    token = request.cookies.get("access_token") or request.headers.get("Authorization")
 
     if not token:
-
         raise TokenAbsentException
+
+    if token.startswith("Bearer "):
+        token = token[len("Bearer "):]
 
     return token
 
