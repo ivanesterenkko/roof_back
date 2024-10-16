@@ -58,7 +58,7 @@ async def delete_project(
         raise ProjectNotFound
     await ProjectsDAO.delete_(model_id=project_id)
 
-@router.post("/projects/{project_id}/add_line", description="Create roof geometry")
+@router.post("/projects/{project_id}/lines_perimeter", description="Create roof geometry")
 async def add_line_perimeter(
     project_id: UUID4,
     line: LineData,
@@ -104,7 +104,7 @@ async def delete_line(
         raise LineNotFound
     await LinesDAO.delete_(model_id=line_id)
 
-@router.patch("/projects/{project_id}/lines/{line_id}/update_line", description="Update line dimensions")
+@router.patch("/projects/{project_id}/lines_perimeter/{line_id}", description="Update line dimensions")
 async def update_line_perimeter(
     project_id: UUID4,
     line_id: UUID4,
@@ -159,7 +159,7 @@ async def update_line_perimeter(
 #     )
 
 
-@router.post("/projects/{project_id}/add_line", description="Create roof geometry")
+@router.post("/projects/{project_id}/lines_slope", description="Create roof geometry")
 async def add_line_slope(
     project_id: UUID4,
     line: LineData,
@@ -192,7 +192,7 @@ async def add_line_slope(
         line_length=new_line.length
     )
 
-@router.patch("/projects/{project_id}/lines/{line_id}/update_line", description="Update line dimensions")
+@router.patch("/projects/{project_id}/lines_slope/{line_id}", description="Update line dimensions")
 async def update_line_slope(
     project_id: UUID4,
     line_id: UUID4,
@@ -223,7 +223,7 @@ async def update_line_slope(
     )
 
 
-@router.post("/projects/{project_id}/add_line/slopes", description="Add roof slopes")
+@router.post("/projects/{project_id}/slopes", description="Add roof slopes")
 async def add_slope(
     project_id: UUID4,
     user: Users = Depends(get_current_user)
@@ -275,7 +275,7 @@ async def add_slope(
     return slopes_list
 
 
-@router.get("/my_projects/{project_id}/add_line/slopes/{slope_id}", description="View slope")
+@router.get("/my_projects/{project_id}/slopes/{slope_id}", description="View slope")
 async def get_slope(
     project_id: UUID4,
     slope_id: UUID4,
@@ -295,8 +295,8 @@ async def get_slope(
         lines_id=slope.lines_id
     )
 
-@router.post("/projects/{project_id}/add_line/slopes/{slope_id}/holes", description="Add cutout")
-async def add_hole(
+@router.post("/projects/{project_id}/slopes/{slope_id}", description="Add cutout")
+async def add_cutout(
     project_id: UUID4,
     slope_id: UUID4,
     points: List[PointData],
@@ -313,20 +313,23 @@ async def add_hole(
     existing_cutouts = await CutoutsDAO.find_all(slope_id=slope.id)
     existing_names = [cutout.name for cutout in existing_cutouts]
     cutout_name = get_next_name(existing_names)
+    points_x = [point.x for point in points]
+    points_y = [point.y for point in points]
 
-    new_cutout = await LinesDAO.add(
+    new_cutout = await CutoutsDAO.add(
         slope_id=slope_id,
         name=cutout_name,
-        points=points
+        x_coords=points_x,
+        y_coords=points_y
     )
     return CutoutResponse(
         cutout_id=new_cutout.id,
         cutout_name=new_cutout.name,
-        cutout_points=new_cutout.points,
+        cutout_points=points,
         slope_id=new_cutout.slope_id
     )
 
-@router.delete("/projects/{project_id}/add_line/slopes/{slope_id}/holes", description="Delete cutout")
+@router.delete("/projects/{project_id}/add_line/slopes/{slope_id}", description="Delete cutout")
 async def delete_cutout(
     slope_id: UUID4,
     cutout_id: UUID4,
@@ -337,7 +340,7 @@ async def delete_cutout(
         raise SlopeNotFound
     await CutoutsDAO.delete_(model_id=cutout_id)
 
-@router.post("/my_projects/{project_id}/slopes/{slope_id}/roofs", description="Calculate roof sheets for slope")
+@router.post("/projects/{project_id}/slopes/{slope_id}/roofs", description="Calculate roof sheets for slope")
 async def add_sheets(
     project_id: UUID4,
     slope_id: UUID4,
@@ -356,7 +359,8 @@ async def add_sheets(
     if cutouts in None:
         figure = Polygon(points)
     else:
-        figure = create_hole(Polygon(points), cutouts.points)
+        points_cut = list(zip(cutouts.x_coords, cutouts.y_coord))
+        figure = create_hole(Polygon(points), points_cut)
     roof = await RoofsDAO.find_by_id(project.roof_id)
     sheets = await create_sheets(figure, roof)
 
