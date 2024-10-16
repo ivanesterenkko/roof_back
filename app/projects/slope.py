@@ -216,12 +216,12 @@ class LineRotate:
 
 def align_figure(lines):
     """
-    Разворачивает фигуру так, чтобы линия с типом 'Карниз' была параллельна оси OX
+    Разворачивает фигуру так, чтобы линия с типом 'Perimeter' была параллельна оси OX
     и находилась в первой четверти, начиная с точки (0, 0).
     """
-    cornice_line = next((line for line in lines if line.line_type == 'Карниз'), None)
+    cornice_line = next((line for line in lines if line.line_type == 'Perimeter'), None)
     if cornice_line is None:
-        raise ValueError("Линия с типом 'Карниз' не найдена")
+        raise ValueError("Линия не найдена")
 
     dx = cornice_line.end[0] - cornice_line.start[0]
     dy = cornice_line.end[1] - cornice_line.start[1]
@@ -235,12 +235,12 @@ def align_figure(lines):
         line.translate(translation_vector)
 
     for line in lines:
-        if line.line_type != 'Карниз':
+        if line.line_type != 'Perimeter':
             # Проверяем, если хотя бы одна из точек линии ниже карниза
             if line.start[1] < cornice_line.start[1] or line.end[1] < cornice_line.start[1]:
                 line.reflect_over_line(cornice_line)
 
     if cornice_line.end[0] < 0 or cornice_line.end[1] < 0:
-        raise ValueError("После трансформации 'Карниз' не находится в первой четверти")
+        raise ValueError("После трансформации 'Perimeter' не находится в первой четверти")
 
     return lines

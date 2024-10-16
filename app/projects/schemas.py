@@ -53,3 +53,9 @@ class SheetResponse(BaseModel):
     sheet_x_start: float
     sheet_length: float
     sheet_area: float
+
+class CutoutResponse(BaseModel):
+    cutout_id: UUID4
+    cutout_name: str
+    cutout_points_id: list[PointData]
+    slope_id: UUID4

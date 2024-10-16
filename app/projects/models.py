@@ -62,10 +62,7 @@ class Cutouts(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
     name: Mapped[str] = mapped_column(String, nullable=False)
-    x_start: Mapped[float] = mapped_column(Float, nullable=True)
-    y_start: Mapped[float] = mapped_column(Float, nullable=True)
-    x_end: Mapped[float] = mapped_column(Float, nullable=True)
-    y_end: Mapped[float] = mapped_column(Float, nullable=True)
+    points: Mapped[list[float]] = mapped_column(ARRAY(Float), nullable=False)
 
     slope_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('slope.id'), nullable=False)
 
