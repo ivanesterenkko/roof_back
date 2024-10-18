@@ -1,6 +1,8 @@
 from fastapi import APIRouter, Depends
+from pydantic import UUID4
 from app.base.dao import RoofsDAO
 from app.base.schemas import RoofRequest, RoofResponse
+from app.exceptions import RoofNotFound
 from app.users.dependencies import get_current_user
 from app.users.models import Users
 
@@ -19,6 +21,24 @@ async def add_roof_base(roof: RoofRequest,
                                  color=roof.color,
                                  min_length=roof.min_length,
                                  max_length=roof.max_length)
+    return RoofResponse(roof_id=result.id, 
+                        roof_name=result.name,
+                        roof_type=result.type,
+                        roof_price=result.price,
+                        roof_overall_width=result.overall_width,
+                        roof_useful_width=result.useful_width,
+                        roof_overlap=result.overlap,
+                        roof_material=result.material,
+                        roof_color=result.color,
+                        roof_min_length=result.min_length,
+                        roof_max_length=result.max_length)
+
+@router.get("/roofs_base", description="Получение покрытия из библиотеки")
+async def get_roof_base(roof_id: UUID4,
+                        user: Users = Depends(get_current_user)) -> RoofResponse:
+    result = await RoofsDAO.find_by_id(roof_id)
+    if not result:
+        raise RoofNotFound
     return RoofResponse(roof_id=result.id, 
                         roof_name=result.name,
                         roof_type=result.type,

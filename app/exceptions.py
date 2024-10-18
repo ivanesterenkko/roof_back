@@ -25,6 +25,11 @@ class ProjectNotFound(AutoException):
     status_code = status.HTTP_400_BAD_REQUEST
     detail = "Проект не найден."
 
+class RoofNotFound(AutoException):
+
+    status_code = status.HTTP_400_BAD_REQUEST
+    detail = "Кровельное покрытие не найдено."
+
 
 class ProjectAlreadyExists(AutoException):
     status_code = status.HTTP_409_CONFLICT
