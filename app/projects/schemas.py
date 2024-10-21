@@ -24,14 +24,10 @@ class LineData(BaseModel):
     end: PointData
 
 
-class SlopeResponse(BaseModel):
-    id: UUID4
-    slope_name: str
-    lines_id: list[UUID4]
-
 class ProjectResponse(BaseModel):
     project_id: UUID4
     project_name: str
+    project_step: int
     datetime_created: datetime
 
 class ProjectRequest(BaseModel):
@@ -49,6 +45,11 @@ class LineResponse(BaseModel):
 
 class LineRequest(BaseModel):
     type: str
+
+class SlopeResponse(BaseModel):
+    id: UUID4
+    slope_name: str
+    lines: list[LineResponse]
 
 class SheetResponse(BaseModel):
     id: UUID4
