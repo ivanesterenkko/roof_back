@@ -42,6 +42,8 @@ class ProjectRequest(BaseModel):
 class LineResponse(BaseModel):
     line_id: UUID4
     line_name: str
+    projection_coords: LineData
+    real_coords: LineData
     line_type: str = ''
     line_length: float
 

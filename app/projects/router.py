@@ -79,6 +79,10 @@ async def add_line_perimeter(
         y_start_projection=line.start.y,
         x_end_projection=line.end.x,
         y_end_projection=line.end.y,
+        x_start=line.start.x,
+        y_start=line.start.y,
+        x_end=line.end.x,
+        y_end=line.end.y,
         type="Perimeter",
         length=round(((line.start.x - line.end.x) ** 2 + (line.start.y - line.end.y) ** 2) ** 0.5, 2)
     )
@@ -86,7 +90,11 @@ async def add_line_perimeter(
         line_id=new_line.id,
         line_name=new_line.name,
         line_type=new_line.type,
-        line_length=new_line.length
+        line_length=new_line.length,
+        projection_coords=LineData(start=PointData(x=new_line.x_start_projection, y=new_line.y_start_projection), 
+                            end=PointData(x=new_line.x_end_projection, y=new_line.y_end_projection)),
+        real_coords=LineData(start=PointData(x=new_line.x_start, y=new_line.y_start), 
+                            end=PointData(x=new_line.x_end, y=new_line.y_end))
     )
 
 @router.delete("/projects/{project_id}/lines/{line_id}", description="Delete a line")
@@ -125,15 +133,37 @@ async def update_line_perimeter(
         y_start_projection=line_data.start.y,
         x_end_projection=line_data.end.x,
         y_end_projection=line_data.end.y,
+        x_start=line_data.start.x,
+        y_start=line_data.start.y,
+        x_end=line_data.end.x,
+        y_end=line_data.end.y,
         length=round(((line_data.start.x - line_data.end.x) ** 2 + (line_data.start.y - line_data.end.y) ** 2) ** 0.5, 2)
     )
     return LineResponse(
         line_id=updated_line.id,
         line_type=updated_line.type,
         line_name=updated_line.name,
-        line_length=updated_line.length
+        line_length=updated_line.length,
+        projection_coords=LineData(start=PointData(x=updated_line.x_start_projection, y=updated_line.y_start_projection), 
+                            end=PointData(x=updated_line.x_end_projection, y=updated_line.y_end_projection)),
+        real_coords=LineData(start=PointData(x=updated_line.x_start, y=updated_line.y_start), 
+                            end=PointData(x=updated_line.x_end, y=updated_line.y_end))
     )
 
+@router.get("/projects/{project_id}/lines/{line_id}", description="Get list of projects")
+async def get_line(line_id: UUID4,
+                   user: Users = Depends(get_current_user)) -> LineResponse:
+    line = await LinesDAO.find_by_id(line_id)
+    return LineResponse(
+        line_id=line.id,
+        line_type=line.type,
+        line_name=line.name,
+        line_length=line.length,
+        projection_coords=LineData(start=PointData(x=line.x_start_projection, y=line.y_start_projection), 
+                            end=PointData(x=line.x_end_projection, y=line.y_end_projection)),
+        real_coords=LineData(start=PointData(x=line.x_start, y=line.y_start), 
+                            end=PointData(x=line.x_end, y=line.y_end))
+    )
 
 # @router.patch("/projects/{project_id}/lines/{line_id}/add_node", description="Add roof node")
 # async def add_node(
@@ -189,7 +219,11 @@ async def add_line_slope(
     return LineResponse(
         line_id=new_line.id,
         line_name=new_line.name,
-        line_length=new_line.length
+        line_length=new_line.length,
+        projection_coords=LineData(start=PointData(x=new_line.x_start_projection, y=new_line.y_start_projection), 
+                            end=PointData(x=new_line.x_end_projection, y=new_line.y_end_projection)),
+        real_coords=LineData(start=PointData(x=new_line.x_start, y=new_line.y_start), 
+                            end=PointData(x=new_line.x_end, y=new_line.y_end))
     )
 
 @router.patch("/projects/{project_id}/lines_slope/{line_id}", description="Update line dimensions")
@@ -219,7 +253,11 @@ async def update_line_slope(
         line_id=updated_line.id,
         line_type=updated_line.type,
         line_name=updated_line.name,
-        line_length=updated_line.length
+        line_length=updated_line.length,
+        projection_coords=LineData(start=PointData(x=updated_line.x_start_projection, y=updated_line.y_start_projection), 
+                            end=PointData(x=updated_line.x_end_projection, y=updated_line.y_end_projection)),
+        real_coords=LineData(start=PointData(x=updated_line.x_start, y=updated_line.y_start), 
+                            end=PointData(x=updated_line.x_end, y=updated_line.y_end))
     )
 
 

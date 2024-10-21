@@ -33,13 +33,13 @@ async def add_roof_base(roof: RoofRequest,
                         roof_min_length=result.min_length,
                         roof_max_length=result.max_length)
 
-@router.get("/roofs_base", description="Получение покрытия из библиотеки")
-async def get_roof_base(roof_id: UUID4,
-                        user: Users = Depends(get_current_user)) -> RoofResponse:
-    result = await RoofsDAO.find_by_id(roof_id)
-    if not result:
+@router.get("/roofs_base", description="Получение покрытий из библиотеки")
+async def get_roof_base(user: Users = Depends(get_current_user)) -> list[RoofResponse]:
+    results = await RoofsDAO.find_all()
+    if not results:
         raise RoofNotFound
-    return RoofResponse(roof_id=result.id, 
+    return [
+        RoofResponse(roof_id=result.id, 
                         roof_name=result.name,
                         roof_type=result.type,
                         roof_price=result.price,
@@ -50,3 +50,5 @@ async def get_roof_base(roof_id: UUID4,
                         roof_color=result.color,
                         roof_min_length=result.min_length,
                         roof_max_length=result.max_length)
+                        for result in results
+    ]
