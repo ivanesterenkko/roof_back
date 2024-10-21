@@ -94,7 +94,7 @@ class SlopeExtractor:
         return slopes
 
 
-def create_sheets(figure, roof):
+async def create_sheets(figure, roof):
     """Создание листов для покрытия полигона."""
     sheets = []
     overall_width = roof.overall_width
@@ -134,6 +134,7 @@ def create_sheets(figure, roof):
 
                 sheets.append([
                     round(x_start, 2),
+                    round(y_start, 2),
                     round(coords[3] - coords[1], 2),
                     round(overall_width * (coords[3] - coords[1]), 2)
                 ])

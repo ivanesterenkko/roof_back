@@ -75,6 +75,7 @@ class Sheets(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
     name: Mapped[str] = mapped_column(String, nullable=False)
     x_start: Mapped[float] = mapped_column(Float, nullable=False)
+    y_start: Mapped[float] = mapped_column(Float, nullable=False)
     length: Mapped[float] = mapped_column(Float, nullable=False)
     area: Mapped[float] = mapped_column(Float, nullable=False)
 

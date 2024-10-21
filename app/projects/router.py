@@ -397,8 +397,10 @@ async def add_sheets(
     if cutouts is None:
         figure = Polygon(points)
     else:
-        points_cut = list(zip(cutouts.x_coords, cutouts.y_coord))
-        figure = create_hole(Polygon(points), points_cut)
+        figure = Polygon(points)
+        for cutout in cutouts:
+            points_cut = list(zip(cutout.x_coords, cutout.y_coord))
+            figure = create_hole(figure, points_cut)
     roof = await RoofsDAO.find_by_id(project.roof_id)
     sheets = await create_sheets(figure, roof)
 
@@ -412,15 +414,16 @@ async def add_sheets(
         new_sheet = await SheetsDAO.add(
             name=sheet_name,
             x_start=sheet[0],
-            
-            length=sheet[1],
-            area=sheet[2],
+            y_start=sheet[1],
+            length=sheet[2],
+            area=sheet[3],
             slope_id=slope_id
         )
         sheets_data.append(SheetResponse(
             id=new_sheet.id,
             sheet_name=new_sheet.name,
             sheet_x_start=new_sheet.x_start,
+            sheet_y_start=new_sheet.y_start,
             sheet_length=new_sheet.length,
             sheet_area=new_sheet.area
         ))

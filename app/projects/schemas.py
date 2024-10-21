@@ -54,6 +54,7 @@ class SheetResponse(BaseModel):
     id: UUID4
     sheet_name: str
     sheet_x_start: float
+    sheet_y_start: float
     sheet_length: float
     sheet_area: float
 
