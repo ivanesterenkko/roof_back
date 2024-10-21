@@ -237,7 +237,6 @@ def align_figure(lines):
 
     for line in lines:
         if line.line_type != 'Perimeter':
-            # Проверяем, если хотя бы одна из точек линии ниже карниза
             if line.start[1] < cornice_line.start[1] or line.end[1] < cornice_line.start[1]:
                 line.reflect_over_line(cornice_line)
 
