@@ -15,6 +15,11 @@ class SlopeNotFound(AutoException):
     status_code = status.HTTP_400_BAD_REQUEST
     detail = "Скат не найден."
 
+class SheetNotFound(AutoException):
+
+    status_code = status.HTTP_400_BAD_REQUEST
+    detail = "Лист кровли не найден."
+
 class LineNotFound(AutoException):
 
     status_code = status.HTTP_400_BAD_REQUEST
