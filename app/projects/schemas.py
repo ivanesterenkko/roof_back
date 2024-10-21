@@ -58,6 +58,7 @@ class SheetResponse(BaseModel):
     sheet_length: float
     sheet_area: float
 
+
 class CutoutResponse(BaseModel):
     cutout_id: UUID4
     cutout_name: str
