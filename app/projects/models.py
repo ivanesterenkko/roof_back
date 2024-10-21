@@ -40,7 +40,7 @@ class Lines(Base):
     y_end: Mapped[float] = mapped_column(Float, nullable=True)
     length: Mapped[float] = mapped_column(Float, nullable=False)
 
-    project_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('project.id'), nullable=False)
+    project_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('project.id', ondelete='CASCADE'), nullable=False)
 
     project = relationship("Projects", back_populates="lines")
 
@@ -51,7 +51,7 @@ class Slopes(Base):
     name: Mapped[str] = mapped_column(String, nullable=False)
 
     lines_id: Mapped[list[uuid.UUID]] = mapped_column(ARRAY(UUID(as_uuid=True)), nullable=False)
-    project_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('project.id'), nullable=False)
+    project_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('project.id', ondelete='CASCADE'), nullable=False)
 
     project = relationship("Projects", back_populates="slopes")
     cutouts = relationship("Cutouts", back_populates="slope", cascade="all, delete-orphan")
@@ -65,7 +65,7 @@ class Cutouts(Base):
     x_coords: Mapped[list[float]] = mapped_column(ARRAY(Float), nullable=False)
     y_coords: Mapped[list[float]] = mapped_column(ARRAY(Float), nullable=False)
 
-    slope_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('slope.id'), nullable=False)
+    slope_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('slope.id', ondelete='CASCADE'), nullable=False)
 
     slope = relationship("Slopes", back_populates="cutouts")
 
@@ -78,7 +78,7 @@ class Sheets(Base):
     length: Mapped[float] = mapped_column(Float, nullable=False)
     area: Mapped[float] = mapped_column(Float, nullable=False)
 
-    slope_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('slope.id'), nullable=False)
+    slope_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('slope.id', ondelete='CASCADE'), nullable=False)
 
     slope = relationship("Slopes", back_populates="sheets")
 

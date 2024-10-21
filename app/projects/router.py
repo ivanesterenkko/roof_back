@@ -391,10 +391,10 @@ async def add_sheets(
     slope = await SlopesDAO.find_by_id(slope_id)
     if not slope or slope.project_id != project_id:
         raise SlopeNotFound
-    cutouts = CutoutsDAO.find_all(slope_id=slope_id)
+    cutouts = await CutoutsDAO.find_all(slope_id=slope_id)
     lines = await asyncio.gather(*[LinesDAO.find_by_id(line_id) for line_id in slope.lines_id])
     points = [(line.x_start, line.y_start) for line in lines]
-    if cutouts in None:
+    if cutouts is None:
         figure = Polygon(points)
     else:
         points_cut = list(zip(cutouts.x_coords, cutouts.y_coord))
