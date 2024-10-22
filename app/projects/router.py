@@ -162,6 +162,7 @@ async def add_line_slope(
     new_line = await LinesDAO.add(
         project_id=project_id,
         name=line_name,
+        type='',
         x_start_projection=line.start.x,
         y_start_projection=line.start.y,
         x_end_projection=line.end.x,
@@ -431,11 +432,9 @@ async def get_sheets(
     sheets = await SheetsDAO.find_all(slope_id=slope_id)
     return [ SheetResponse(
             id=sheet.id,
-            sheet_name=sheet.name,
             sheet_x_start=sheet.x_start,
             sheet_y_start=sheet.y_start,
-            sheet_length=sheet.length,
-            sheet_area=sheet.area
+            sheet_length=sheet.length
         ) for sheet in sheets]
 
 @router.delete("/projects/{project_id}/add_line/slopes/{slope_id}/sheets/{sheet_id}", description="Delete cutout")
@@ -469,39 +468,38 @@ async def add_sheets(
         raise SlopeNotFound
     cutouts = await CutoutsDAO.find_all(slope_id=slope_id)
     lines = await asyncio.gather(*[LinesDAO.find_by_id(line_id) for line_id in slope.lines_id])
-    points = [(line.x_start, line.y_start) for line in lines]
+    points = []
+    for line in lines:
+        if len(points) == 0:
+            points.append( (line.x_start, line.y_start) )
+            points.append( (line.x_end, line.y_end) )
+        else:
+            if line.x_start == points[-1][0] and line.y_start == points[-1][1]:
+                points.append( (line.x_start, line.y_start) )
+            else:
+                points.append( (line.x_end, line.y_end) )
     if cutouts is None:
         figure = Polygon(points)
     else:
         figure = Polygon(points)
         for cutout in cutouts:
-            points_cut = list(zip(cutout.x_coords, cutout.y_coord))
+            points_cut = list(zip(cutout.x_coords, cutout.y_coords))
             figure = create_hole(figure, points_cut)
     roof = await RoofsDAO.find_by_id(project.roof_id)
     sheets = await create_sheets(figure, roof)
-
-    existing_sheets = await SheetsDAO.find_all(slope_id=slope_id)
-    existing_names = [sheet.name for sheet in existing_sheets]
-
     sheets_data = []
     for sheet in sheets:
-        sheet_name = get_next_name(existing_names)
-        existing_names.append(sheet_name)
         new_sheet = await SheetsDAO.add(
-            name=sheet_name,
             x_start=sheet[0],
             y_start=sheet[1],
             length=sheet[2],
-            area=sheet[3],
             slope_id=slope_id
         )
         sheets_data.append(SheetResponse(
             id=new_sheet.id,
-            sheet_name=new_sheet.name,
             sheet_x_start=new_sheet.x_start,
             sheet_y_start=new_sheet.y_start,
-            sheet_length=new_sheet.length,
-            sheet_area=new_sheet.area
+            sheet_length=new_sheet.length
         ))
     return sheets_data
 
@@ -531,9 +529,42 @@ async def update_sheet(
     )
     return SheetResponse(
         id=updated_sheet.id,
-            sheet_name=updated_sheet.name,
             sheet_x_start=updated_sheet.x_start,
             sheet_y_start=updated_sheet.y_start,
-            sheet_length=updated_sheet.length,
-            sheet_area=updated_sheet.area
+            sheet_length=updated_sheet.length
     )
+
+@router.patch("/projects/{project_id}/slopes/{slope_id}/sheets/", description="Calculate roof sheets for slope")
+async def update_sheets(
+    project_id: UUID4,
+    slope_id: UUID4,
+    user: Users = Depends(get_current_user)
+) -> List[SheetResponse]:
+    project = await ProjectsDAO.find_by_id(project_id)
+    if not project or project.user_id != user.id:
+        raise ProjectNotFound
+    slope = await SlopesDAO.find_by_id(slope_id)
+    if not slope or slope.project_id != project_id:
+        raise SlopeNotFound
+    roof = await RoofsDAO.find_by_id(project.roof_id)
+    sheets = await SheetsDAO.find_all(slope_id=slope_id)
+    previous_sheet = None
+    for sheet in sheets:
+        if previous_sheet is None:
+            previous_sheet = sheet
+        if previous_sheet.x_start == sheet.x_start and previous_sheet.y_start + previous_sheet.length > sheet.y_start:
+            new_length = previous_sheet.y_start + previous_sheet.length + sheet.length - roof.overlap
+            if new_length <= roof.max_length:
+                result = await SheetsDAO.update_(model_id=previous_sheet.id, 
+                                        length=new_length
+                )
+                await SheetsDAO.delete_(model_id=sheet.id)
+                previous_sheet = result
+    new_sheets = await SheetsDAO.find_all(slope_id=slope_id)
+    return [SheetResponse(
+        id=new_sheet.id,
+        sheet_x_start=new_sheet.x_start,
+        sheet_y_start=new_sheet.y_start,
+        sheet_length=new_sheet.length,
+    )
+            for new_sheet in new_sheets]

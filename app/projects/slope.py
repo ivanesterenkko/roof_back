@@ -134,9 +134,8 @@ async def create_sheets(figure, roof):
 
                 sheets.append([
                     round(x_start, 2),
-                    round(y_start, 2),
-                    round(coords[3] - coords[1], 2),
-                    round(overall_width * (coords[3] - coords[1]), 2)
+                    round(coords[1], 2),
+                    round(coords[3] - coords[1], 2)
                 ])
             if y + length_min - overlap < y_max:
                 y -= overlap
@@ -149,7 +148,7 @@ async def create_sheets(figure, roof):
 
 def create_hole(figure, hole_points):
     """Создает отверстие в фигуре, вырезая полигон из заданных точек."""
-    coordinates = [(point.x, point.y) for point in hole_points]
+    coordinates = [(point[0], point[1]) for point in hole_points]
     hole_polygon = Polygon(coordinates)
     return figure.difference(hole_polygon)
 
