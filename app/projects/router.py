@@ -458,7 +458,7 @@ async def add_sheets(
     project_id: UUID4,
     slope_id: UUID4,
     user: Users = Depends(get_current_user)
-) -> List[SheetResponse]:
+) :
     project = await ProjectsDAO.find_by_id(project_id)
     if not project or project.user_id != user.id:
         raise ProjectNotFound
@@ -471,13 +471,13 @@ async def add_sheets(
     points = []
     for line in lines:
         if len(points) == 0:
-            points.append( (line.x_start, line.y_start) )
-            points.append( (line.x_end, line.y_end) )
+            points.append((line.x_start, line.y_start))
+            points.append((line.x_end, line.y_end))
         else:
-            if line.x_start == points[-1][0] and line.y_start == points[-1][1]:
-                points.append( (line.x_start, line.y_start) )
-            else:
-                points.append( (line.x_end, line.y_end) )
+            if (line.x_start == points[-1][0] and line.y_start == points[-1][1]):
+                points.append((line.x_end, line.y_end))
+            elif (line.x_end == points[-1][0] and line.y_end == points[-1][1]):
+                points.append((line.x_start, line.y_start))
     if cutouts is None:
         figure = Polygon(points)
     else:
