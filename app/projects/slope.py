@@ -239,7 +239,7 @@ def align_figure(lines):
             if line.start[1] < cornice_line.start[1] or line.end[1] < cornice_line.start[1]:
                 line.reflect_over_line(cornice_line)
 
-    if cornice_line.end[0] < 0 or cornice_line.end[1] < 0:
-        raise ValueError("После трансформации 'Perimeter' не находится в первой четверти")
+    # if cornice_line.end[0] < 0 or cornice_line.end[1] < 0:
+    #     raise ValueError("После трансформации 'Perimeter' не находится в первой четверти")
 
     return lines
