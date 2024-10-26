@@ -222,8 +222,8 @@ def align_figure(lines):
                                 [sin_angle,  cos_angle]])
 
     # Поворот всех точек вокруг origin
-    starts_rotated = np.dot(starts - origin, rotation_matrix.T)
-    ends_rotated = np.dot(ends - origin, rotation_matrix.T)
+    starts_rotated = np.dot(starts - origin, rotation_matrix.T) + origin
+    ends_rotated = np.dot(ends - origin, rotation_matrix.T) + origin
 
     # Обновление координат линий после поворота
     for i, line in enumerate(lines):
