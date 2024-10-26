@@ -202,38 +202,6 @@ async def update_line(
                             end=PointData(x=updated_line.x_end, y=updated_line.y_end))
     )
 
-# @router.patch("/projects/{project_id}/lines_slope/{line_id}", description="Update line dimensions")
-# async def update_line_slope(
-#     project_id: UUID4,
-#     line_id: UUID4,
-#     line_data: LineData,
-#     user: Users = Depends(get_current_user)
-# ) -> LineResponse:
-#     project = await ProjectsDAO.find_by_id(project_id)
-#     if not project or project.user_id != user.id:
-#         raise ProjectNotFound
-
-#     line = await LinesDAO.find_by_id(line_id)
-#     if not line or line.project_id != project_id:
-#         raise LineNotFound
-
-#     updated_line = await LinesDAO.update_(
-#         model_id=line_id,
-#         x_start=line_data.start.x,
-#         y_start=line_data.start.y,
-#         x_end=line_data.end.x,
-#         y_end=line_data.end.y,
-#         length=round(((line_data.start.x - line_data.end.x) ** 2 + (line_data.start.y - line_data.end.y) ** 2) ** 0.5, 2)
-#     )
-#     return LineResponse(
-#         line_id=updated_line.id,
-#         line_type=updated_line.type,
-#         line_name=updated_line.name,
-#         line_length=updated_line.length,
-#         real_coords=LineData(start=PointData(x=updated_line.x_start, y=updated_line.y_start), 
-#                             end=PointData(x=updated_line.x_end, y=updated_line.y_end))
-#     )
-
 @router.patch("/projects/{project_id}/lines/{line_id}/node_line", description="Add roof node")
 async def add_node(
     project_id: UUID4,
@@ -344,6 +312,41 @@ async def add_slope(
                                 ) for line in lines_slope]
         ))
     return slopes_list
+
+@router.patch("/projects/{project_id}/slopes/{slope_id}/lines_slope/{line_id}", description="Update line slope dimensions")
+async def update_line_slope(
+    project_id: UUID4,
+    slope_id: UUID4,
+    line_id: UUID4,
+    line_data: LineData,
+    user: Users = Depends(get_current_user)
+) -> LineResponse:
+    project = await ProjectsDAO.find_by_id(project_id)
+    if not project or project.user_id != user.id:
+        raise ProjectNotFound
+    slope = await SlopesDAO.find_by_id(slope_id)
+    if not slope or slope.project_id != project_id:
+        raise SlopeNotFound
+    line = await LinesSlopeDAO.find_by_id(line_id)
+    if not line or line.project_id != project_id:
+        raise LineNotFound
+
+    updated_line = await LinesSlopeDAO.update_(
+        model_id=line_id,
+        x_start=line_data.start.x,
+        y_start=line_data.start.y,
+        x_end=line_data.end.x,
+        y_end=line_data.end.y,
+        length=round(((line_data.start.x - line_data.end.x) ** 2 + (line_data.start.y - line_data.end.y) ** 2) ** 0.5, 2)
+    )
+    return LineSlopeResponse(
+        id=updated_line.id,
+        line_id=updated_line.line_id,
+        line_name=updated_line.name,
+        line_length=updated_line.length,
+        coords=LineData(start=PointData(x=updated_line.x_start, y=updated_line.y_start), 
+                            end=PointData(x=updated_line.x_end, y=updated_line.y_end))
+    )
 
 @router.delete("/projects/{project_id}/add_line/slopes/{slope_id}", description="Delete cutout")
 async def delete_cutout(
