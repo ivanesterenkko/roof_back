@@ -4,6 +4,7 @@ from typing import List
 
 import numpy as np
 from shapely.geometry import Polygon
+from shapely.prepared import prep
 
 from app.projects.schemas import PointData
 
@@ -95,7 +96,7 @@ class SlopeExtractor:
 
 
 async def create_sheets(figure, roof):
-    """Создание листов для покрытия полигона."""
+    """Создание листов для ската."""
     sheets = []
     overall_width = roof.overall_width
     delta_width = roof.overall_width - roof.useful_width
@@ -104,44 +105,55 @@ async def create_sheets(figure, roof):
     overlap = roof.overlap
 
     x_min, y_min, x_max, y_max = figure.bounds
+    prepared_figure = prep(figure)
+
+    x_positions = []
     x = x_min
-
     while x < x_max:
-        x_start = x
+        x_positions.append(x)
         x += overall_width
-        y = y_min
+        x -= delta_width
 
-        while y < y_max:
-            y_start = y
-            y += length_max
-            sheet = Polygon([
+    y_positions = []
+    y = y_min
+    while y < y_max:
+        y_positions.append(y)
+        y += length_max
+        y -= overlap
+
+    for x_start in x_positions:
+        x_end = x_start + overall_width
+        for y_start in y_positions:
+            y_end = y_start + length_max
+
+            sheet_polygon = Polygon([
                 (x_start, y_start),
-                (x, y_start),
-                (x, y),
-                (x_start, y)
+                (x_end, y_start),
+                (x_end, y_end),
+                (x_start, y_end)
             ])
-            intersection = figure.intersection(sheet)
 
-            if not intersection.is_empty:
-                coords = list(intersection.bounds)
-                sheet_height = coords[3] - coords[1]
-                sheet_width = coords[2] - coords[0]
+            if not prepared_figure.intersects(sheet_polygon):
+                continue
 
-                if sheet_height < overlap or sheet_width < delta_width:
-                    continue
-                elif sheet_height < length_min:
-                    coords[3] = coords[1] + length_min
+            intersection = figure.intersection(sheet_polygon)
+            if intersection.is_empty:
+                continue
 
-                sheets.append([
-                    round(x_start, 2),
-                    round(coords[1], 2),
-                    round(coords[3] - coords[1], 2)
-                ])
-            if y + length_min - overlap < y_max:
-                y -= overlap
+            coords = list(intersection.bounds)
+            sheet_height = coords[3] - coords[1]
+            sheet_width = coords[2] - coords[0]
 
-        if x < x_max:
-            x -= delta_width
+            if sheet_height < overlap or sheet_width < delta_width:
+                continue
+            elif sheet_height < length_min:
+                coords[3] = coords[1] + length_min
+
+            sheets.append([
+                round(x_start, 2),
+                round(coords[1], 2),
+                round(coords[3] - coords[1], 2)
+            ])
 
     return sheets
 
@@ -170,76 +182,113 @@ def get_next_name(existing_names: List[str]) -> str:
 
 
 class LineRotate:
-    def __init__(self, line_id, start, end, line_type):
+    def __init__(self, line_id, line_name, start, end, line_type):
         self.id = line_id
-        self.start = np.array(start) 
-        self.end = np.array(end)      
-        self.line_type = line_type    
-
-    def rotate(self, angle, origin=(0, 0)):
-        """Поворачивает линию на заданный угол относительно точки origin."""
-        rotation_matrix = np.array([
-            [np.cos(angle), -np.sin(angle)],
-            [np.sin(angle),  np.cos(angle)]
-        ])
-        origin = np.array(origin)
-
-        # Поворот начала и конца линии
-        self.start = np.dot(rotation_matrix, self.start - origin) + origin
-        self.end = np.dot(rotation_matrix, self.end - origin) + origin
-
-    def translate(self, offset):
-        """Сдвигает линию на заданное смещение."""
-        self.start += offset
-        self.end += offset
-
-    def reflect_over_line(self, line):
-        """Отражает линию относительно заданной линии."""
-        # Представляем линию для отражения как вектор
-        line_vec = line.end - line.start
-        line_vec_norm = line_vec / np.linalg.norm(line_vec)
-
-        def reflect_point(point):
-            point_vec = point - line.start
-            projection_length = np.dot(point_vec, line_vec_norm)
-            projection = projection_length * line_vec_norm
-            perpendicular = point_vec - projection
-            reflected_point = line.start + projection - perpendicular
-            return reflected_point
-
-        self.start = reflect_point(self.start)
-        self.end = reflect_point(self.end)
+        self.name = line_name
+        self.start = np.array(start, dtype=float)
+        self.end = np.array(end, dtype=float)
+        self.line_type = line_type
 
     def __repr__(self):
-        return f"Line(start={self.start}, end={self.end}, type={self.line_type})"
-
+        return f"Line(id={self.id}, start={self.start}, end={self.end}, type={self.line_type})"
 
 def align_figure(lines):
     """
     Разворачивает фигуру так, чтобы линия с типом 'Perimeter' была параллельна оси OX
-    и находилась в первой четверти, начиная с точки (0, 0).
+    и вся фигура находилась в первой четверти (без отрицательных координат).
+    Все координаты округляются до 2 знаков после запятой.
     """
+    # Поиск линии типа 'Perimeter'
     cornice_line = next((line for line in lines if line.line_type == 'Perimeter'), None)
     if cornice_line is None:
-        raise ValueError("Линия не найдена")
+        raise ValueError("Линия с типом 'Perimeter' не найдена")
 
+    # Вычисление угла поворота для выравнивания по оси OX
     dx = cornice_line.end[0] - cornice_line.start[0]
     dy = cornice_line.end[1] - cornice_line.start[1]
-    angle = -np.arctan2(dy, dx)  # Угол поворота для выравнивания по оси OX
+    angle = -np.arctan2(dy, dx)
 
-    for line in lines:
-        line.rotate(angle)
+    # Создание массива всех стартовых и конечных точек
+    starts = np.array([line.start for line in lines])
+    ends = np.array([line.end for line in lines])
 
-    translation_vector = -cornice_line.start  # Сдвиг для начала координат
-    for line in lines:
-        line.translate(translation_vector)
+    # Центр вращения — точка начала cornice_line
+    origin = cornice_line.start
 
-    for line in lines:
+    # Создание матрицы поворота
+    cos_angle = np.cos(angle)
+    sin_angle = np.sin(angle)
+    rotation_matrix = np.array([[cos_angle, -sin_angle],
+                                [sin_angle,  cos_angle]])
+
+    # Поворот всех точек вокруг origin
+    starts_rotated = np.dot(starts - origin, rotation_matrix.T)
+    ends_rotated = np.dot(ends - origin, rotation_matrix.T)
+
+    # Обновление координат линий после поворота
+    for i, line in enumerate(lines):
+        line.start = starts_rotated[i]
+        line.end = ends_rotated[i]
+
+    # Получение обновленного cornice_line после поворота
+    cornice_line = next((line for line in lines if line.line_type == 'Perimeter'), None)
+
+    # Вычисляем среднее по Y для cornice_line
+    cornice_y = (cornice_line.start[1] + cornice_line.end[1]) / 2
+
+    # Собираем индексы линий, которые нужно отразить
+    lines_to_reflect = []
+    for i, line in enumerate(lines):
         if line.line_type != 'Perimeter':
-            if line.start[1] < cornice_line.start[1] or line.end[1] < cornice_line.start[1]:
-                line.reflect_over_line(cornice_line)
+            if line.start[1] < cornice_y or line.end[1] < cornice_y:
+                lines_to_reflect.append(i)
 
-    # if cornice_line.end[0] < 0 or cornice_line.end[1] < 0:
-    #     raise ValueError("После трансформации 'Perimeter' не находится в первой четверти")
+    # Отражение линий
+    if lines_to_reflect:
+        # Вектор нормали к cornice_line
+        line_vec = cornice_line.end - cornice_line.start
+        line_vec_norm = line_vec / np.linalg.norm(line_vec)
+        normal_vec = np.array([-line_vec_norm[1], line_vec_norm[0]])
+
+        # Функция отражения точек
+        def reflect_points(points):
+            point_vecs = points - cornice_line.start
+            distances = np.dot(point_vecs, normal_vec)
+            reflected_points = points - 2 * np.outer(distances, normal_vec)
+            return reflected_points
+
+        # Отражаем стартовые и конечные точки выбранных линий
+        starts_to_reflect = np.array([lines[i].start for i in lines_to_reflect])
+        ends_to_reflect = np.array([lines[i].end for i in lines_to_reflect])
+
+        starts_reflected = reflect_points(starts_to_reflect)
+        ends_reflected = reflect_points(ends_to_reflect)
+
+        # Обновляем координаты отраженных линий
+        for idx, i in enumerate(lines_to_reflect):
+            lines[i].start = starts_reflected[idx]
+            lines[i].end = ends_reflected[idx]
+
+    # После поворота и отражения находим минимальные координаты
+    all_points = np.vstack(([line.start for line in lines], [line.end for line in lines]))
+    min_x = np.min(all_points[:, 0])
+    min_y = np.min(all_points[:, 1])
+
+    # Сдвигаем все точки так, чтобы минимальные координаты стали нулевыми
+    translation_vector = np.array([-min_x, -min_y])
+    for line in lines:
+        line.start += translation_vector
+        line.end += translation_vector
+
+    # Округление координат до 2 знаков после запятой
+    for line in lines:
+        line.start = np.round(line.start, 2)
+        line.end = np.round(line.end, 2)
+
+    # Проверка на отрицательные координаты с учетом допустимой погрешности
+    epsilon = 1e-10  # Допустимая погрешность
+    for line in lines:
+        if np.any(line.start < -epsilon) or np.any(line.end < -epsilon):
+            raise ValueError("После трансформации некоторые координаты отрицательны")
 
     return lines

@@ -25,7 +25,7 @@ class LineData(BaseModel):
 
 
 class ProjectResponse(BaseModel):
-    project_id: UUID4
+    id: UUID4
     project_name: str
     project_step: int
     datetime_created: datetime
@@ -36,20 +36,26 @@ class ProjectRequest(BaseModel):
     roof_id: UUID4
 
 class LineResponse(BaseModel):
-    line_id: UUID4
+    id: UUID4
     line_name: str
-    projection_coords: LineData
-    real_coords: LineData
+    coords: LineData
     line_type: str = ''
     line_length: float
 
+class LineSlopeResponse(BaseModel):
+    id: UUID4
+    line_id: UUID4
+    line_name: str
+    coords: LineData
+    line_length: float
+    
 class LineRequest(BaseModel):
     type: str
 
 class SlopeResponse(BaseModel):
     id: UUID4
     slope_name: str
-    lines: list[LineResponse]
+    lines: list[LineSlopeResponse]
 
 class SheetResponse(BaseModel):
     id: UUID4
