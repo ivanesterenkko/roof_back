@@ -286,20 +286,22 @@ async def add_slope(
         lines_rotate = align_figure([LineRotate(line.id, line.name, (line.x_start, line.y_start),
                                                 (line.x_end, line.y_end), line.type)
                                      for line in lines])
-
-        lines_slope =await asyncio.gather(*[
-            LinesSlopeDAO.add(
-                line_id=line_rotate.id,
-                name=line_rotate.name,
-                x_start=line_rotate.start[0],
-                y_start=line_rotate.start[1],
-                x_end=line_rotate.end[0],
-                y_end=line_rotate.end[1],
-                length=round(((line_rotate.start[0] - line_rotate.end[0]) ** 2 + (line_rotate.start[1] - line_rotate.end[1]) ** 2) ** 0.5, 2),
-                slope_id=new_slope.id
-            ) for line_rotate in lines_rotate
-        ])
-
+        count = 1
+        lines_slope = []
+        for line_rotate in lines_rotate:
+            line_slope =await LinesSlopeDAO.add(
+                    line_id=line_rotate.id,
+                    name=line_rotate.name,
+                    x_start=line_rotate.start[0],
+                    y_start=line_rotate.start[1],
+                    x_end=line_rotate.end[0],
+                    y_end=line_rotate.end[1],
+                    length=round(((line_rotate.start[0] - line_rotate.end[0]) ** 2 + (line_rotate.start[1] - line_rotate.end[1]) ** 2) ** 0.5, 2),
+                    number=count,
+                    slope_id=new_slope.id
+                )
+            count += 1
+            lines_slope.append(line_slope)
         slopes_list.append(SlopeResponse(
             id=new_slope.id,
             slope_name=new_slope.name,
@@ -445,6 +447,7 @@ async def add_sheets(
         raise SlopeNotFound
     cutouts = await CutoutsDAO.find_all(slope_id=slope_id)
     lines = await LinesSlopeDAO.find_all(slope_id=slope_id)
+    lines = sorted(lines, key=lambda line: line.number)
     points = []
     for line in lines:
         if len(points) == 0:
