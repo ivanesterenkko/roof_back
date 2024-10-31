@@ -491,13 +491,17 @@ async def add_sheets(
             x_start=sheet[0],
             y_start=sheet[1],
             length=sheet[2],
+            area_overall = sheet[3],
+            area_usefull=sheet[4],
             slope_id=slope_id
         )
         sheets_data.append(SheetResponse(
             id=new_sheet.id,
             sheet_x_start=new_sheet.x_start,
             sheet_y_start=new_sheet.y_start,
-            sheet_length=new_sheet.length
+            sheet_length=new_sheet.length,
+            sheet_area_overall=new_sheet.area_overall,
+            sheet_area_usefull=new_sheet.area_usefull
         ))
     return SlopeSheetsResponse(id=slope.id,
                                slope_name=slope.name,

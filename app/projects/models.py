@@ -93,6 +93,8 @@ class Sheets(Base):
     x_start: Mapped[float] = mapped_column(Float, nullable=False)
     y_start: Mapped[float] = mapped_column(Float, nullable=False)
     length: Mapped[float] = mapped_column(Float, nullable=False)
+    area_overall: Mapped[float] = mapped_column(Float, nullable=False)
+    area_usefull: Mapped[float] = mapped_column(Float, nullable=False)
 
     slope_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('slope.id', ondelete='CASCADE'), nullable=False)
 

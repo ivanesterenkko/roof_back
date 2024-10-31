@@ -148,11 +148,13 @@ async def create_sheets(figure, roof):
                 continue
             elif sheet_height < length_min:
                 coords[3] = coords[1] + length_min
-
+            length =round(coords[3] - coords[1], 2)
             sheets.append([
                 round(x_start, 2),
                 round(coords[1], 2),
-                round(coords[3] - coords[1], 2)
+                length,
+                round( overall_width*length, 2),
+                round(roof.useful_width*length, 2)
             ])
 
     return sheets
