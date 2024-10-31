@@ -13,23 +13,17 @@ async def add_roof_base(roof: RoofRequest,
                         user: Users = Depends(get_current_user)) -> RoofResponse:
     result = await RoofsDAO.add(name=roof.name,
                                  type=roof.type,
-                                 price=roof.price,
                                  overall_width=roof.overall_width,
                                  useful_width=roof.useful_width,
                                  overlap=roof.overlap,
-                                 material=roof.material,
-                                 color=roof.color,
                                  min_length=roof.min_length,
                                  max_length=roof.max_length)
     return RoofResponse(roof_id=result.id, 
                         roof_name=result.name,
                         roof_type=result.type,
-                        roof_price=result.price,
                         roof_overall_width=result.overall_width,
                         roof_useful_width=result.useful_width,
                         roof_overlap=result.overlap,
-                        roof_material=result.material,
-                        roof_color=result.color,
                         roof_min_length=result.min_length,
                         roof_max_length=result.max_length)
 
@@ -42,13 +36,15 @@ async def get_roof_base(user: Users = Depends(get_current_user)) -> list[RoofRes
         RoofResponse(roof_id=result.id, 
                         roof_name=result.name,
                         roof_type=result.type,
-                        roof_price=result.price,
                         roof_overall_width=result.overall_width,
                         roof_useful_width=result.useful_width,
                         roof_overlap=result.overlap,
-                        roof_material=result.material,
-                        roof_color=result.color,
                         roof_min_length=result.min_length,
                         roof_max_length=result.max_length)
                         for result in results
     ]
+
+@router.delete("/roofs_base", description="Удаление покрытия из библиотеки")
+async def delete_roof_base(roof_id: UUID4,
+                          user: Users = Depends(get_current_user)) -> None:
+    await RoofsDAO.delete_(model_id=roof_id)

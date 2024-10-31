@@ -4,7 +4,7 @@ from pydantic import UUID4
 from shapely.geometry import Polygon
 from app.base.dao import RoofsDAO
 from app.exceptions import LineNotFound, ProjectAlreadyExists, ProjectNotFound, ProjectStepLimit, SheetNotFound, SlopeNotFound
-from app.projects.schemas import CutoutResponse, LineData, LineRequest, LineResponse, LineSlopeResponse, PointData, ProjectRequest, ProjectResponse, SheetResponse, SlopeResponse
+from app.projects.schemas import CutoutResponse, LineData, LineRequest, LineResponse, LineSlopeResponse, PointData, ProjectRequest, ProjectResponse, SheetResponse, SlopeResponse, SlopeSheetsResponse
 from app.projects.dao import CutoutsDAO, LinesDAO, LinesSlopeDAO, ProjectsDAO, SheetsDAO, SlopesDAO
 from app.projects.slope import LineRotate, SlopeExtractor, align_figure, create_hole, create_sheets, get_next_name
 from app.users.dependencies import get_current_user
@@ -438,7 +438,7 @@ async def add_sheets(
     project_id: UUID4,
     slope_id: UUID4,
     user: Users = Depends(get_current_user)
-) :
+) -> SlopeSheetsResponse:
     project = await ProjectsDAO.find_by_id(project_id)
     if not project or project.user_id != user.id:
         raise ProjectNotFound
@@ -448,30 +448,31 @@ async def add_sheets(
         raise SlopeNotFound
     cutouts = await CutoutsDAO.find_all(slope_id=slope_id)
     lines = await LinesSlopeDAO.find_all(slope_id=slope_id)
-    graph = defaultdict(list)
     lines = sorted(lines, key=lambda line: line.number)
     points = []
+    points1 = []
     for line in lines:
-        start = (line.x_start, line.y_start)
-        end = (line.x_end, line.y_end)
-        graph[start].append(end)
-        graph[end].append(start)
-    start_point = next(iter(graph))
-    points = [start_point]
-    current_point = start_point
-    visited = set([start_point])
-    while True:
-        neighbors = graph[current_point]
-        next_point = None
-        for neighbor in neighbors:
-            if neighbor not in visited:
-                next_point = neighbor
-                break
-        if not next_point:
-            break
-        points.append(next_point)
-        visited.add(next_point)
-        current_point = next_point
+        if len(points) == 0:
+            points.append((line.x_start, line.y_start))
+            points.append((line.x_end, line.y_end))
+            points1.append((line.x_end, line.y_end))
+            points1.append((line.x_start, line.y_start))
+        elif len(points) == 2:
+            if (line.x_start == points[-1][0] and line.y_start == points[-1][1]):
+                points.append((line.x_end, line.y_end))
+            elif (line.x_end == points[-1][0] and line.y_end == points[-1][1]):
+                points.append((line.x_start, line.y_start))
+            elif (line.x_start == points1[-1][0] and line.y_start == points1[-1][1]):
+                points = points1
+                points.append((line.x_end, line.y_end))
+            elif (line.x_end == points1[-1][0] and line.y_end == points1[-1][1]):
+                points = points1
+                points.append((line.x_start, line.y_start))
+        else:
+            if (line.x_start == points[-1][0] and line.y_start == points[-1][1]):
+                points.append((line.x_end, line.y_end))
+            elif (line.x_end == points[-1][0] and line.y_end == points[-1][1]):
+                points.append((line.x_start, line.y_start))
     if cutouts is None:
         figure = Polygon(points)
     else:
@@ -479,6 +480,9 @@ async def add_sheets(
         for cutout in cutouts:
             points_cut = list(zip(cutout.x_coords, cutout.y_coords))
             figure = create_hole(figure, points_cut)
+    area = figure.area
+    slope = await SlopesDAO.update_(model_id=slope_id, 
+                            area=area)
     roof = await RoofsDAO.find_by_id(project.roof_id)
     sheets = await create_sheets(figure, roof)
     sheets_data = []
@@ -495,7 +499,11 @@ async def add_sheets(
             sheet_y_start=new_sheet.y_start,
             sheet_length=new_sheet.length
         ))
-    return sheets_data
+    return SlopeSheetsResponse(id=slope.id,
+                               slope_name=slope.name,
+                               slope_area=slope.area,
+                               sheets=sheets_data
+    )
 
 @router.patch("/projects/{project_id}/slopes/{slope_id}/sheets/{sheet_id}", description="Calculate roof sheets for slope")
 async def update_sheet(

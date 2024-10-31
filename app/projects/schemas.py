@@ -63,6 +63,12 @@ class SheetResponse(BaseModel):
     sheet_y_start: float
     sheet_length: float
 
+class SlopeSheetsResponse(BaseModel):
+    id: UUID4
+    slope_name: str
+    slope_area: float
+    sheets: list[SheetResponse]
+    
 class CutoutResponse(BaseModel):
     cutout_id: UUID4
     cutout_name: str
