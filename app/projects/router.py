@@ -10,6 +10,7 @@ from app.projects.slope import LineRotate, SlopeExtractor, align_figure, create_
 from app.users.dependencies import get_current_user
 from app.users.models import Users
 import asyncio
+from collections import defaultdict
 
 router = APIRouter(prefix="/roofs", tags=["Roofs"])
 
@@ -240,7 +241,7 @@ async def get_slope(
     slope = await SlopesDAO.find_by_id(slope_id)
     if not slope or slope.project_id != project_id:
         raise SlopeNotFound
-    lines = await LineSlopeResponse.find_all(slope_id=slope_id)
+    lines = await LinesSlopeDAO.find_all(slope_id=slope_id)
 
     return SlopeResponse(
         id=slope.id,
@@ -447,17 +448,30 @@ async def add_sheets(
         raise SlopeNotFound
     cutouts = await CutoutsDAO.find_all(slope_id=slope_id)
     lines = await LinesSlopeDAO.find_all(slope_id=slope_id)
+    graph = defaultdict(list)
     lines = sorted(lines, key=lambda line: line.number)
     points = []
     for line in lines:
-        if len(points) == 0:
-            points.append((line.x_start, line.y_start))
-            points.append((line.x_end, line.y_end))
-        else:
-            if (line.x_start == points[-1][0] and line.y_start == points[-1][1]):
-                points.append((line.x_end, line.y_end))
-            elif (line.x_end == points[-1][0] and line.y_end == points[-1][1]):
-                points.append((line.x_start, line.y_start))
+        start = (line.x_start, line.y_start)
+        end = (line.x_end, line.y_end)
+        graph[start].append(end)
+        graph[end].append(start)
+    start_point = next(iter(graph))
+    points = [start_point]
+    current_point = start_point
+    visited = set([start_point])
+    while True:
+        neighbors = graph[current_point]
+        next_point = None
+        for neighbor in neighbors:
+            if neighbor not in visited:
+                next_point = neighbor
+                break
+        if not next_point:
+            break
+        points.append(next_point)
+        visited.add(next_point)
+        current_point = next_point
     if cutouts is None:
         figure = Polygon(points)
     else:
