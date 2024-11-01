@@ -4,8 +4,8 @@ from pydantic import UUID4
 from shapely.geometry import Polygon
 from app.base.dao import RoofsDAO
 from app.exceptions import LineNotFound, ProjectAlreadyExists, ProjectNotFound, ProjectStepLimit, SheetNotFound, SlopeNotFound
-from app.projects.schemas import CutoutResponse, LineData, LineRequest, LineResponse, LineSlopeResponse, PointData, ProjectRequest, ProjectResponse, SheetResponse, SlopeResponse, SlopeSheetsResponse
-from app.projects.dao import CutoutsDAO, LinesDAO, LinesSlopeDAO, ProjectsDAO, SheetsDAO, SlopesDAO
+from app.projects.schemas import AccessoriesRequest, AccessoriesResponse, CutoutResponse, LineData, LineRequest, LineResponse, LineSlopeResponse, PointData, ProjectRequest, ProjectResponse, SheetResponse, SlopeResponse, SlopeSheetsResponse
+from app.projects.dao import AccessoriesDAO, CutoutsDAO, LinesDAO, LinesSlopeDAO, ProjectsDAO, SheetsDAO, SlopesDAO
 from app.projects.slope import LineRotate, SlopeExtractor, align_figure, create_hole, create_sheets, get_next_name
 from app.users.dependencies import get_current_user
 from app.users.models import Users
@@ -574,3 +574,63 @@ async def update_sheets(
         sheet_length=new_sheet.length,
     )
             for new_sheet in new_sheets]
+
+@router.get("/projects/{project_id}/accessories", description="View accessories")
+async def get_accessories(
+    project_id: UUID4,
+    user: Users = Depends(get_current_user)
+) -> List[AccessoriesResponse]:
+    project = await ProjectsDAO.find_by_id(project_id)
+    if not project or project.user_id != user.id:
+        raise ProjectNotFound
+    accessories = await AccessoriesDAO.find_all(project_id=project_id)
+    return [ AccessoriesResponse(
+            id=accessory.id,
+            accessory_name=accessory.name,
+            lines_id=accessory.lines_id,
+            parameters=accessory.parameters,
+            quantity=accessory.quantity
+        ) for accessory in accessories]
+
+@router.delete("/projects/{project_id}/accessories/{accessory_id}", description="Delete accessory")
+async def delete_accessory(
+    accessory_id: UUID4,
+    project_id: UUID4,
+    user: Users = Depends(get_current_user)
+) -> None:
+    project = await ProjectsDAO.find_by_id(project_id)
+    if not project or project.user_id != user.id:
+        raise ProjectNotFound
+    accessory = await AccessoriesDAO.find_by_id(accessory_id)
+    if not accessory or accessory.project_id != project_id:
+        raise ProjectNotFound
+    await AccessoriesDAO.delete_(model_id=accessory_id)
+
+@router.post("/projects/{project_id}/accessories", description="Calculate roof sheets for slope")
+async def add_accessory(
+    project_id: UUID4,
+    accessory: AccessoriesRequest,
+    user: Users = Depends(get_current_user)
+) -> AccessoriesResponse:
+    project = await ProjectsDAO.find_by_id(project_id)
+    if not project or project.user_id != user.id:
+        raise ProjectNotFound
+    lines = await asyncio.gather(*[LinesDAO.find_by_id(line_id) for line_id in accessory.lines_id])
+    length = 0
+    for line in lines:
+        length += line.length
+    new_accessory = await AccessoriesDAO.add(
+        name=accessory.name,
+        lines_id=accessory.lines_id,
+        parameters=accessory.parameters,
+        quantity=length,
+        project_id=project_id
+    )
+    return AccessoriesResponse(
+        id=new_accessory.id,
+        accessory_name=new_accessory.name,
+        lines_id=new_accessory.lines_id,
+        parameters=new_accessory.parameters,
+        quantity=new_accessory.quantity
+    )
+

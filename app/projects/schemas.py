@@ -76,3 +76,15 @@ class CutoutResponse(BaseModel):
     cutout_name: str
     cutout_points: list[PointData]
     slope_id: UUID4
+
+class AccessoriesRequest(BaseModel):
+    name: str
+    lines_id: list[UUID4]
+    parameters: list[float]
+
+class AccessoriesResponse(BaseModel):
+    id: UUID4
+    accessory_name: str
+    lines_id: list[UUID4]
+    parameters: list[float]
+    quantity: int

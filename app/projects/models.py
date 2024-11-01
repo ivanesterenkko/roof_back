@@ -23,6 +23,7 @@ class Projects(Base):
     user = relationship("Users", back_populates="projects")
     roof = relationship("Roofs", back_populates="projects")
     slopes = relationship("Slopes", back_populates="project", cascade="all, delete-orphan")
+    accessories = relationship("Accessories", back_populates="project", cascade="all, delete-orphan")
 
 
 class Lines(Base):
@@ -100,3 +101,15 @@ class Sheets(Base):
 
     slope = relationship("Slopes", back_populates="sheets")
 
+class Accessories(Base):
+    __tablename__ = 'accessory'
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    parameters: Mapped[list[float]] = mapped_column(ARRAY(Float), nullable=False)
+    quantity: Mapped[int] = mapped_column(Integer, nullable=False)
+
+    project_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('project.id', ondelete='CASCADE'), nullable=False)
+    lines_id: Mapped[list[uuid.UUID]] = mapped_column(ARRAY(UUID(as_uuid=True)), nullable=False)
+
+    project = relationship("Projects", back_populates="accessories")
