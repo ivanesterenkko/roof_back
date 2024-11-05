@@ -3,14 +3,16 @@ from typing import List
 from pydantic import UUID4
 from shapely.geometry import Polygon
 from app.base.dao import RoofsDAO
+from app.base.schemas import RoofResponse
 from app.exceptions import LineNotFound, ProjectAlreadyExists, ProjectNotFound, ProjectStepLimit, SheetNotFound, SlopeNotFound
-from app.projects.schemas import AccessoriesEstimateResponse, AccessoriesRequest, AccessoriesResponse, CutoutResponse, EstimateResponse, LineData, LineRequest, LineResponse, LineSlopeResponse, PointData, ProjectMaterialRequest, ProjectMaterialResponse, ProjectRequest, ProjectResponse, SheetEstimateResponse, SheetResponse, SlopeEstimateResponse, SlopeResponse, SlopeSheetsResponse
+from app.projects.schemas import AccessoriesEstimateResponse, AccessoriesRequest, AccessoriesResponse, CutoutResponse, EstimateResponse, LineData, LineRequest, LineResponse, LineSlopeResponse, PointData, ProjectMaterialRequest, ProjectMaterialResponse, ProjectRequest, ProjectResponse, SheetResponse, SlopeEstimateResponse, SlopeResponse, SlopeSheetsResponse
 from app.projects.dao import AccessoriesDAO, CutoutsDAO, LinesDAO, LinesSlopeDAO, ProjectsDAO, SheetsDAO, SlopesDAO
 from app.projects.slope import LineRotate, SlopeExtractor, align_figure, create_hole, create_sheets, get_next_name
 from app.users.dependencies import get_current_user
 from app.users.models import Users
 import asyncio
 from collections import defaultdict
+from collections import Counter
 
 router = APIRouter(prefix="/roofs", tags=["Roofs"])
 
@@ -217,22 +219,26 @@ async def get_project_on_step(
         case 8:
             slopes = await SlopesDAO.find_all(project_id=project_id)
             slopes_estimate = []
+            slopes_area = 0
+            all_sheets = []
             for slope in slopes:
+                area_overall = 0
+                area_usefull = 0
+                slopes_area += slope.area
                 sheets = await SheetsDAO.find_all(slope_id=slope.id)
-                sheets_estimate = [
-                    SheetEstimateResponse(
-                        sheet_length=sheet.length,
-                        sheet_area_overall=sheet.area_overall,
-                        sheet_area_usefull=sheet.area_usefull
-                    ) for sheet in sheets
-                ]
+                for sheet in sheets:
+                    area_overall += sheet.area_overall
+                    area_usefull += sheet.area_usefull
+                    all_sheets.append(sheet.length)
                 slopes_estimate.append(
                     SlopeEstimateResponse(
                         slope_name=slope.name,
                         slope_area=slope.area,
-                        slope_sheets=sheets_estimate
+                        area_overall=area_overall,
+                        area_usefull=area_usefull
                     )
                 )
+            length_counts = Counter(all_sheets)
             accessories = await AccessoriesDAO.find_all(project_id=project_id)
             accessories_estimate = [
                 AccessoriesEstimateResponse(
@@ -240,14 +246,26 @@ async def get_project_on_step(
                     accessory_quantity=accessory.quantity
                 ) for accessory in accessories
             ]
+            roof = await RoofsDAO.find_by_id(project.roof_id)
+
             return EstimateResponse(
                 project_name=project.name,
                 project_address=project.address,
+                roof= RoofResponse(
+                    roof_id=roof.id, 
+                    roof_name=roof.name,
+                    roof_type=roof.type,
+                    roof_overall_width=roof.overall_width,
+                    roof_useful_width=roof.useful_width,
+                    roof_overlap=roof.overlap,
+                    roof_min_length=roof.min_length,
+                    roof_max_length=roof.max_length),
+                counts_length=length_counts,
                 slopes=slopes_estimate,
                 accessories=accessories_estimate,
                 material=project.material,
                 color=project.color
-            )
+    )
 
 
 @router.get("/projects/{project_id}/lines/{line_id}", description="Get list of projects")
@@ -852,22 +870,26 @@ async def get_estimate(
         raise ProjectNotFound
     slopes = await SlopesDAO.find_all(project_id=project_id)
     slopes_estimate = []
+    slopes_area = 0
+    all_sheets = []
     for slope in slopes:
+        area_overall = 0
+        area_usefull = 0
+        slopes_area += slope.area
         sheets = await SheetsDAO.find_all(slope_id=slope.id)
-        sheets_estimate = [
-            SheetEstimateResponse(
-                sheet_length=sheet.length,
-                sheet_area_overall=sheet.area_overall,
-                sheet_area_usefull=sheet.area_usefull
-            ) for sheet in sheets
-        ]
+        for sheet in sheets:
+            area_overall += sheet.area_overall
+            area_usefull += sheet.area_usefull
+            all_sheets.append(sheet.length)
         slopes_estimate.append(
             SlopeEstimateResponse(
                 slope_name=slope.name,
                 slope_area=slope.area,
-                slope_sheets=sheets_estimate
+                area_overall=area_overall,
+                area_usefull=area_usefull
             )
         )
+    length_counts = Counter(all_sheets)
     accessories = await AccessoriesDAO.find_all(project_id=project_id)
     accessories_estimate = [
         AccessoriesEstimateResponse(
@@ -875,9 +897,21 @@ async def get_estimate(
             accessory_quantity=accessory.quantity
         ) for accessory in accessories
     ]
+    roof = await RoofsDAO.find_by_id(project.roof_id)
+
     return EstimateResponse(
         project_name=project.name,
         project_address=project.address,
+        roof= RoofResponse(
+            roof_id=roof.id, 
+            roof_name=roof.name,
+            roof_type=roof.type,
+            roof_overall_width=roof.overall_width,
+            roof_useful_width=roof.useful_width,
+            roof_overlap=roof.overlap,
+            roof_min_length=roof.min_length,
+            roof_max_length=roof.max_length),
+        counts_length=length_counts,
         slopes=slopes_estimate,
         accessories=accessories_estimate,
         material=project.material,

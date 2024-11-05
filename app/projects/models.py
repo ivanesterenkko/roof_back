@@ -1,7 +1,7 @@
 from datetime import datetime
 import uuid
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy import ARRAY, Boolean, DateTime, Float, ForeignKey, Integer, String
+from sqlalchemy import ARRAY, JSON, Boolean, DateTime, Float, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -14,8 +14,8 @@ class Projects(Base):
     name: Mapped[str] = mapped_column(String, nullable=False)
     address: Mapped[str] = mapped_column(String, nullable=False)
     step: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
-    material: Mapped[str] = mapped_column(String, nullable=True)
-    color: Mapped[str] = mapped_column(String, nullable=True)
+    material: Mapped[dict[str, str]] = mapped_column(JSON, nullable=True)
+    color: Mapped[dict[str, str]] = mapped_column(JSON, nullable=True)
     datetime_created: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
     
     user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True),ForeignKey('users.id'), nullable=False)
