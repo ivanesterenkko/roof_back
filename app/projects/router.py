@@ -4,7 +4,7 @@ from pydantic import UUID4
 from shapely.geometry import Polygon
 from app.base.dao import RoofsDAO
 from app.exceptions import LineNotFound, ProjectAlreadyExists, ProjectNotFound, ProjectStepLimit, SheetNotFound, SlopeNotFound
-from app.projects.schemas import AccessoriesRequest, AccessoriesResponse, CutoutResponse, LineData, LineRequest, LineResponse, LineSlopeResponse, PointData, ProjectRequest, ProjectResponse, SheetResponse, SlopeResponse, SlopeSheetsResponse
+from app.projects.schemas import AccessoriesEstimateResponse, AccessoriesRequest, AccessoriesResponse, CutoutResponse, EstimateResponse, LineData, LineRequest, LineResponse, LineSlopeResponse, PointData, ProjectMaterialRequest, ProjectMaterialResponse, ProjectRequest, ProjectResponse, SheetEstimateResponse, SheetResponse, SlopeEstimateResponse, SlopeResponse, SlopeSheetsResponse
 from app.projects.dao import AccessoriesDAO, CutoutsDAO, LinesDAO, LinesSlopeDAO, ProjectsDAO, SheetsDAO, SlopesDAO
 from app.projects.slope import LineRotate, SlopeExtractor, align_figure, create_hole, create_sheets, get_next_name
 from app.users.dependencies import get_current_user
@@ -333,7 +333,6 @@ async def update_line_slope(
     line = await LinesSlopeDAO.find_by_id(line_id)
     if not line or line.project_id != project_id:
         raise LineNotFound
-
     updated_line = await LinesSlopeDAO.update_(
         model_id=line_id,
         x_start=line_data.start.x,
@@ -414,7 +413,9 @@ async def get_sheets(
             id=sheet.id,
             sheet_x_start=sheet.x_start,
             sheet_y_start=sheet.y_start,
-            sheet_length=sheet.length
+            sheet_length=sheet.length,
+            sheet_area_overall=sheet.area_overall,
+            sheet_area_usefull=sheet.area_usefull
         ) for sheet in sheets]
 
 @router.delete("/projects/{project_id}/add_line/slopes/{slope_id}/sheets/{sheet_id}", description="Delete cutout")
@@ -537,7 +538,9 @@ async def update_sheet(
         id=updated_sheet.id,
             sheet_x_start=updated_sheet.x_start,
             sheet_y_start=updated_sheet.y_start,
-            sheet_length=updated_sheet.length
+            sheet_length=updated_sheet.length,
+            sheet_area_overall=sheet.area_overall,
+            sheet_area_usefull=sheet.area_usefull
     )
 
 @router.patch("/projects/{project_id}/slopes/{slope_id}/sheets/", description="Calculate roof sheets for slope")
@@ -572,6 +575,8 @@ async def update_sheets(
         sheet_x_start=new_sheet.x_start,
         sheet_y_start=new_sheet.y_start,
         sheet_length=new_sheet.length,
+        sheet_area_overall=new_sheet.area_overall,
+        sheet_area_usefull=new_sheet.area_usefull
     )
             for new_sheet in new_sheets]
 
@@ -633,4 +638,66 @@ async def add_accessory(
         parameters=new_accessory.parameters,
         quantity=new_accessory.quantity
     )
+@router.patch("/projects/{project_id}/materials")
+async def update_material_project(
+    project_id: UUID4,
+    data: ProjectMaterialRequest,
+    user: Users = Depends(get_current_user)
+) -> ProjectMaterialResponse:
+    project = await ProjectsDAO.find_by_id(project_id)
+    if not project or project.user_id != user.id:
+        raise ProjectNotFound
+    new_project = await ProjectsDAO.update_(
+        model_id=project_id,
+        material=data.material,
+        color=data.color
+        )
+    return ProjectMaterialResponse(
+        id=project_id,
+        project_name=new_project.name,
+        project_step=new_project.step,
+        project_material=new_project.material,
+        project_color=new_project.color
+    )
 
+@router.get("/projects/{project_id}/estimate", description="View accessories")
+async def get_estimate(
+    project_id: UUID4,
+    user: Users = Depends(get_current_user)
+) -> EstimateResponse:
+    project = await ProjectsDAO.find_by_id(project_id)
+    if not project or project.user_id != user.id:
+        raise ProjectNotFound
+    slopes = await SlopesDAO.find_all(project_id=project_id)
+    slopes_estimate = []
+    for slope in slopes:
+        sheets = await SheetsDAO.find_all(slope_id=slope.id)
+        sheets_estimate = [
+            SheetEstimateResponse(
+                sheet_length=sheet.length,
+                sheet_area_overall=sheet.area_overall,
+                sheet_area_usefull=sheet.area_usefull
+            ) for sheet in sheets
+        ]
+        slopes_estimate.append(
+            SlopeEstimateResponse(
+                slope_name=slope.name,
+                slope_area=slope.area,
+                slope_sheets=sheets_estimate
+            )
+        )
+    accessories = await AccessoriesDAO.find_all(project_id=project_id)
+    accessories_estimate = [
+        AccessoriesEstimateResponse(
+            accessory_name=accessory.name,
+            accessory_quantity=accessory.quantity
+        ) for accessory in accessories
+    ]
+    return EstimateResponse(
+        project_name=project.name,
+        project_address=project.address,
+        slopes=slopes_estimate,
+        accessories=accessories_estimate,
+        material=project.material,
+        color=project.color
+    )

@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import List, Tuple
 from pydantic import UUID4, BaseModel
 
-
+# Line and Point
 class PointData(BaseModel):
     x: float
     y: float
@@ -23,6 +23,7 @@ class LineData(BaseModel):
     start: PointData
     end: PointData
 
+# Project
 
 class ProjectResponse(BaseModel):
     id: UUID4
@@ -34,6 +35,18 @@ class ProjectRequest(BaseModel):
     name: str
     address: str
     roof_id: UUID4
+
+class ProjectMaterialRequest(BaseModel):
+    material: str
+    color: str
+
+class ProjectMaterialResponse(BaseModel):
+    id: UUID4
+    project_name: str
+    project_step: int
+    project_material: str
+    project_color: str
+# Line
 
 class LineResponse(BaseModel):
     id: UUID4
@@ -51,6 +64,8 @@ class LineSlopeResponse(BaseModel):
     
 class LineRequest(BaseModel):
     type: str
+
+# Slope, Cutout and Sheet
 
 class SlopeResponse(BaseModel):
     id: UUID4
@@ -77,6 +92,8 @@ class CutoutResponse(BaseModel):
     cutout_points: list[PointData]
     slope_id: UUID4
 
+# Accessoies
+
 class AccessoriesRequest(BaseModel):
     name: str
     lines_id: list[UUID4]
@@ -88,3 +105,27 @@ class AccessoriesResponse(BaseModel):
     lines_id: list[UUID4]
     parameters: list[float]
     quantity: int
+
+# Estimate
+
+class SheetEstimateResponse(BaseModel):
+    sheet_length: float
+    sheet_area_overall: float
+    sheet_area_usefull: float
+
+class AccessoriesEstimateResponse(BaseModel):
+    accessory_name: str
+    accessory_quantity: int
+
+class SlopeEstimateResponse(BaseModel):
+    slope_name: str
+    slope_area: float
+    slope_sheets: list[SheetEstimateResponse]
+
+class EstimateResponse(BaseModel):
+    project_name: str
+    project_address: str
+    slopes: list[SlopeEstimateResponse]
+    accessories: list[AccessoriesEstimateResponse]
+    material: str
+    color: str
