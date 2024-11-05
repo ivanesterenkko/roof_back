@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 from pydantic import UUID4, BaseModel
 
 # Line and Point
@@ -44,15 +44,15 @@ class ProjectMaterialResponse(BaseModel):
     id: UUID4
     project_name: str
     project_step: int
-    project_material: str
-    project_color: str
+    project_material: Optional[str] = ""
+    project_color: Optional[str] = ""
 # Line
 
 class LineResponse(BaseModel):
     id: UUID4
     line_name: str
     coords: LineData
-    line_type: str = ''
+    line_type: Optional[str] = ""
     line_length: float
 
 class LineSlopeResponse(BaseModel):
@@ -84,6 +84,7 @@ class SlopeSheetsResponse(BaseModel):
     id: UUID4
     slope_name: str
     slope_area: float
+    lines: list[LineSlopeResponse]
     sheets: list[SheetResponse]
     
 class CutoutResponse(BaseModel):
