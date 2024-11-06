@@ -4,6 +4,7 @@ from pydantic import UUID4
 from shapely.geometry import Polygon
 from app.base.dao import RoofsDAO
 from app.exceptions import LineNotFound, ProjectAlreadyExists, ProjectNotFound, ProjectStepLimit, SheetNotFound, SlopeNotFound
+from app.projects.draw import draw_plan
 from app.projects.schemas import AccessoriesEstimateResponse, AccessoriesRequest, AccessoriesResponse, CutoutResponse, EstimateResponse, LineData, LineRequest, LineResponse, LineSlopeResponse, MaterialEstimateResponse, MaterialRequest, MaterialResponse, PointData, ProjectRequest, ProjectResponse, RoofEstimateResponse, SheetResponse, SlopeEstimateResponse, SlopeResponse, SlopeSheetsResponse
 from app.projects.dao import AccessoriesDAO, CutoutsDAO, LinesDAO, LinesSlopeDAO, MaterialsDAO, ProjectsDAO, SheetsDAO, SlopesDAO
 from app.projects.slope import LineRotate, SlopeExtractor, SlopeUpdate, align_figure, create_hole, create_sheets, get_next_name
@@ -947,6 +948,7 @@ async def get_estimate(
         raise ProjectNotFound
     slopes = await SlopesDAO.find_all(project_id=project_id)
     materials = await MaterialsDAO.find_all(project_id=project_id)
+    roof = await RoofsDAO.find_by_id(project.roof_id)
     materials_estimate = [
         MaterialEstimateResponse(
             name=material.name,
@@ -957,11 +959,14 @@ async def get_estimate(
     slopes_estimate = []
     slopes_area = 0
     all_sheets = []
+    plans_data = []
     for slope in slopes:
+        lines = await LinesSlopeDAO.find_all(slope_id=slope.id)
         area_overall = 0
         area_usefull = 0
         slopes_area += slope.area
         sheets = await SheetsDAO.find_all(slope_id=slope.id)
+        plans_data.append(await draw_plan(lines, sheets, roof.overall_width))
         for sheet in sheets:
             area_overall += sheet.area_overall
             area_usefull += sheet.area_usefull
@@ -982,7 +987,7 @@ async def get_estimate(
             amount=accessory.quantity
         ) for accessory in accessories
     ]
-    roof = await RoofsDAO.find_by_id(project.roof_id)
+
 
     return EstimateResponse(
         project_name=project.name,
@@ -999,4 +1004,6 @@ async def get_estimate(
         sheets_amount=length_counts,
         slopes=slopes_estimate,
         accessories=accessories_estimate,
+        sheets_extended=plans_data
     )
+

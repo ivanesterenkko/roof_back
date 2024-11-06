@@ -147,4 +147,4 @@ class EstimateResponse(BaseModel):
     slopes: list[SlopeEstimateResponse]
     sheets_amount: dict
     accessories: list[AccessoriesEstimateResponse]
-    sheets_extended: Optional[str] = None
+    sheets_extended: list[str]

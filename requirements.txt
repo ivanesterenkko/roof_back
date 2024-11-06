@@ -54,3 +54,4 @@ win32-setctime==1.1.0
 WTForms==3.1.2
 yarl==1.9.4
 shapely==2.0.6
+matplotlib==3.9.2
