@@ -14,8 +14,6 @@ class Projects(Base):
     name: Mapped[str] = mapped_column(String, nullable=False)
     address: Mapped[str] = mapped_column(String, nullable=False)
     step: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
-    material: Mapped[dict[str, str]] = mapped_column(JSON, nullable=True)
-    color: Mapped[dict[str, str]] = mapped_column(JSON, nullable=True)
     datetime_created: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
     
     user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True),ForeignKey('users.id'), nullable=False)
@@ -26,6 +24,7 @@ class Projects(Base):
     roof = relationship("Roofs", back_populates="projects")
     slopes = relationship("Slopes", back_populates="project", cascade="all, delete-orphan")
     accessories = relationship("Accessories", back_populates="project", cascade="all, delete-orphan")
+    materials = relationship("Materials", back_populates="project", cascade="all, delete-orphan")
 
 
 class Lines(Base):
@@ -115,3 +114,15 @@ class Accessories(Base):
     lines_id: Mapped[list[uuid.UUID]] = mapped_column(ARRAY(UUID(as_uuid=True)), nullable=False)
 
     project = relationship("Projects", back_populates="accessories")
+
+class Materials(Base):
+    __tablename__ = 'material'
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    material: Mapped[str] = mapped_column(String, nullable=False)
+    color: Mapped[str] = mapped_column(String, nullable=False)
+
+    project_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('project.id', ondelete='CASCADE'), nullable=False)
+
+    project = relationship("Projects", back_populates="materials")

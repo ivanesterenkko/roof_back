@@ -36,16 +36,16 @@ class ProjectRequest(BaseModel):
     address: str
     roof_id: UUID4
 
-class ProjectMaterialRequest(BaseModel):
-    material: Dict[str, str]
-    color: Dict[str, str]
+class MaterialRequest(BaseModel):
+    name: str
+    material: str
+    color: str
 
-class ProjectMaterialResponse(BaseModel):
+class MaterialResponse(BaseModel):
     id: UUID4
-    project_name: str
-    project_step: int
-    project_material: Optional[Dict[str, str]] = None
-    project_color:  Optional[Dict[str, str]] = None
+    name: str
+    material: str
+    color: str
 # Line
 
 class LineResponse(BaseModel):
@@ -115,8 +115,6 @@ class AccessoriesEstimateResponse(BaseModel):
     overall_length: Optional[float] = None
     amount: int
     price: Optional[float] = None
-    material: Optional[str] = 'Satin'
-    color: Optional[str] = '8004'
 
 class SlopeEstimateResponse(BaseModel):
     slope_name: str
@@ -126,8 +124,6 @@ class SlopeEstimateResponse(BaseModel):
 
 class RoofEstimateResponse(BaseModel):
     roof_name: str
-    material: Optional[str] = 'Satin'
-    color: Optional[str] = '8004'
     roof_type: str
     roof_overall_width: float
     roof_useful_width: float
@@ -135,9 +131,15 @@ class RoofEstimateResponse(BaseModel):
     roof_min_length: float
     roof_max_length: float
 
+class MaterialEstimateResponse(BaseModel):
+    name: str
+    material: str
+    color: str
+
 class EstimateResponse(BaseModel):
     project_name: str
     project_address: str
+    materials: list[MaterialEstimateResponse]
     roof_base: RoofEstimateResponse
     PS: Optional[str] = None
     PZ: Optional[str] = None

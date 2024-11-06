@@ -4,8 +4,8 @@ from pydantic import UUID4
 from shapely.geometry import Polygon
 from app.base.dao import RoofsDAO
 from app.exceptions import LineNotFound, ProjectAlreadyExists, ProjectNotFound, ProjectStepLimit, SheetNotFound, SlopeNotFound
-from app.projects.schemas import AccessoriesEstimateResponse, AccessoriesRequest, AccessoriesResponse, CutoutResponse, EstimateResponse, LineData, LineRequest, LineResponse, LineSlopeResponse, PointData, ProjectMaterialRequest, ProjectMaterialResponse, ProjectRequest, ProjectResponse, RoofEstimateResponse, SheetResponse, SlopeEstimateResponse, SlopeResponse, SlopeSheetsResponse
-from app.projects.dao import AccessoriesDAO, CutoutsDAO, LinesDAO, LinesSlopeDAO, ProjectsDAO, SheetsDAO, SlopesDAO
+from app.projects.schemas import AccessoriesEstimateResponse, AccessoriesRequest, AccessoriesResponse, CutoutResponse, EstimateResponse, LineData, LineRequest, LineResponse, LineSlopeResponse, MaterialEstimateResponse, MaterialRequest, MaterialResponse, PointData, ProjectRequest, ProjectResponse, RoofEstimateResponse, SheetResponse, SlopeEstimateResponse, SlopeResponse, SlopeSheetsResponse
+from app.projects.dao import AccessoriesDAO, CutoutsDAO, LinesDAO, LinesSlopeDAO, MaterialsDAO, ProjectsDAO, SheetsDAO, SlopesDAO
 from app.projects.slope import LineRotate, SlopeExtractor, SlopeUpdate, align_figure, create_hole, create_sheets, get_next_name
 from app.users.dependencies import get_current_user
 from app.users.models import Users
@@ -208,18 +208,24 @@ async def get_project_on_step(
             ) for line in lines
             ]
         case 7:
-            return ProjectMaterialResponse(
-                id=project_id,
-                project_name=project.name,
-                project_step=project.step,
-                project_material=project.material,
-                project_color=project.color
-            )
+            materials = await MaterialsDAO.find_all(project_id=project_id)
+            return [
+                MaterialEstimateResponse(
+                    name=material.name,
+                    material=material.material,
+                    color=material.color
+                ) for material in materials
+            ]
         case 8:
             slopes = await SlopesDAO.find_all(project_id=project_id)
-            material = project.material
-            color = project.color
-
+            materials = await MaterialsDAO.find_all(project_id=project_id)
+            materials_estimate = [
+                MaterialEstimateResponse(
+                    name=material.name,
+                    material=material.material,
+                    color=material.color
+                ) for material in materials
+            ]
             slopes_estimate = []
             slopes_area = 0
             all_sheets = []
@@ -249,10 +255,11 @@ async def get_project_on_step(
                 ) for accessory in accessories
             ]
             roof = await RoofsDAO.find_by_id(project.roof_id)
-            
+
             return EstimateResponse(
                 project_name=project.name,
                 project_address=project.address,
+                materials=materials_estimate,
                 roof_base= RoofEstimateResponse(
                     roof_name=roof.name,
                     roof_type=roof.type,
@@ -645,7 +652,7 @@ async def update_cutout(
     points_y = [point.y for point in points]
 
     new_cutout = await CutoutsDAO.update_(
-        model_id=cutout_id
+        model_id=cutout_id,
         x_coords=points_x,
         y_coords=points_y
     )
@@ -908,26 +915,26 @@ async def add_accessory(
         parameters=new_accessory.parameters,
         quantity=new_accessory.quantity
     )
-@router.patch("/projects/{project_id}/materials")
-async def update_material_project(
+@router.post("/projects/{project_id}/materials")
+async def add_material(
     project_id: UUID4,
-    data: ProjectMaterialRequest,
+    materials: MaterialRequest,
     user: Users = Depends(get_current_user)
-) -> ProjectMaterialResponse:
+) -> MaterialResponse:
     project = await ProjectsDAO.find_by_id(project_id)
     if not project or project.user_id != user.id:
         raise ProjectNotFound
-    new_project = await ProjectsDAO.update_(
-        model_id=project_id,
-        material=data.material,
-        color=data.color
+    material = await MaterialsDAO.add(
+        project_id=project_id,
+        name=materials.name,
+        material=materials.material,
+        color=materials.color
         )
-    return ProjectMaterialResponse(
-        id=project_id,
-        project_name=new_project.name,
-        project_step=new_project.step,
-        project_material=new_project.material,
-        project_color=new_project.color
+    return MaterialResponse(
+        id=material.id,
+        name=material.name,
+        material=material.material,
+        color=material.color
     )
 
 @router.get("/projects/{project_id}/estimate", description="View accessories")
@@ -939,9 +946,14 @@ async def get_estimate(
     if not project or project.user_id != user.id:
         raise ProjectNotFound
     slopes = await SlopesDAO.find_all(project_id=project_id)
-    material = project.material
-    color = project.color
-
+    materials = await MaterialsDAO.find_all(project_id=project_id)
+    materials_estimate = [
+        MaterialEstimateResponse(
+            name=material.name,
+            material=material.material,
+            color=material.color
+        ) for material in materials
+    ]
     slopes_estimate = []
     slopes_area = 0
     all_sheets = []
@@ -975,6 +987,7 @@ async def get_estimate(
     return EstimateResponse(
         project_name=project.name,
         project_address=project.address,
+        materials=materials_estimate,
         roof_base= RoofEstimateResponse(
             roof_name=roof.name,
             roof_type=roof.type,
