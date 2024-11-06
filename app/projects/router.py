@@ -869,6 +869,9 @@ async def get_estimate(
     if not project or project.user_id != user.id:
         raise ProjectNotFound
     slopes = await SlopesDAO.find_all(project_id=project_id)
+    material = project.material
+    color = project.color
+
     slopes_estimate = []
     slopes_area = 0
     all_sheets = []
@@ -893,8 +896,8 @@ async def get_estimate(
     accessories = await AccessoriesDAO.find_all(project_id=project_id)
     accessories_estimate = [
         AccessoriesEstimateResponse(
-            accessory_name=accessory.name,
-            accessory_quantity=accessory.quantity
+            name=accessory.name,
+            amount=accessory.quantity
         ) for accessory in accessories
     ]
     roof = await RoofsDAO.find_by_id(project.roof_id)
@@ -903,7 +906,6 @@ async def get_estimate(
         project_name=project.name,
         project_address=project.address,
         roof= RoofResponse(
-            roof_id=roof.id, 
             roof_name=roof.name,
             roof_type=roof.type,
             roof_overall_width=roof.overall_width,

@@ -2,8 +2,6 @@ from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 from pydantic import UUID4, BaseModel
 
-from app.base.schemas import RoofResponse
-
 # Line and Point
 class PointData(BaseModel):
     x: float
@@ -112,8 +110,13 @@ class AccessoriesResponse(BaseModel):
 # Estimate
 
 class AccessoriesEstimateResponse(BaseModel):
-    accessory_name: str
-    accessory_quantity: int
+    name: str
+    length: Optional[float] = None
+    overall_length: Optional[float] = None
+    amount: int
+    price: Optional[float] = None
+    material: Optional[str] = 'Satin'
+    color: Optional[str] = '8004'
 
 class SlopeEstimateResponse(BaseModel):
     slope_name: str
@@ -121,12 +124,25 @@ class SlopeEstimateResponse(BaseModel):
     area_overall: float
     area_usefull: float
 
+class RoofEstimateResponse(BaseModel):
+    roof_name: str
+    material: Optional[str] = 'Satin'
+    color: Optional[str] = '8004'
+    roof_type: str
+    roof_overall_width: float
+    roof_useful_width: float
+    roof_overlap: float
+    roof_min_length: float
+    roof_max_length: float
+
 class EstimateResponse(BaseModel):
     project_name: str
     project_address: str
-    roof: RoofResponse
+    roof_base: RoofEstimateResponse
+    PS: Optional[str] = None
+    PZ: Optional[str] = None
+    K: Optional[str] = None
     slopes: list[SlopeEstimateResponse]
-    counts_length: dict
+    sheets_amount: dict
     accessories: list[AccessoriesEstimateResponse]
-    material: Dict[str, str]
-    color: Dict[str, str]
+    sheets_extended: Optional[str] = None
