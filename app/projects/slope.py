@@ -327,6 +327,19 @@ class Point:
             moved_lines.add(line)
             line.point_moved(self, moved_lines, moved_points)
 
+class PointFactory:
+    def __init__(self):
+        self.points = {}
+
+    def get_or_create_point(self, x, y):
+        # Округляем координаты для согласованности
+        x = round(x, 2)
+        y = round(y, 2)
+        # Проверяем, существует ли уже точка с такими координатами
+        if (x, y) not in self.points:
+            self.points[(x, y)] = Point(x, y)
+        return self.points[(x, y)]
+
 class Line:
     def __init__(self, point1,point2, id, parent_id):
         self.point1 = point1
@@ -388,9 +401,13 @@ class Line:
 
 class SlopeUpdate:
     def __init__(self, lines_s):
+        point_factory = PointFactory()
         lines = []
         for line_s in lines_s:
-            lines.append(Line((Point(line_s.x_start, line_s.y_start)),(Point(line_s.x_end, line_s.y_end)),line_s.id, line_s.line_id))
+            # Получаем существующую точку или создаем новую, если её еще нет
+            point1 = point_factory.get_or_create_point(line_s.x_start, line_s.y_start)
+            point2 = point_factory.get_or_create_point(line_s.x_end, line_s.y_end)
+            lines.append(Line(point1, point2, line_s.id, line_s.line_id))
         self.lines = lines
 
     def get_min_max_y(self):
@@ -402,8 +419,7 @@ class SlopeUpdate:
         
         for line_s in self.lines:
             if line_s.line_id == line_id:
-                line = line_s
-                line.change_length(new_line_length)
+                line_s.change_length(new_line_length)
 
         return self.lines
 

@@ -625,6 +625,37 @@ async def add_cutout(
         slope_id=new_cutout.slope_id
     )
 
+@router.patch("/projects/{project_id}/slopes/{slope_id}", description="Update cutout")
+async def update_cutout(
+    project_id: UUID4,
+    slope_id: UUID4,
+    cutout_id: UUID4,
+    points: List[PointData],
+    user: Users = Depends(get_current_user)
+) -> CutoutResponse:
+    project = await ProjectsDAO.find_by_id(project_id)
+    if not project or project.user_id != user.id:
+        raise ProjectNotFound
+
+    slope = await SlopesDAO.find_by_id(slope_id)
+    if not slope or slope.project_id != project_id:
+        raise SlopeNotFound
+    
+    points_x = [point.x for point in points]
+    points_y = [point.y for point in points]
+
+    new_cutout = await CutoutsDAO.update_(
+        model_id=cutout_id
+        x_coords=points_x,
+        y_coords=points_y
+    )
+    return CutoutResponse(
+        cutout_id=new_cutout.id,
+        cutout_name=new_cutout.name,
+        cutout_points=points,
+        slope_id=new_cutout.slope_id
+    )
+
 @router.get("/projects/{project_id}/slopes/{slope_id}/sheets", description="View sheets for slope")
 async def get_sheets(
     project_id: UUID4,
