@@ -3,9 +3,8 @@ from typing import List
 from pydantic import UUID4
 from shapely.geometry import Polygon
 from app.base.dao import RoofsDAO
-from app.base.schemas import RoofResponse
 from app.exceptions import LineNotFound, ProjectAlreadyExists, ProjectNotFound, ProjectStepLimit, SheetNotFound, SlopeNotFound
-from app.projects.schemas import AccessoriesEstimateResponse, AccessoriesRequest, AccessoriesResponse, CutoutResponse, EstimateResponse, LineData, LineRequest, LineResponse, LineSlopeResponse, PointData, ProjectMaterialRequest, ProjectMaterialResponse, ProjectRequest, ProjectResponse, SheetResponse, SlopeEstimateResponse, SlopeResponse, SlopeSheetsResponse
+from app.projects.schemas import AccessoriesEstimateResponse, AccessoriesRequest, AccessoriesResponse, CutoutResponse, EstimateResponse, LineData, LineRequest, LineResponse, LineSlopeResponse, PointData, ProjectMaterialRequest, ProjectMaterialResponse, ProjectRequest, ProjectResponse, RoofEstimateResponse, SheetResponse, SlopeEstimateResponse, SlopeResponse, SlopeSheetsResponse
 from app.projects.dao import AccessoriesDAO, CutoutsDAO, LinesDAO, LinesSlopeDAO, ProjectsDAO, SheetsDAO, SlopesDAO
 from app.projects.slope import LineRotate, SlopeExtractor, align_figure, create_hole, create_sheets, get_next_name
 from app.users.dependencies import get_current_user
@@ -218,6 +217,9 @@ async def get_project_on_step(
             )
         case 8:
             slopes = await SlopesDAO.find_all(project_id=project_id)
+            material = project.material
+            color = project.color
+
             slopes_estimate = []
             slopes_area = 0
             all_sheets = []
@@ -242,17 +244,16 @@ async def get_project_on_step(
             accessories = await AccessoriesDAO.find_all(project_id=project_id)
             accessories_estimate = [
                 AccessoriesEstimateResponse(
-                    accessory_name=accessory.name,
-                    accessory_quantity=accessory.quantity
+                    name=accessory.name,
+                    amount=accessory.quantity
                 ) for accessory in accessories
             ]
             roof = await RoofsDAO.find_by_id(project.roof_id)
-
+            
             return EstimateResponse(
                 project_name=project.name,
                 project_address=project.address,
-                roof= RoofResponse(
-                    roof_id=roof.id, 
+                roof_base= RoofEstimateResponse(
                     roof_name=roof.name,
                     roof_type=roof.type,
                     roof_overall_width=roof.overall_width,
@@ -260,12 +261,10 @@ async def get_project_on_step(
                     roof_overlap=roof.overlap,
                     roof_min_length=roof.min_length,
                     roof_max_length=roof.max_length),
-                counts_length=length_counts,
+                sheets_amount=length_counts,
                 slopes=slopes_estimate,
                 accessories=accessories_estimate,
-                material=project.material,
-                color=project.color
-    )
+            )
 
 
 @router.get("/projects/{project_id}/lines/{line_id}", description="Get list of projects")
@@ -905,7 +904,7 @@ async def get_estimate(
     return EstimateResponse(
         project_name=project.name,
         project_address=project.address,
-        roof= RoofResponse(
+        roof_base= RoofEstimateResponse(
             roof_name=roof.name,
             roof_type=roof.type,
             roof_overall_width=roof.overall_width,
@@ -913,9 +912,7 @@ async def get_estimate(
             roof_overlap=roof.overlap,
             roof_min_length=roof.min_length,
             roof_max_length=roof.max_length),
-        counts_length=length_counts,
+        sheets_amount=length_counts,
         slopes=slopes_estimate,
         accessories=accessories_estimate,
-        material=project.material,
-        color=project.color
     )
