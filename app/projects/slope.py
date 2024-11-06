@@ -1,5 +1,6 @@
 from collections import defaultdict
 from itertools import product
+import math
 from typing import List
 
 import numpy as np
@@ -294,3 +295,135 @@ def align_figure(lines):
             raise ValueError("После трансформации некоторые координаты отрицательны")
 
     return lines
+
+
+
+class Point:
+    def __init__(self, x, y):
+        self.x = round(x, 2)
+        self.y = round(y, 2)
+        self.lines = []  # Связанные линии
+
+    def move(self, x, y, moved_lines=None, moved_points=None):
+        x = round(x, 2)
+        y = round(y, 2)
+        if self.x == x and self.y == y:
+            return
+
+        if moved_points is None:
+            moved_points = set()
+        if self in moved_points:
+            return
+        moved_points.add(self)
+
+        self.x = x
+        self.y = y
+
+        if moved_lines is None:
+            moved_lines = set()
+        for line in self.lines:
+            if line in moved_lines:
+                continue
+            moved_lines.add(line)
+            line.point_moved(self, moved_lines, moved_points)
+
+class Line:
+    def __init__(self, point1,point2, id, parent_id):
+        self.point1 = point1
+        self.point2 = point2
+        self.line_id = id
+        self.parent_id = parent_id
+        self.update_length()
+
+        # Регистрируем линию у точек
+        point1.lines.append(self)
+        point2.lines.append(self)
+
+    def update_length(self):
+        dx = self.point2.x - self.point1.x
+        dy = self.point2.y - self.point1.y
+        self.length = round(math.hypot(dx, dy), 2)
+
+    def point_moved(self, moved_point, moved_lines, moved_points):
+        other_point = self.point2 if moved_point == self.point1 else self.point1
+
+        # Пересчитываем длину, не учитывая угол
+        self.update_length()
+
+        # Перемещаем другую точку для сохранения длины линии
+        dx = other_point.x - moved_point.x
+        dy = other_point.y - moved_point.y
+        distance = math.hypot(dx, dy)
+        
+        if distance > 1e-9:
+            scaling_factor = self.length / distance
+            new_x = moved_point.x + dx * scaling_factor
+            new_y = moved_point.y + dy * scaling_factor
+
+            # Перемещаем другую точку
+            other_point.move(new_x, new_y, moved_lines, moved_points)
+
+    def change_length(self, new_length, moved_lines=None, moved_points=None):
+        if moved_lines is None:
+            moved_lines = set()
+        if moved_points is None:
+            moved_points = set()
+
+        self.length = round(new_length, 2)
+
+        # Перемещаем конечную точку, чтобы сохранить новую длину без учета угла
+        dx = self.point2.x - self.point1.x
+        dy = self.point2.y - self.point1.y
+        distance = math.hypot(dx, dy)
+        
+        if distance > 1e-9:
+            scaling_factor = self.length / distance
+            new_x = self.point1.x + dx * scaling_factor
+            new_y = self.point1.y + dy * scaling_factor
+            self.point2.move(new_x, new_y, moved_lines, moved_points)
+
+        # Обновляем длину линии
+        self.update_length()
+
+
+class SlopeUpdate:
+    def __init__(self, lines_s):
+        lines = []
+        for line_s in lines_s:
+            lines.append(Line((Point(line_s.x_start, line_s.y_start)),(Point(line_s.x_end, line_s.y_end)),line_s.id, line_s.line_id))
+        self.lines = lines
+
+    def get_min_max_y(self):
+        min_y = min(min(line.point1.y, line.point2.y) for line in self.lines)
+        max_y = max(max(line.point1.y, line.point2.y) for line in self.lines)
+        return min_y, max_y
+    
+    def change_line_length(self, line_id, new_line_length):
+        
+        for line_s in self.lines:
+            if line_s.line_id == line_id:
+                line = line_s
+                line.change_length(new_line_length)
+
+        return self.lines
+
+    def change_slope_length(self, new_slope_length):
+        min_y, max_y = self.get_min_max_y()
+        current_slope_length = max_y - min_y
+        if current_slope_length <= 0:
+            return
+
+        scaling_factor = new_slope_length / current_slope_length
+        for line in self.lines:
+            if line.point1.y == max_y or line.point2.y == max_y:
+                # Находим точку с наибольшим y и перемещаем её
+                top_point = line.point1 if line.point1.y == max_y else line.point2
+                fixed_point = line.point2 if top_point == line.point1 else line.point1
+                
+                # Пересчитываем y верхней точки для новой длины ската
+                new_top_y = min_y + new_slope_length
+                top_point.move(top_point.x, new_top_y)
+                
+                # Обновляем длину линии
+                line.update_length()
+        return self.lines
