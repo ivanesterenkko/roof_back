@@ -168,3 +168,7 @@ class EstimateResponse(BaseModel):
     sofits: list[SofitsEstimateResponce]
     screws: list[ScrewsEstimateResponse]
     sheets_extended: list[str]
+
+class Step6Response(BaseModel):
+    lines: list[LineResponse]
+    accessories: list[AccessoriesResponse]

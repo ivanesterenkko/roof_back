@@ -5,7 +5,7 @@ from shapely.geometry import Polygon
 from app.base.dao import RoofsDAO
 from app.exceptions import LineNotFound, ProjectAlreadyExists, ProjectNotFound, ProjectStepLimit, SheetNotFound, SlopeNotFound
 from app.projects.draw import draw_plan
-from app.projects.schemas import AccessoriesEstimateResponse, AccessoriesRequest, AccessoriesResponse, CutoutResponse, EstimateResponse, LineData, LineRequest, LineResponse, LineSlopeResponse, MaterialEstimateResponse, MaterialRequest, MaterialResponse, PointData, ProjectRequest, ProjectResponse, RoofEstimateResponse, ScrewsEstimateResponse, SheetResponse, SlopeEstimateResponse, SlopeResponse, SlopeSheetsResponse, SofitsEstimateResponce
+from app.projects.schemas import AccessoriesEstimateResponse, AccessoriesRequest, AccessoriesResponse, CutoutResponse, EstimateResponse, LineData, LineRequest, LineResponse, LineSlopeResponse, MaterialEstimateResponse, MaterialRequest, MaterialResponse, PointData, ProjectRequest, ProjectResponse, RoofEstimateResponse, ScrewsEstimateResponse, SheetResponse, SlopeEstimateResponse, SlopeResponse, SlopeSheetsResponse, SofitsEstimateResponce, Step6Response
 from app.projects.dao import AccessoriesDAO, CutoutsDAO, LinesDAO, LinesSlopeDAO, MaterialsDAO, ProjectsDAO, SheetsDAO, SlopesDAO
 from app.projects.slope import LineRotate, SlopeExtractor, SlopeUpdate, align_figure, create_hole, create_sheets, get_next_name
 from app.users.dependencies import get_current_user
@@ -199,15 +199,29 @@ async def get_project_on_step(
             return {"general_plan": lines_data, "slopes":slopes_data}
         case 6:
             lines = await LinesDAO.find_all(project_id=project_id)
-            return [LineResponse(
-                id=line.id,
-                line_type=line.type,
-                line_name=line.name,
-                line_length=line.length,
-                coords=LineData(start=PointData(x=line.x_start, y=line.y_start), 
-                                end=PointData(x=line.x_end, y=line.y_end))
-            ) for line in lines
-            ]
+            accessories = await AccessoriesDAO.find_all(project_id=project_id)
+
+            return Step6Response(
+                lines=[
+                    LineResponse(
+                        id=line.id,
+                        line_type=line.type,
+                        line_name=line.name,
+                        line_length=line.length,
+                        coords=LineData(start=PointData(x=line.x_start, y=line.y_start), 
+                                        end=PointData(x=line.x_end, y=line.y_end))
+            ) for line in lines],
+            accessories=[
+                AccessoriesResponse(
+                    id=accessory.id,
+                    accessory_name=accessory.name,
+                    lines_id=accessory.lines_id,
+                    lines_length=accessory.lines_length,
+                    length=accessory.length,
+                    width=accessory.width if accessory.width is not None else None,
+                    amount=accessory.quantity
+                    ) for accessory in accessories]
+            )
         case 7:
             materials = await MaterialsDAO.find_all(project_id=project_id)
             return [
@@ -220,6 +234,7 @@ async def get_project_on_step(
         case 8:
             slopes = await SlopesDAO.find_all(project_id=project_id)
             materials = await MaterialsDAO.find_all(project_id=project_id)
+            roof = await RoofsDAO.find_by_id(project.roof_id)
             materials_estimate = [
                 MaterialEstimateResponse(
                     name=material.name,
@@ -230,15 +245,20 @@ async def get_project_on_step(
             slopes_estimate = []
             slopes_area = 0
             all_sheets = []
+            overall = 0
+            plans_data = []
             for slope in slopes:
+                lines = await LinesSlopeDAO.find_all(slope_id=slope.id)
                 area_overall = 0
                 area_usefull = 0
                 slopes_area += slope.area
                 sheets = await SheetsDAO.find_all(slope_id=slope.id)
+                plans_data.append(draw_plan(lines, sheets, roof.overall_width))
                 for sheet in sheets:
                     area_overall += sheet.area_overall
                     area_usefull += sheet.area_usefull
                     all_sheets.append(sheet.length)
+                overall += area_overall
                 slopes_estimate.append(
                     SlopeEstimateResponse(
                         slope_name=slope.name,
@@ -249,13 +269,32 @@ async def get_project_on_step(
                 )
             length_counts = Counter(all_sheets)
             accessories = await AccessoriesDAO.find_all(project_id=project_id)
-            accessories_estimate = [
-                AccessoriesEstimateResponse(
-                    name=accessory.name,
-                    amount=accessory.quantity
-                ) for accessory in accessories
+            accessories_estimate = []
+            sofits_estimate = []
+            for accessory in accessories:
+                if 'Софит' in accessory.name or 'профиль' in accessory.name:
+                    sofits_estimate.append(
+                        SofitsEstimateResponce(
+                            name=accessory.name,
+                            amount=accessory.quantity,
+                            price=700
+                        ))
+                else:
+                    accessories_estimate.append(
+                        AccessoriesEstimateResponse(
+                            name=accessory.name,
+                            amount=accessory.quantity,
+                            price=300
+                        ))
+            screws_estimate = [
+                ScrewsEstimateResponse(
+                    name='Саморез 4,8х35',
+                    amount= int(overall*6),
+                    packege_amount= 250,
+                    price=1500
+                )
             ]
-            roof = await RoofsDAO.find_by_id(project.roof_id)
+            sheets_amount_dict = dict(length_counts)
 
             return EstimateResponse(
                 project_name=project.name,
@@ -264,16 +303,19 @@ async def get_project_on_step(
                 roof_base= RoofEstimateResponse(
                     roof_name=roof.name,
                     roof_type=roof.type,
+                    price=650,
                     roof_overall_width=roof.overall_width,
                     roof_useful_width=roof.useful_width,
                     roof_overlap=roof.overlap,
-                    roof_min_length=roof.min_length,
-                    roof_max_length=roof.max_length),
-                sheets_amount=length_counts,
+                    roof_max_length=roof.max_length,
+                    roof_max_length_standart=roof.max_length-roof.overlap),
+                sheets_amount=sheets_amount_dict,
                 slopes=slopes_estimate,
                 accessories=accessories_estimate,
+                sofits=sofits_estimate,
+                screws=screws_estimate,
+                sheets_extended=plans_data
             )
-
 
 @router.get("/projects/{project_id}/lines/{line_id}", description="Get list of projects")
 async def get_line(line_id: UUID4,
@@ -588,7 +630,7 @@ async def update_slope_length(
         ))
     return updated_lines
 
-@router.delete("/projects/{project_id}/add_line/slopes/{slope_id}", description="Delete cutout")
+@router.delete("/projects/{project_id}/add_line/slopes/{slope_id}/cutounts/{cutout_id}", description="Delete cutout")
 async def delete_cutout(
     slope_id: UUID4,
     cutout_id: UUID4,
@@ -599,7 +641,7 @@ async def delete_cutout(
         raise SlopeNotFound
     await CutoutsDAO.delete_(model_id=cutout_id)
 
-@router.post("/projects/{project_id}/slopes/{slope_id}", description="Add cutout")
+@router.post("/projects/{project_id}/slopes/{slope_id}/cutouts", description="Add cutout")
 async def add_cutout(
     project_id: UUID4,
     slope_id: UUID4,
@@ -633,7 +675,7 @@ async def add_cutout(
         slope_id=new_cutout.slope_id
     )
 
-@router.patch("/projects/{project_id}/slopes/{slope_id}", description="Update cutout")
+@router.patch("/projects/{project_id}/slopes/{slope_id}/cutouts/{cutout_id}", description="Update cutout")
 async def update_cutout(
     project_id: UUID4,
     slope_id: UUID4,
@@ -871,8 +913,10 @@ async def get_accessories(
             id=accessory.id,
             accessory_name=accessory.name,
             lines_id=accessory.lines_id,
-            parameters=accessory.parameters,
-            quantity=accessory.quantity
+            lines_length=accessory.lines_length,
+            length=accessory.length,
+            width=accessory.width if accessory.width is not None else None,
+            amount=accessory.quantity
         ) for accessory in accessories]
 
 @router.delete("/projects/{project_id}/accessories/{accessory_id}", description="Delete accessory")
@@ -1039,7 +1083,8 @@ async def get_estimate(
             roof_overall_width=roof.overall_width,
             roof_useful_width=roof.useful_width,
             roof_overlap=roof.overlap,
-            roof_max_length=roof.max_length),
+            roof_max_length=roof.max_length,
+            roof_max_length_standart=roof.max_length-roof.overlap),
         sheets_amount=sheets_amount_dict,
         slopes=slopes_estimate,
         accessories=accessories_estimate,
@@ -1047,4 +1092,3 @@ async def get_estimate(
         screws=screws_estimate,
         sheets_extended=plans_data
     )
-
