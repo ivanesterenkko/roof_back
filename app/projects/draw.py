@@ -14,7 +14,7 @@ def draw_plan(lines, sheets, width):
 
     # Общие параметры для стилей текста и рамок
     bbox_props = dict(facecolor='white', edgecolor='none', boxstyle='round,pad=0.3')
-    text_props = dict(ha='center', va='center', fontsize=10, color='black', bbox=bbox_props)
+    text_props = dict(ha='center', va='center', fontsize=6, color='black', bbox=bbox_props)
 
     # Рисуем листы в виде прямоугольников
     for sheet in sheets:

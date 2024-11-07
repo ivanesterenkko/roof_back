@@ -276,6 +276,9 @@ async def get_project_on_step(
                     sofits_estimate.append(
                         SofitsEstimateResponce(
                             name=accessory.name,
+                            length=accessory.length,
+                            width=accessory.width,
+                            overall_length=accessory.lines_length,
                             amount=accessory.quantity,
                             price=700
                         ))
@@ -283,6 +286,8 @@ async def get_project_on_step(
                     accessories_estimate.append(
                         AccessoriesEstimateResponse(
                             name=accessory.name,
+                            length=accessory.length,
+                            overall_length=accessory.lines_length,
                             amount=accessory.quantity,
                             price=300
                         ))
@@ -1052,6 +1057,9 @@ async def get_estimate(
             sofits_estimate.append(
                 SofitsEstimateResponce(
                     name=accessory.name,
+                    length=accessory.length,
+                    width=accessory.width,
+                    overall_length=accessory.lines_length,
                     amount=accessory.quantity,
                     price=700
                 ))
@@ -1059,6 +1067,8 @@ async def get_estimate(
             accessories_estimate.append(
                 AccessoriesEstimateResponse(
                     name=accessory.name,
+                    length=accessory.length,
+                    overall_length=accessory.lines_length,
                     amount=accessory.quantity,
                     price=300
                 ))
