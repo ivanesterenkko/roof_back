@@ -98,14 +98,17 @@ class CutoutResponse(BaseModel):
 class AccessoriesRequest(BaseModel):
     name: str
     lines_id: list[UUID4]
-    parameters: list[float]
+    length: float
+    width: Optional[float] = None
 
 class AccessoriesResponse(BaseModel):
     id: UUID4
     accessory_name: str
     lines_id: list[UUID4]
-    parameters: list[float]
-    quantity: int
+    lines_length: float
+    length: float
+    width: Optional[float] = None
+    amount: int
 
 # Estimate
 
@@ -114,6 +117,20 @@ class AccessoriesEstimateResponse(BaseModel):
     length: Optional[float] = None
     overall_length: Optional[float] = None
     amount: int
+    price: Optional[float] = None
+
+class SofitsEstimateResponce(BaseModel):
+    name: str
+    length: Optional[float] = None
+    width: Optional[float] = None
+    overall_length: Optional[float] = None
+    amount: int
+    price: Optional[float] = None
+    
+class ScrewsEstimateResponse(BaseModel):
+    name: str
+    amount: Optional[int] = None
+    packege_amount: Optional[int] = 250
     price: Optional[float] = None
 
 class SlopeEstimateResponse(BaseModel):
@@ -129,8 +146,8 @@ class RoofEstimateResponse(BaseModel):
     roof_overall_width: float
     roof_useful_width: float
     roof_overlap: float
-    roof_min_length: float
     roof_max_length: float
+    roof_max_length_standart: float
 
 class MaterialEstimateResponse(BaseModel):
     name: str
@@ -148,4 +165,6 @@ class EstimateResponse(BaseModel):
     slopes: list[SlopeEstimateResponse]
     sheets_amount: Dict[float, int]
     accessories: list[AccessoriesEstimateResponse]
+    sofits: list[SofitsEstimateResponce]
+    screws: list[ScrewsEstimateResponse]
     sheets_extended: list[str]

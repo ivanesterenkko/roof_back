@@ -5,7 +5,7 @@ from shapely.geometry import Polygon
 from app.base.dao import RoofsDAO
 from app.exceptions import LineNotFound, ProjectAlreadyExists, ProjectNotFound, ProjectStepLimit, SheetNotFound, SlopeNotFound
 from app.projects.draw import draw_plan
-from app.projects.schemas import AccessoriesEstimateResponse, AccessoriesRequest, AccessoriesResponse, CutoutResponse, EstimateResponse, LineData, LineRequest, LineResponse, LineSlopeResponse, MaterialEstimateResponse, MaterialRequest, MaterialResponse, PointData, ProjectRequest, ProjectResponse, RoofEstimateResponse, SheetResponse, SlopeEstimateResponse, SlopeResponse, SlopeSheetsResponse
+from app.projects.schemas import AccessoriesEstimateResponse, AccessoriesRequest, AccessoriesResponse, CutoutResponse, EstimateResponse, LineData, LineRequest, LineResponse, LineSlopeResponse, MaterialEstimateResponse, MaterialRequest, MaterialResponse, PointData, ProjectRequest, ProjectResponse, RoofEstimateResponse, ScrewsEstimateResponse, SheetResponse, SlopeEstimateResponse, SlopeResponse, SlopeSheetsResponse, SofitsEstimateResponce
 from app.projects.dao import AccessoriesDAO, CutoutsDAO, LinesDAO, LinesSlopeDAO, MaterialsDAO, ProjectsDAO, SheetsDAO, SlopesDAO
 from app.projects.slope import LineRotate, SlopeExtractor, SlopeUpdate, align_figure, create_hole, create_sheets, get_next_name
 from app.users.dependencies import get_current_user
@@ -899,23 +899,41 @@ async def add_accessory(
     if not project or project.user_id != user.id:
         raise ProjectNotFound
     lines = await asyncio.gather(*[LinesDAO.find_by_id(line_id) for line_id in accessory.lines_id])
-    length = 0
+    lines_length = 0
     for line in lines:
-        length += line.length
-    new_accessory = await AccessoriesDAO.add(
-        name=accessory.name,
-        lines_id=accessory.lines_id,
-        parameters=accessory.parameters,
-        quantity=length,
-        project_id=project_id
-    )
+        lines_length += line.length
+    if accessory.width is not None:
+        step1 = lines_length // accessory.width
+        amount = step1 // 5
+        new_accessory = await AccessoriesDAO.add(
+            name=accessory.name,
+            lines_id=accessory.lines_id,
+            length=accessory.length,
+            lines_length=lines_length,
+            width=accessory.width,
+            quantity=amount,
+            project_id=project_id
+        )
+    else:
+        amount = lines_length // 1.9
+        new_accessory = await AccessoriesDAO.add(
+            name=accessory.name,
+            lines_id=accessory.lines_id,
+            length=accessory.length,
+            lines_length=lines_length,
+            quantity=amount,
+            project_id=project_id
+        )
     return AccessoriesResponse(
         id=new_accessory.id,
         accessory_name=new_accessory.name,
         lines_id=new_accessory.lines_id,
-        parameters=new_accessory.parameters,
-        quantity=new_accessory.quantity
+        lines_length=new_accessory.lines_length,
+        length=new_accessory.length,
+        width=new_accessory.width if new_accessory.width is not None else None,
+        amount=new_accessory.quantity
     )
+
 @router.post("/projects/{project_id}/materials")
 async def add_material(
     project_id: UUID4,
@@ -959,6 +977,7 @@ async def get_estimate(
     slopes_estimate = []
     slopes_area = 0
     all_sheets = []
+    overall = 0
     plans_data = []
     for slope in slopes:
         lines = await LinesSlopeDAO.find_all(slope_id=slope.id)
@@ -971,6 +990,7 @@ async def get_estimate(
             area_overall += sheet.area_overall
             area_usefull += sheet.area_usefull
             all_sheets.append(sheet.length)
+        overall += area_overall
         slopes_estimate.append(
             SlopeEstimateResponse(
                 slope_name=slope.name,
@@ -981,11 +1001,30 @@ async def get_estimate(
         )
     length_counts = Counter(all_sheets)
     accessories = await AccessoriesDAO.find_all(project_id=project_id)
-    accessories_estimate = [
-        AccessoriesEstimateResponse(
-            name=accessory.name,
-            amount=accessory.quantity
-        ) for accessory in accessories
+    accessories_estimate = []
+    sofits_estimate = []
+    for accessory in accessories:
+        if 'Софит' in accessory.name or 'профиль' in accessory.name:
+            sofits_estimate.append(
+                SofitsEstimateResponce(
+                    name=accessory.name,
+                    amount=accessory.quantity,
+                    price=700
+                ))
+        else:
+            accessories_estimate.append(
+                AccessoriesEstimateResponse(
+                    name=accessory.name,
+                    amount=accessory.quantity,
+                    price=300
+                ))
+    screws_estimate = [
+        ScrewsEstimateResponse(
+            name='Саморез 4,8х35',
+            amount= int(overall*6),
+            packege_amount= 250,
+            price=1500
+        )
     ]
     sheets_amount_dict = dict(length_counts)
 
@@ -996,14 +1035,16 @@ async def get_estimate(
         roof_base= RoofEstimateResponse(
             roof_name=roof.name,
             roof_type=roof.type,
+            price=650,
             roof_overall_width=roof.overall_width,
             roof_useful_width=roof.useful_width,
             roof_overlap=roof.overlap,
-            roof_min_length=roof.min_length,
             roof_max_length=roof.max_length),
         sheets_amount=sheets_amount_dict,
         slopes=slopes_estimate,
         accessories=accessories_estimate,
+        sofits=sofits_estimate,
+        screws=screws_estimate,
         sheets_extended=plans_data
     )
 

@@ -7,7 +7,6 @@ class RoofRequest(BaseModel):
     overall_width: float
     useful_width: float
     overlap: float
-    min_length: float
     max_length: float
 
 class RoofResponse(BaseModel):
@@ -17,5 +16,4 @@ class RoofResponse(BaseModel):
     roof_overall_width: float
     roof_useful_width: float
     roof_overlap: float
-    roof_min_length: float
     roof_max_length: float

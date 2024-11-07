@@ -16,7 +16,6 @@ async def add_roof_base(roof: RoofRequest,
                                  overall_width=roof.overall_width,
                                  useful_width=roof.useful_width,
                                  overlap=roof.overlap,
-                                 min_length=roof.min_length,
                                  max_length=roof.max_length)
     return RoofResponse(roof_id=result.id, 
                         roof_name=result.name,
@@ -24,7 +23,6 @@ async def add_roof_base(roof: RoofRequest,
                         roof_overall_width=result.overall_width,
                         roof_useful_width=result.useful_width,
                         roof_overlap=result.overlap,
-                        roof_min_length=result.min_length,
                         roof_max_length=result.max_length)
 
 @router.get("/roofs_base", description="Получение покрытий из библиотеки")
@@ -39,7 +37,6 @@ async def get_roof_base(user: Users = Depends(get_current_user)) -> list[RoofRes
                         roof_overall_width=result.overall_width,
                         roof_useful_width=result.useful_width,
                         roof_overlap=result.overlap,
-                        roof_min_length=result.min_length,
                         roof_max_length=result.max_length)
                         for result in results
     ]

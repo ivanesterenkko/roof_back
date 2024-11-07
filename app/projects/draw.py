@@ -43,7 +43,6 @@ def draw_plan(lines, sheets, width):
         ax.text(
             mid_x, mid_y,
             line.name,
-            fontsize=12,
             fontweight='semibold',
             **text_props
         )
