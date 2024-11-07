@@ -966,7 +966,7 @@ async def get_estimate(
         area_usefull = 0
         slopes_area += slope.area
         sheets = await SheetsDAO.find_all(slope_id=slope.id)
-        plans_data.append(await draw_plan(lines, sheets, roof.overall_width))
+        plans_data.append(draw_plan(lines, sheets, roof.overall_width))
         for sheet in sheets:
             area_overall += sheet.area_overall
             area_usefull += sheet.area_usefull
@@ -987,7 +987,7 @@ async def get_estimate(
             amount=accessory.quantity
         ) for accessory in accessories
     ]
-
+    sheets_amount_dict = dict(length_counts)
 
     return EstimateResponse(
         project_name=project.name,
@@ -1001,7 +1001,7 @@ async def get_estimate(
             roof_overlap=roof.overlap,
             roof_min_length=roof.min_length,
             roof_max_length=roof.max_length),
-        sheets_amount=length_counts,
+        sheets_amount=sheets_amount_dict,
         slopes=slopes_estimate,
         accessories=accessories_estimate,
         sheets_extended=plans_data

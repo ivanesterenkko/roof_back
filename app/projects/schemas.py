@@ -125,6 +125,7 @@ class SlopeEstimateResponse(BaseModel):
 class RoofEstimateResponse(BaseModel):
     roof_name: str
     roof_type: str
+    price: Optional[float] = None
     roof_overall_width: float
     roof_useful_width: float
     roof_overlap: float
@@ -145,6 +146,6 @@ class EstimateResponse(BaseModel):
     PZ: Optional[str] = None
     K: Optional[str] = None
     slopes: list[SlopeEstimateResponse]
-    sheets_amount: dict
+    sheets_amount: Dict[float, int]
     accessories: list[AccessoriesEstimateResponse]
     sheets_extended: list[str]
