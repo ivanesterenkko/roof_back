@@ -70,6 +70,7 @@ class LineRequest(BaseModel):
 class SlopeResponse(BaseModel):
     id: UUID4
     slope_name: str
+    slope_length: float
     lines: list[LineSlopeResponse]
 
 class SheetResponse(BaseModel):
@@ -84,6 +85,7 @@ class SlopeSheetsResponse(BaseModel):
     id: UUID4
     slope_name: str
     slope_area: float
+    slope_length: float
     lines: list[LineSlopeResponse]
     sheets: list[SheetResponse]
     
@@ -135,6 +137,7 @@ class ScrewsEstimateResponse(BaseModel):
 
 class SlopeEstimateResponse(BaseModel):
     slope_name: str
+    slope_length: float
     slope_area: float
     area_overall: float
     area_usefull: float
@@ -172,3 +175,7 @@ class EstimateResponse(BaseModel):
 class Step6Response(BaseModel):
     lines: list[LineResponse]
     accessories: list[AccessoriesResponse]
+
+class Step3Response(BaseModel):
+    general_plan: List[LineResponse]
+    slopes: List[SlopeResponse]

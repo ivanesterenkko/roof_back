@@ -68,6 +68,7 @@ class Slopes(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
     name: Mapped[str] = mapped_column(String, nullable=False)
     area: Mapped[float] = mapped_column(Float, nullable=True)
+    length: Mapped[float] = mapped_column(Float, nullable=True)
 
     project_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('project.id', ondelete='CASCADE'), nullable=False)
 

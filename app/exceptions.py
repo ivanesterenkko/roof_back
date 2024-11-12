@@ -35,6 +35,11 @@ class ProjectStepLimit(AutoException):
     status_code = status.HTTP_400_BAD_REQUEST
     detail = "Превышен лимит шагов в проекте."
 
+class ProjectStepError(AutoException):
+
+    status_code = status.HTTP_400_BAD_REQUEST
+    detail = "Вы пытаетесь перейти на недопустимый шаг."
+
 class RoofNotFound(AutoException):
 
     status_code = status.HTTP_400_BAD_REQUEST

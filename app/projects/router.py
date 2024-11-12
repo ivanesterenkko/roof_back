@@ -3,9 +3,9 @@ from typing import List
 from pydantic import UUID4
 from shapely.geometry import Polygon
 from app.base.dao import RoofsDAO
-from app.exceptions import LineNotFound, ProjectAlreadyExists, ProjectNotFound, ProjectStepLimit, SheetNotFound, SlopeNotFound
+from app.exceptions import LineNotFound, ProjectAlreadyExists, ProjectNotFound, ProjectStepError, ProjectStepLimit, SheetNotFound, SlopeNotFound
 from app.projects.draw import draw_plan
-from app.projects.schemas import AccessoriesEstimateResponse, AccessoriesRequest, AccessoriesResponse, CutoutResponse, EstimateResponse, LineData, LineRequest, LineResponse, LineSlopeResponse, MaterialEstimateResponse, MaterialRequest, MaterialResponse, PointData, ProjectRequest, ProjectResponse, RoofEstimateResponse, ScrewsEstimateResponse, SheetResponse, SlopeEstimateResponse, SlopeResponse, SlopeSheetsResponse, SofitsEstimateResponce, Step6Response
+from app.projects.schemas import AccessoriesEstimateResponse, AccessoriesRequest, AccessoriesResponse, CutoutResponse, EstimateResponse, LineData, LineRequest, LineResponse, LineSlopeResponse, MaterialEstimateResponse, MaterialRequest, MaterialResponse, PointData, ProjectRequest, ProjectResponse, RoofEstimateResponse, ScrewsEstimateResponse, SheetResponse, SlopeEstimateResponse, SlopeResponse, SlopeSheetsResponse, SofitsEstimateResponce, Step3Response, Step6Response
 from app.projects.dao import AccessoriesDAO, CutoutsDAO, LinesDAO, LinesSlopeDAO, MaterialsDAO, ProjectsDAO, SheetsDAO, SlopesDAO
 from app.projects.slope import LineRotate, SlopeExtractor, SlopeUpdate, align_figure, create_hole, create_sheets, get_next_name
 from app.users.dependencies import get_current_user
@@ -45,7 +45,7 @@ async def add_project(
     project: ProjectRequest,
     user: Users = Depends(get_current_user)
 ) -> ProjectResponse:
-    existing_project = await ProjectsDAO.find_one_or_none(name=project.name)
+    existing_project = await ProjectsDAO.find_one_or_none(name=project.name, user_id=user.id)
     if existing_project:
         raise ProjectAlreadyExists
 
@@ -113,39 +113,41 @@ async def get_project_on_step(
                 ]
         case 3:
             slopes = await SlopesDAO.find_all(project_id=project_id)
-            if not slopes:
-                lines = await LinesDAO.find_all(project_id=project_id)
-                return [
-                    LineResponse(
-                        id=line.id,
-                        line_type=line.type,
-                        line_name=line.name,
-                        line_length=line.length,
-                        coords=LineData(start=PointData(x=line.x_start, y=line.y_start), 
-                                        end=PointData(x=line.x_end, y=line.y_end))
+            lines = await LinesDAO.find_all(project_id=project_id)
+            lines_plan = [
+                LineResponse(
+                    id=line.id,
+                    line_type=line.type,
+                    line_name=line.name,
+                    line_length=line.length,
+                    coords=LineData(start=PointData(x=line.x_start, y=line.y_start), 
+                                    end=PointData(x=line.x_end, y=line.y_end))
+                ) for line in lines
+                ]
+            slopes_data = []
+            for slope in slopes:
+                lines = await LinesSlopeDAO.find_all(slope_id=slope.id)
+                lines_data = [LineSlopeResponse(
+                    id=line.id,
+                    line_id=line.line_id,
+                    line_name=line.name,
+                    line_length=line.length,
+                    coords=LineData(start=PointData(x=line.x_start, y=line.y_start), 
+                                    end=PointData(x=line.x_end, y=line.y_end)
+                                    )
                     ) for line in lines
-                    ]
-            else:
-                slopes_data = []
-                for slope in slopes:
-                    lines = await LinesSlopeDAO.find_all(slope_id=slope.id)
-                    lines_data = [LineSlopeResponse(
-                        id=line.id,
-                        line_id=line.line_id,
-                        line_name=line.name,
-                        line_length=line.length,
-                        coords=LineData(start=PointData(x=line.x_start, y=line.y_start), 
-                                        end=PointData(x=line.x_end, y=line.y_end)
-                                        )
-                        ) for line in lines
-                    ]
-                    slopes_data.append(SlopeResponse(
-                        id=slope.id,
-                        slope_name=slope.name,
-                        lines=lines_data
-                        )
+                ]
+                slopes_data.append(SlopeResponse(
+                    id=slope.id,
+                    slope_length=slope.length,
+                    slope_name=slope.name,
+                    lines=lines_data
                     )
-                return slopes_data
+                )
+            return Step3Response(
+                general_plan=lines_plan,
+                slopes=slopes_data
+            )
         case 4:
             lines = await LinesDAO.find_all(project_id=project_id)
             return [LineResponse(
@@ -192,11 +194,15 @@ async def get_project_on_step(
                 slopes_data.append(SlopeSheetsResponse(
                     id=slope.id,
                     slope_name=slope.name,
+                    slope_length=slope.length,
                     slope_area=slope.area,
                     lines=lines_slope_data,
                     sheets=sheets_data
                 ))
-            return {"general_plan": lines_data, "slopes":slopes_data}
+            return Step3Response(
+                general_plan=lines_data,
+                slopes=slopes_data
+            )
         case 6:
             lines = await LinesDAO.find_all(project_id=project_id)
             accessories = await AccessoriesDAO.find_all(project_id=project_id)
@@ -262,6 +268,261 @@ async def get_project_on_step(
                 slopes_estimate.append(
                     SlopeEstimateResponse(
                         slope_name=slope.name,
+                        slope_length=slope.length,
+                        slope_area=slope.area,
+                        area_overall=area_overall,
+                        area_usefull=area_usefull
+                    )
+                )
+            length_counts = Counter(all_sheets)
+            accessories = await AccessoriesDAO.find_all(project_id=project_id)
+            accessories_estimate = []
+            sofits_estimate = []
+            for accessory in accessories:
+                if 'Софит' in accessory.name or 'профиль' in accessory.name:
+                    sofits_estimate.append(
+                        SofitsEstimateResponce(
+                            name=accessory.name,
+                            length=accessory.length,
+                            width=accessory.width,
+                            overall_length=accessory.lines_length,
+                            amount=accessory.quantity,
+                            price=700
+                        ))
+                else:
+                    accessories_estimate.append(
+                        AccessoriesEstimateResponse(
+                            name=accessory.name,
+                            length=accessory.length,
+                            overall_length=accessory.lines_length,
+                            amount=accessory.quantity,
+                            price=300
+                        ))
+            screws_estimate = [
+                ScrewsEstimateResponse(
+                    name='Саморез 4,8х35',
+                    amount= int(overall*6),
+                    packege_amount= 250,
+                    price=1500
+                )
+            ]
+            sheets_amount_dict = dict(length_counts)
+
+            return EstimateResponse(
+                project_name=project.name,
+                project_address=project.address,
+                materials=materials_estimate,
+                roof_base= RoofEstimateResponse(
+                    roof_name=roof.name,
+                    roof_type=roof.type,
+                    price=650,
+                    roof_overall_width=roof.overall_width,
+                    roof_useful_width=roof.useful_width,
+                    roof_overlap=roof.overlap,
+                    roof_max_length=roof.max_length,
+                    roof_max_length_standart=roof.max_length-roof.overlap),
+                sheets_amount=sheets_amount_dict,
+                slopes=slopes_estimate,
+                accessories=accessories_estimate,
+                sofits=sofits_estimate,
+                screws=screws_estimate,
+                sheets_extended=plans_data
+            )
+
+@router.get("/projects/{project_id}/{step_number}")
+async def get_project_on_step(
+    project_id: UUID4,
+    step_number: int,
+    user: Users = Depends(get_current_user)
+):
+    project = await ProjectsDAO.find_by_id(project_id)
+    if not project or project.user_id != user.id:
+        raise ProjectNotFound
+    if step_number > 8:
+        raise ProjectStepLimit
+    elif step_number > project.step:
+        raise ProjectStepError
+    match step_number:
+        case 1:
+            return ProjectResponse(
+                id=project.id,
+                project_name=project.name,
+                project_step=project.step,
+                datetime_created=project.datetime_created
+            )
+        case 2:
+            lines = await LinesDAO.find_all(project_id=project_id)
+            if not lines:
+                return None
+            else:
+                return [
+                    LineResponse(
+                        id=line.id,
+                        line_type=line.type,
+                        line_name=line.name,
+                        line_length=line.length,
+                        coords=LineData(start=PointData(x=line.x_start, y=line.y_start), 
+                                        end=PointData(x=line.x_end, y=line.y_end))
+                    ) for line in lines
+                ]
+        case 3:
+            slopes = await SlopesDAO.find_all(project_id=project_id)
+            lines = await LinesDAO.find_all(project_id=project_id)
+            lines_plan = [
+                LineResponse(
+                    id=line.id,
+                    line_type=line.type,
+                    line_name=line.name,
+                    line_length=line.length,
+                    coords=LineData(start=PointData(x=line.x_start, y=line.y_start), 
+                                    end=PointData(x=line.x_end, y=line.y_end))
+                ) for line in lines
+                ]
+            slopes_data = []
+            for slope in slopes:
+                lines = await LinesSlopeDAO.find_all(slope_id=slope.id)
+                lines_data = [LineSlopeResponse(
+                    id=line.id,
+                    line_id=line.line_id,
+                    line_name=line.name,
+                    line_length=line.length,
+                    coords=LineData(start=PointData(x=line.x_start, y=line.y_start), 
+                                    end=PointData(x=line.x_end, y=line.y_end)
+                                    )
+                    ) for line in lines
+                ]
+                slopes_data.append(SlopeResponse(
+                    id=slope.id,
+                    slope_name=slope.name,
+                    slope_length=slope.length,
+                    lines=lines_data
+                    )
+                )
+            return Step3Response(
+                general_plan=lines_plan,
+                slopes=slopes_data
+            )
+        case 4:
+            lines = await LinesDAO.find_all(project_id=project_id)
+            return [LineResponse(
+                id=line.id,
+                line_type=line.type,
+                line_name=line.name,
+                line_length=line.length,
+                coords=LineData(start=PointData(x=line.x_start, y=line.y_start), 
+                                end=PointData(x=line.x_end, y=line.y_end))
+            ) for line in lines
+            ]
+        case 5:
+            lines = await LinesDAO.find_all(project_id=project_id)
+            lines_data = [LineResponse(
+                id=line.id,
+                line_type=line.type,
+                line_name=line.name,
+                line_length=line.length,
+                coords=LineData(start=PointData(x=line.x_start, y=line.y_start), 
+                                end=PointData(x=line.x_end, y=line.y_end))
+            ) for line in lines
+            ]
+            slopes = await SlopesDAO.find_all(project_id=project_id)
+            slopes_data = []
+            for slope in slopes:
+                lines_slope = await LinesSlopeDAO.find_all(slope_id=slope.id)
+                lines_slope_data = [LineSlopeResponse(
+                    id=line.id,
+                    line_id=line.line_id,
+                    line_name=line.name,
+                    line_length=line.length,
+                    coords=LineData(start=PointData(x=line.x_start, y=line.y_start), 
+                                    end=PointData(x=line.x_end, y=line.y_end))
+                    ) for line in lines_slope]
+                sheets = await SheetsDAO.find_all(slope_id=slope.id)
+                sheets_data = [SheetResponse(
+                    id=sheet.id,
+                    sheet_x_start=sheet.x_start,
+                    sheet_y_start=sheet.y_start,
+                    sheet_length=sheet.length,
+                    sheet_area_overall=sheet.area_overall,
+                    sheet_area_usefull=sheet.area_usefull
+                ) for sheet in sheets]
+                slopes_data.append(SlopeSheetsResponse(
+                    id=slope.id,
+                    slope_length=slope.length,
+                    slope_name=slope.name,
+                    slope_area=slope.area,
+                    lines=lines_slope_data,
+                    sheets=sheets_data
+                ))
+            return Step3Response(
+                general_plan=lines_data,
+                slopes=slopes_data
+            )
+        case 6:
+            lines = await LinesDAO.find_all(project_id=project_id)
+            accessories = await AccessoriesDAO.find_all(project_id=project_id)
+
+            return Step6Response(
+                lines=[
+                    LineResponse(
+                        id=line.id,
+                        line_type=line.type,
+                        line_name=line.name,
+                        line_length=line.length,
+                        coords=LineData(start=PointData(x=line.x_start, y=line.y_start), 
+                                        end=PointData(x=line.x_end, y=line.y_end))
+            ) for line in lines],
+            accessories=[
+                AccessoriesResponse(
+                    id=accessory.id,
+                    accessory_name=accessory.name,
+                    lines_id=accessory.lines_id,
+                    lines_length=accessory.lines_length,
+                    length=accessory.length,
+                    width=accessory.width if accessory.width is not None else None,
+                    amount=accessory.quantity
+                    ) for accessory in accessories]
+            )
+        case 7:
+            materials = await MaterialsDAO.find_all(project_id=project_id)
+            return [
+                MaterialEstimateResponse(
+                    name=material.name,
+                    material=material.material,
+                    color=material.color
+                ) for material in materials
+            ]
+        case 8:
+            slopes = await SlopesDAO.find_all(project_id=project_id)
+            materials = await MaterialsDAO.find_all(project_id=project_id)
+            roof = await RoofsDAO.find_by_id(project.roof_id)
+            materials_estimate = [
+                MaterialEstimateResponse(
+                    name=material.name,
+                    material=material.material,
+                    color=material.color
+                ) for material in materials
+            ]
+            slopes_estimate = []
+            slopes_area = 0
+            all_sheets = []
+            overall = 0
+            plans_data = []
+            for slope in slopes:
+                lines = await LinesSlopeDAO.find_all(slope_id=slope.id)
+                area_overall = 0
+                area_usefull = 0
+                slopes_area += slope.area
+                sheets = await SheetsDAO.find_all(slope_id=slope.id)
+                plans_data.append(draw_plan(lines, sheets, roof.overall_width))
+                for sheet in sheets:
+                    area_overall += sheet.area_overall
+                    area_usefull += sheet.area_usefull
+                    all_sheets.append(sheet.length)
+                overall += area_overall
+                slopes_estimate.append(
+                    SlopeEstimateResponse(
+                        slope_name=slope.name,
+                        slope_length=slope.length,
                         slope_area=slope.area,
                         area_overall=area_overall,
                         area_usefull=area_usefull
@@ -422,7 +683,7 @@ async def update_line(
     line_id: UUID4,
     line_data: LineData,
     user: Users = Depends(get_current_user)
-) -> LineResponse:
+) -> List[LineResponse]:
     project = await ProjectsDAO.find_by_id(project_id)
     if not project or project.user_id != user.id:
         raise ProjectNotFound
@@ -438,14 +699,15 @@ async def update_line(
         y_end=line_data.end.y,
         length=round(((line_data.start.x - line_data.end.x) ** 2 + (line_data.start.y - line_data.end.y) ** 2) ** 0.5, 2)
     )
-    return LineResponse(
-        id=updated_line.id,
-        line_type=updated_line.type,
-        line_name=updated_line.name,
-        line_length=updated_line.length,
-        coords=LineData(start=PointData(x=updated_line.x_start, y=updated_line.y_start), 
-                            end=PointData(x=updated_line.x_end, y=updated_line.y_end))
-    )
+    lines = await LinesDAO.find_all(project_id=project_id)
+    return [LineResponse(
+        id=line.id,
+        line_type=line.type,
+        line_name=line.name,
+        line_length=line.length,
+        coords=LineData(start=PointData(x=line.x_start, y=line.y_start), 
+                            end=PointData(x=line.x_end, y=line.y_end))
+    ) for line in lines]
 
 @router.patch("/projects/{project_id}/lines/{line_id}/node_line", description="Add roof node")
 async def add_node(
@@ -489,6 +751,7 @@ async def get_slope(
 
     return SlopeResponse(
         id=slope.id,
+        slope_length=slope.length,
         slope_name=slope.name,
         lines=[ LineSlopeResponse(id=line.id,
                                   line_id=line.line_id,
@@ -503,7 +766,7 @@ async def get_slope(
 async def add_slope(
     project_id: UUID4,
     user: Users = Depends(get_current_user)
-) -> List[SlopeResponse]:
+) -> Step3Response:
     project = await ProjectsDAO.find_by_id(project_id)
     if not project or project.user_id != user.id:
         raise ProjectNotFound
@@ -517,9 +780,19 @@ async def add_slope(
     slopes = SlopeExtractor(lines_data).extract_slopes()
     existing_slopes = await SlopesDAO.find_all(project_id=project.id)
     existing_names = [slope.name for slope in existing_slopes]
-
+    lines_plan = [
+        LineResponse(
+            id=line.id,
+            line_type=line.type,
+            line_name=line.name,
+            line_length=line.length,
+            coords=LineData(start=PointData(x=line.x_start, y=line.y_start), 
+                            end=PointData(x=line.x_end, y=line.y_end))
+        ) for line in lines
+        ]
     slopes_list = []
     for slope in slopes:
+        y_list = []
         slope_name = get_next_name(existing_names)
         existing_names.append(slope_name)
         new_slope = await SlopesDAO.add(
@@ -534,6 +807,8 @@ async def add_slope(
         count = 1
         lines_slope = []
         for line_rotate in lines_rotate:
+            y_list.append(line_rotate.start[1])
+            y_list.append(line_rotate.end[1])
             line_slope =await LinesSlopeDAO.add(
                     line_id=line_rotate.id,
                     name=line_rotate.name,
@@ -547,8 +822,12 @@ async def add_slope(
                 )
             count += 1
             lines_slope.append(line_slope)
+        y_list.sort()
+        length = y_list[-1] - y_list[0]
+        new_slope = await SlopesDAO.update_(model_id=new_slope.id, length=length)
         slopes_list.append(SlopeResponse(
             id=new_slope.id,
+            slope_length=new_slope.length,
             slope_name=new_slope.name,
             lines=[ LineSlopeResponse(id=line.id,
                                       line_id=line.line_id,
@@ -558,7 +837,10 @@ async def add_slope(
                                                       end=PointData(x=line.x_end, y=line.y_end))
                                 ) for line in lines_slope]
         ))
-    return slopes_list
+        return Step3Response(
+            general_plan=lines_plan,
+            slopes=slopes_list
+        )
 
 @router.patch("/projects/{project_id}/slopes/{slope_id}/lines_slope/{line_id}", description="Update line slope dimensions")
 async def update_line_slope(
@@ -577,7 +859,10 @@ async def update_line_slope(
     lines = await LinesSlopeDAO.find_all(slope_id=slope_id)
     slope_lines = SlopeUpdate(lines).change_line_length(line_id=line_id, new_line_length=length)
     updated_lines = []
+    y_list = []
     for line in slope_lines:
+        y_list.append(line.point2.y)
+        y_list.append(line.point1.y)
         parent_line = await LinesDAO.find_by_id(line.parent_id)
         await LinesDAO.update_(model_id=line.parent_id, length=max(parent_line.length, line.length))
         updated_line = await LinesSlopeDAO.update_(
@@ -596,6 +881,10 @@ async def update_line_slope(
         coords=LineData(start=PointData(x=updated_line.x_start, y=updated_line.y_start), 
                             end=PointData(x=updated_line.x_end, y=updated_line.y_end))
         ))
+    y_list.sort()
+    slope_length = y_list[-1] - y_list[0]
+    if slope_length != slope.length:
+        new_slope = await SlopesDAO.update_(model_id=new_slope.id, length=length)
     return updated_lines
 
 @router.patch("/projects/{project_id}/slopes/{slope_id}", description="Update length slope dimensions")
@@ -611,6 +900,7 @@ async def update_slope_length(
     slope = await SlopesDAO.find_by_id(slope_id)
     if not slope or slope.project_id != project_id:
         raise SlopeNotFound
+    new_slope = await SlopesDAO.update_(model_id=slope_id, length=length)
     lines = await LinesSlopeDAO.find_all(slope_id=slope_id)
     slope_lines = SlopeUpdate(lines).change_slope_length(new_slope_length=length)
     updated_lines = []
@@ -829,6 +1119,7 @@ async def add_sheets(
             sheet_area_usefull=new_sheet.area_usefull
         ))
     return SlopeSheetsResponse(id=slope.id,
+                               slope_length=slope.length,
                                slope_name=slope.name,
                                slope_area=slope.area,
                                lines=lines_data,
@@ -1043,6 +1334,7 @@ async def get_estimate(
         slopes_estimate.append(
             SlopeEstimateResponse(
                 slope_name=slope.name,
+                slope_length=slope.length,
                 slope_area=slope.area,
                 area_overall=area_overall,
                 area_usefull=area_usefull
