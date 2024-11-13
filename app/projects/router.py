@@ -329,7 +329,7 @@ async def get_project_on_step(
                 sheets_extended=plans_data
             )
 
-@router.get("/projects/{project_id}/{step_number}")
+@router.get("/projects/{project_id}/step_number")
 async def get_project_on_step(
     project_id: UUID4,
     step_number: int,
