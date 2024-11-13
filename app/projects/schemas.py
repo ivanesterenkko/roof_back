@@ -48,6 +48,10 @@ class MaterialResponse(BaseModel):
     color: str
 # Line
 
+class LineRequestUpdate(BaseModel):
+    id: UUID4
+    coords: LineData
+
 class LineResponse(BaseModel):
     id: UUID4
     line_name: str

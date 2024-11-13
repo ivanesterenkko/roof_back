@@ -5,7 +5,7 @@ from shapely.geometry import Polygon
 from app.base.dao import RoofsDAO
 from app.exceptions import LineNotFound, ProjectAlreadyExists, ProjectNotFound, ProjectStepError, ProjectStepLimit, SheetNotFound, SlopeNotFound
 from app.projects.draw import draw_plan
-from app.projects.schemas import AccessoriesEstimateResponse, AccessoriesRequest, AccessoriesResponse, CutoutResponse, EstimateResponse, LineData, LineRequest, LineResponse, LineSlopeResponse, MaterialEstimateResponse, MaterialRequest, MaterialResponse, PointData, ProjectRequest, ProjectResponse, RoofEstimateResponse, ScrewsEstimateResponse, SheetResponse, SlopeEstimateResponse, SlopeResponse, SlopeSheetsResponse, SofitsEstimateResponce, Step3Response, Step6Response
+from app.projects.schemas import AccessoriesEstimateResponse, AccessoriesRequest, AccessoriesResponse, CutoutResponse, EstimateResponse, LineData, LineRequest, LineRequestUpdate, LineResponse, LineSlopeResponse, MaterialEstimateResponse, MaterialRequest, MaterialResponse, PointData, ProjectRequest, ProjectResponse, RoofEstimateResponse, ScrewsEstimateResponse, SheetResponse, SlopeEstimateResponse, SlopeResponse, SlopeSheetsResponse, SofitsEstimateResponce, Step3Response, Step6Response
 from app.projects.dao import AccessoriesDAO, CutoutsDAO, LinesDAO, LinesSlopeDAO, MaterialsDAO, ProjectsDAO, SheetsDAO, SlopesDAO
 from app.projects.slope import LineRotate, SlopeExtractor, SlopeUpdate, align_figure, create_hole, create_sheets, get_next_name
 from app.users.dependencies import get_current_user
@@ -97,7 +97,7 @@ async def get_project_on_step(
                 datetime_created=project.datetime_created
             )
         case 2:
-            lines = await LinesDAO.find_all(project_id=project_id)
+            lines = await LinesDAO.find_all(project_id=project_id, type=['Perimetr', 'Карниз'])
             if not lines:
                 return None
             else:
@@ -351,7 +351,7 @@ async def get_project_on_step(
                 datetime_created=project.datetime_created
             )
         case 2:
-            lines = await LinesDAO.find_all(project_id=project_id)
+            lines = await LinesDAO.find_all(project_id=project_id, type=['Perimetr', 'Карниз'])
             if not lines:
                 return None
             else:
@@ -699,6 +699,34 @@ async def update_line(
         y_end=line_data.end.y,
         length=round(((line_data.start.x - line_data.end.x) ** 2 + (line_data.start.y - line_data.end.y) ** 2) ** 0.5, 2)
     )
+    lines = await LinesDAO.find_all(project_id=project_id)
+    return [LineResponse(
+        id=line.id,
+        line_type=line.type,
+        line_name=line.name,
+        line_length=line.length,
+        coords=LineData(start=PointData(x=line.x_start, y=line.y_start), 
+                            end=PointData(x=line.x_end, y=line.y_end))
+    ) for line in lines]
+
+@router.patch("/projects/{project_id}/lines", description="Update line dimensions")
+async def update_lines(
+    project_id: UUID4,
+    lines_data: LineRequestUpdate,
+    user: Users = Depends(get_current_user)
+) -> List[LineResponse]:
+    project = await ProjectsDAO.find_by_id(project_id)
+    if not project or project.user_id != user.id:
+        raise ProjectNotFound
+
+    updated_line = [await LinesDAO.update_(
+        model_id=line.id,
+        x_start=line.start.x,
+        y_start=line.start.y,
+        x_end=line.end.x,
+        y_end=line.end.y,
+        length=round(((line.start.x - line.end.x) ** 2 + (line.start.y - line.end.y) ** 2) ** 0.5, 2)
+    ) for line in lines_data]
     lines = await LinesDAO.find_all(project_id=project_id)
     return [LineResponse(
         id=line.id,
