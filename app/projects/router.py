@@ -5,7 +5,7 @@ from shapely.geometry import Polygon
 from app.base.dao import RoofsDAO
 from app.exceptions import LineNotFound, ProjectAlreadyExists, ProjectNotFound, ProjectStepError, ProjectStepLimit, SheetNotFound, SlopeNotFound
 from app.projects.draw import draw_plan
-from app.projects.schemas import AccessoriesEstimateResponse, AccessoriesRequest, AccessoriesResponse, CutoutResponse, EstimateResponse, LineData, LineRequest, LineRequestUpdate, LineResponse, LineSlopeResponse, MaterialEstimateResponse, MaterialRequest, MaterialResponse, PointData, ProjectRequest, ProjectResponse, RoofEstimateResponse, ScrewsEstimateResponse, SheetResponse, SlopeEstimateResponse, SlopeResponse, SlopeSheetsResponse, SofitsEstimateResponce, Step3Response, Step6Response
+from app.projects.schemas import AccessoriesEstimateResponse, AccessoriesRequest, AccessoriesResponse, CutoutResponse, EstimateResponse, LineData, LineRequest, LineRequestUpdate, LineResponse, LineSlopeResponse, MaterialEstimateResponse, MaterialRequest, MaterialResponse, PointData, ProjectRequest, ProjectResponse, RoofEstimateResponse, ScrewsEstimateResponse, SheetResponse, SlopeEstimateResponse, SlopeResponse, SlopeSheetsResponse, SofitsEstimateResponce, Step1Response, Step3Response, Step6Response
 from app.projects.dao import AccessoriesDAO, CutoutsDAO, LinesDAO, LinesSlopeDAO, MaterialsDAO, ProjectsDAO, SheetsDAO, SlopesDAO
 from app.projects.slope import LineRotate, SlopeExtractor, SlopeUpdate, align_figure, create_hole, create_sheets, get_next_name
 from app.users.dependencies import get_current_user
@@ -90,11 +90,11 @@ async def get_project_on_step(
         raise ProjectNotFound
     match project.step:
         case 1:
-            return ProjectResponse(
+            return Step1Response(
                 id=project.id,
                 project_name=project.name,
                 project_step=project.step,
-                datetime_created=project.datetime_created
+                roof_id=project.roof_id
             )
         case 2:
             lines = await LinesDAO.find_all(project_id=project_id, type=['Perimetr', 'Карниз'])
@@ -344,11 +344,11 @@ async def get_project_on_step(
         raise ProjectStepError
     match step_number:
         case 1:
-            return ProjectResponse(
+            return Step1Response(
                 id=project.id,
                 project_name=project.name,
                 project_step=project.step,
-                datetime_created=project.datetime_created
+                roof_id=project.roof_id
             )
         case 2:
             lines = await LinesDAO.find_all(project_id=project_id, type=['Perimetr', 'Карниз'])
