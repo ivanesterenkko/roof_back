@@ -837,10 +837,10 @@ async def add_slope(
                                                       end=PointData(x=line.x_end, y=line.y_end))
                                 ) for line in lines_slope]
         ))
-        return Step3Response(
-            general_plan=lines_plan,
-            slopes=slopes_list
-        )
+    return Step3Response(
+        general_plan=lines_plan,
+        slopes=slopes_list
+    )
 
 @router.patch("/projects/{project_id}/slopes/{slope_id}/lines_slope/{line_id}", description="Update line slope dimensions")
 async def update_line_slope(
