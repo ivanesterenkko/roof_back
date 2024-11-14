@@ -93,12 +93,13 @@ async def get_project_on_step(
             return Step1Response(
                 id=project.id,
                 project_name=project.name,
-                project_step=project.step,
+                project_address=project.address,
                 roof_id=project.roof_id
             )
         case 2:
-            lines = await LinesDAO.find_all(project_id=project_id, type=['Perimetr', 'Карниз'])
-            if not lines:
+            lines = await LinesDAO.find_all(project_id=project_id)
+            filtered_lines = [line for line in lines if line.type in ['Perimeter', 'Карниз']]
+            if not filtered_lines:
                 return None
             else:
                 return [
@@ -109,7 +110,7 @@ async def get_project_on_step(
                         line_length=line.length,
                         coords=LineData(start=PointData(x=line.x_start, y=line.y_start), 
                                         end=PointData(x=line.x_end, y=line.y_end))
-                    ) for line in lines
+                    ) for line in filtered_lines
                 ]
         case 3:
             slopes = await SlopesDAO.find_all(project_id=project_id)
@@ -347,12 +348,13 @@ async def get_project_on_step(
             return Step1Response(
                 id=project.id,
                 project_name=project.name,
-                project_step=project.step,
+                project_address=project.address,
                 roof_id=project.roof_id
             )
         case 2:
-            lines = await LinesDAO.find_all(project_id=project_id, type=['Perimetr', 'Карниз'])
-            if not lines:
+            lines = await LinesDAO.find_all(project_id=project_id)
+            filtered_lines = [line for line in lines if line.type in ['Perimeter', 'Карниз']]
+            if not filtered_lines:
                 return None
             else:
                 return [
@@ -363,7 +365,7 @@ async def get_project_on_step(
                         line_length=line.length,
                         coords=LineData(start=PointData(x=line.x_start, y=line.y_start), 
                                         end=PointData(x=line.x_end, y=line.y_end))
-                    ) for line in lines
+                    ) for line in filtered_lines
                 ]
         case 3:
             slopes = await SlopesDAO.find_all(project_id=project_id)

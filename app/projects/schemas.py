@@ -187,5 +187,5 @@ class Step3Response(BaseModel):
 class Step1Response(BaseModel):
     id: UUID4
     project_name: str
-    project_step: int
+    project_address: str
     roof_id: UUID4
