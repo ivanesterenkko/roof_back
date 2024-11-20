@@ -23,6 +23,9 @@ async def lifespan(app: FastAPI):
 
     await delete_tables()
     await create_tables()
+    redis = aioredis.from_url(settings.redis_url, encoding="utf8", decode_responses=True)
+    app.state.redis = redis
+    FastAPICache.init(RedisBackend(redis), prefix="cache")
 
     yield
 

@@ -1,10 +1,12 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from typing import List
+from fastapi.responses import StreamingResponse
 from pydantic import UUID4
 from shapely.geometry import Polygon
 from app.base.dao import RoofsDAO
 from app.exceptions import LineNotFound, ProjectAlreadyExists, ProjectNotFound, ProjectStepError, ProjectStepLimit, SheetNotFound, SlopeNotFound
-from app.projects.draw import draw_plan
+from app.projects.draw import create_excel, draw_plan
+from app.projects.redis import add_function_to_undo, redo_action, undo_action
 from app.projects.schemas import AccessoriesEstimateResponse, AccessoriesRequest, AccessoriesResponse, CutoutResponse, EstimateResponse, LineData, LineRequest, LineRequestUpdate, LineResponse, LineSlopeResponse, MaterialEstimateResponse, MaterialRequest, MaterialResponse, PointData, ProjectRequest, ProjectResponse, RoofEstimateResponse, ScrewsEstimateResponse, SheetResponse, SlopeEstimateResponse, SlopeResponse, SlopeSheetsResponse, SofitsEstimateResponce, Step1Response, Step3Response, Step6Response
 from app.projects.dao import AccessoriesDAO, CutoutsDAO, LinesDAO, LinesSlopeDAO, MaterialsDAO, ProjectsDAO, SheetsDAO, SlopesDAO
 from app.projects.slope import LineRotate, SlopeExtractor, SlopeUpdate, align_figure, create_hole, create_sheets, get_next_name
@@ -16,7 +18,13 @@ from collections import Counter
 
 router = APIRouter(prefix="/roofs", tags=["Roofs"])
 
+@router.post("/undo", description="Undo the last action")
+async def undo_endpoint(request: Request, user: Users = Depends(get_current_user)):
+    return await undo_action(request, user.id)
 
+@router.post("/redo", description="Redo the last undone action")
+async def redo_endpoint(request: Request, user: Users = Depends(get_current_user)):
+    return await redo_action(request, user.id)
 
 @router.get("/projects", description="Get list of projects")
 async def get_projects(user: Users = Depends(get_current_user)) -> List[ProjectResponse]:
@@ -600,6 +608,7 @@ async def get_line(line_id: UUID4,
 
 @router.delete("/projects/{project_id}/lines/{line_id}", description="Delete a line")
 async def delete_line(
+    request: Request,
     project_id: UUID4,
     line_id: UUID4,
     user: Users = Depends(get_current_user)
@@ -611,10 +620,28 @@ async def delete_line(
     line = await LinesDAO.find_by_id(line_id)
     if not line or line.project_id != project_id:
         raise LineNotFound
+    
+    await add_function_to_undo(
+        request,
+        user_id=user.id,
+        func_name="delete_line",
+        args={"project_id": str(project_id), "line_id": str(line_id)},
+        undo_data={
+            "project_id": str(project_id),
+            "line_name": line.name,
+            "x_start": line.x_start,
+            "y_start": line.y_start,
+            "x_end": line.x_end,
+            "y_end": line.y_end,
+            "line_type": line.type,
+            "line_length": line.length
+        }
+    )
     await LinesDAO.delete_(model_id=line_id)
 
 @router.post("/projects/{project_id}/lines_perimeter", description="Create roof geometry")
 async def add_line_perimeter(
+    request: Request,
     project_id: UUID4,
     line: LineData,
     user: Users = Depends(get_current_user)
@@ -637,6 +664,22 @@ async def add_line_perimeter(
         type="Perimeter",
         length=round(((line.start.x - line.end.x) ** 2 + (line.start.y - line.end.y) ** 2) ** 0.5, 2)
     )
+    await add_function_to_undo(
+        request,
+        user_id=user.id,
+        func_name="add_line",
+        args={"project_id": project_id},
+        undo_data={
+        "line_id": new_line.id,
+        "line_name": new_line.name,  # Обязательно добавьте line_name
+        "x_start": new_line.x_start,
+        "y_start": new_line.y_start,
+        "x_end": new_line.x_end,
+        "y_end": new_line.y_end,
+        "line_type": new_line.type,
+        "line_length": new_line.length,
+        }
+    )
     return LineResponse(
         id=new_line.id,
         line_name=new_line.name,
@@ -648,6 +691,7 @@ async def add_line_perimeter(
 
 @router.post("/projects/{project_id}/lines_nontype", description="Create roof geometry")
 async def add_line_nontype(
+    request: Request,
     project_id: UUID4,
     line: LineData,
     user: Users = Depends(get_current_user)
@@ -670,6 +714,22 @@ async def add_line_nontype(
         y_end=line.end.y,
         length=round(((line.start.x - line.end.x) ** 2 + (line.start.y - line.end.y) ** 2) ** 0.5, 2)
     )
+    await add_function_to_undo(
+        request,
+        user_id=user.id,
+        func_name="add_line",
+        args={"project_id": project_id},
+        undo_data={
+        "line_id": new_line.id,
+        "line_name": new_line.name,  # Обязательно добавьте line_name
+        "x_start": new_line.x_start,
+        "y_start": new_line.y_start,
+        "x_end": new_line.x_end,
+        "y_end": new_line.y_end,
+        "line_type": new_line.type,
+        "line_length": new_line.length,
+        }   
+    )
     return LineResponse(
         id=new_line.id,
         line_name=new_line.name,
@@ -681,6 +741,7 @@ async def add_line_nontype(
 
 @router.patch("/projects/{project_id}/lines/{line_id}", description="Update line dimensions")
 async def update_line(
+    request: Request,
     project_id: UUID4,
     line_id: UUID4,
     line_data: LineData,
@@ -693,6 +754,21 @@ async def update_line(
     if not line or line.project_id != project_id:
         raise LineNotFound
 
+    await add_function_to_undo(
+        request,
+        user_id=user.id,
+        func_name="update_line",
+        args={"project_id": project_id, "line_id": line_id},
+        undo_data={
+            "line_id": line.id,
+            "line_name": line.name,
+            "x_start": line.x_start,
+            "y_start": line.y_start,
+            "x_end": line.x_end,
+            "y_end": line.y_end,
+            "line_length": line.length
+        }
+    ) 
     updated_line = await LinesDAO.update_(
         model_id=line_id,
         x_start=line_data.start.x,
@@ -1424,3 +1500,13 @@ async def get_estimate(
         screws=screws_estimate,
         sheets_extended=plans_data
     )
+
+@router.post("/projects/{project_id}/estimate/excel")
+async def generate_excel_endpoint(
+    data: EstimateResponse,
+    user: Users = Depends(get_current_user)):
+    excel_file = create_excel(data)
+    headers = {
+        "Content-Disposition": "attachment; filename=specification.xlsx"
+    }
+    return StreamingResponse(excel_file, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers=headers)
