@@ -176,6 +176,20 @@ class EstimateResponse(BaseModel):
     screws: list[ScrewsEstimateResponse]
     sheets_extended: list[str]
 
+class EstimateRequest(BaseModel):
+    project_name: str
+    project_address: str
+    materials: list[MaterialEstimateResponse]
+    roof_base: RoofEstimateResponse
+    PS: Optional[str] = None
+    PZ: Optional[str] = None
+    K: Optional[str] = None
+    slopes: list[SlopeEstimateResponse]
+    sheets_amount: Dict[float, int]
+    accessories: list[AccessoriesEstimateResponse]
+    sofits: list[SofitsEstimateResponce]
+    screws: list[ScrewsEstimateResponse]
+
 class Step6Response(BaseModel):
     lines: list[LineResponse]
     accessories: list[AccessoriesResponse]
