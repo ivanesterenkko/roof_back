@@ -2,6 +2,8 @@ from uuid import UUID
 from app.projects.dao import LinesDAO
 import json
 
+from app.projects.schemas import LineData, LineResponse, PointData
+
 
 undo_registry = {}
 redo_registry = {}
@@ -118,7 +120,7 @@ async def undo_delete_line(args, undo_data):
     """
     Откат удаления линии.
     """
-    await LinesDAO.add(
+    new_line = await LinesDAO.add(
         project_id=undo_data["project_id"],
         name=undo_data["line_name"],
         x_start=undo_data["x_start"],
@@ -128,6 +130,14 @@ async def undo_delete_line(args, undo_data):
         type=undo_data["line_type"],
         length=undo_data["line_length"],
     )
+    return LineResponse(
+        id=new_line.id,
+        line_name=new_line.name,
+        line_type=new_line.type,
+        line_length=new_line.length,
+        coords=LineData(start=PointData(x=new_line.x_start, y=new_line.y_start), 
+                            end=PointData(x=new_line.x_end, y=new_line.y_end))
+    )
 
 @register_undo("add_line")
 async def undo_add_line(args, undo_data):
@@ -136,12 +146,13 @@ async def undo_add_line(args, undo_data):
     """
     await LinesDAO.delete_(model_id=undo_data["line_id"])
 
+
 @register_undo("update_line")
 async def undo_update_line(args, undo_data):
     """
     Откат обновления линии.
     """
-    await LinesDAO.update_(
+    new_line = await LinesDAO.update_(
         model_id=undo_data["line_id"],
         x_start=undo_data["x_start"],
         y_start=undo_data["y_start"],
@@ -149,13 +160,21 @@ async def undo_update_line(args, undo_data):
         y_end=undo_data["y_end"],
         length=undo_data["line_length"]
     )
+    return LineResponse(
+        id=new_line.id,
+        line_name=new_line.name,
+        line_type=new_line.type,
+        line_length=new_line.length,
+        coords=LineData(start=PointData(x=new_line.x_start, y=new_line.y_start), 
+                            end=PointData(x=new_line.x_end, y=new_line.y_end))
+    )
 
 @register_redo("add_line")
 async def redo_add_line(args, undo_data):
     """
     Повторяет действие добавления линии.
     """
-    await LinesDAO.add(
+    new_line = await LinesDAO.add(
         project_id=args["project_id"],
         name=undo_data["line_name"],
         x_start=undo_data["x_start"],
@@ -165,6 +184,14 @@ async def redo_add_line(args, undo_data):
         type=undo_data["line_type"],
         length=undo_data["line_length"],
     )
+    return LineResponse(
+        id=new_line.id,
+        line_name=new_line.name,
+        line_type=new_line.type,
+        line_length=new_line.length,
+        coords=LineData(start=PointData(x=new_line.x_start, y=new_line.y_start), 
+                            end=PointData(x=new_line.x_end, y=new_line.y_end))
+    )
 
 @register_redo("delete_line")
 async def redo_delete_line(args, undo_data):
@@ -172,3 +199,25 @@ async def redo_delete_line(args, undo_data):
     Повторяет действие удаления линии.
     """
     await LinesDAO.delete_(model_id=args["line_id"])
+
+@register_redo("update_line")
+async def undo_update_line(args, undo_data):
+    """
+    Повторяет действие обновления линии.
+    """
+    new_line = await LinesDAO.update_(
+        model_id=undo_data["line_id"],
+        x_start=undo_data["x_start"],
+        y_start=undo_data["y_start"],
+        x_end=undo_data["x_end"],
+        y_end=undo_data["y_end"],
+        length=undo_data["line_length"]
+    )
+    return LineResponse(
+        id=new_line.id,
+        line_name=new_line.name,
+        line_type=new_line.type,
+        line_length=new_line.length,
+        coords=LineData(start=PointData(x=new_line.x_start, y=new_line.y_start), 
+                            end=PointData(x=new_line.x_end, y=new_line.y_end))
+    )
