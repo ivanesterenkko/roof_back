@@ -868,6 +868,18 @@ async def get_slope(
                                 ) for line in lines]
     )
 
+@router.delete("/projects/{project_id}/slopes", description="Delete roof slopes")
+async def delete_slope(
+    project_id: UUID4,
+    user: Users = Depends(get_current_user)
+):
+    project = await ProjectsDAO.find_by_id(project_id)
+    if not project or project.user_id != user.id:
+        raise ProjectNotFound
+    slopes = await SlopesDAO.find_all(project_id=project_id)
+    for slope in slopes:
+        await SlopesDAO.delete_(model_id=slope.id)
+
 @router.post("/projects/{project_id}/slopes", description="Add roof slopes")
 async def add_slope(
     project_id: UUID4,
@@ -1369,6 +1381,50 @@ async def add_accessory(
             lines_length=lines_length,
             quantity=amount,
             project_id=project_id
+        )
+    return AccessoriesResponse(
+        id=new_accessory.id,
+        accessory_name=new_accessory.name,
+        lines_id=new_accessory.lines_id,
+        lines_length=new_accessory.lines_length,
+        length=new_accessory.length,
+        width=new_accessory.width if new_accessory.width is not None else None,
+        amount=new_accessory.quantity
+    )
+
+@router.patch("/projects/{project_id}/slopes/{slope_id}/sheets/", description="Calculate roof sheets for slope")
+async def update_accessory(
+    project_id: UUID4,
+    accessory_id: UUID4,
+    accessory: AccessoriesRequest,
+    user: Users = Depends(get_current_user)
+) -> AccessoriesResponse:
+    project = await ProjectsDAO.find_by_id(project_id)
+    if not project or project.user_id != user.id:
+        raise ProjectNotFound
+    lines = await asyncio.gather(*[LinesDAO.find_by_id(line_id) for line_id in accessory.lines_id])
+    lines_length = 0
+    for line in lines:
+        lines_length += line.length
+    if accessory.width is not None:
+        step1 = lines_length // accessory.width
+        amount = step1 // 5
+        new_accessory = await AccessoriesDAO.update_(
+            model_id=accessory_id,
+            lines_id=accessory.lines_id,
+            length=accessory.length,
+            lines_length=lines_length,
+            width=accessory.width,
+            quantity=amount
+        )
+    else:
+        amount = lines_length // 1.9
+        new_accessory = await AccessoriesDAO.update_(
+            model_id=accessory_id,
+            lines_id=accessory.lines_id,
+            length=accessory.length,
+            lines_length=lines_length,
+            quantity=amount
         )
     return AccessoriesResponse(
         id=new_accessory.id,
