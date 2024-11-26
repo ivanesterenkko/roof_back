@@ -85,6 +85,12 @@ class SheetResponse(BaseModel):
     sheet_area_overall: float
     sheet_area_usefull: float
 
+class SheetRequest(BaseModel):
+    id: UUID4
+    sheet_x_start: float
+    sheet_y_start: float
+    sheet_length: float
+
 class SlopeSheetsResponse(BaseModel):
     id: UUID4
     slope_name: str

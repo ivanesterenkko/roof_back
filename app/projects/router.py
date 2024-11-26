@@ -7,7 +7,7 @@ from app.base.dao import RoofsDAO
 from app.exceptions import LineNotFound, ProjectAlreadyExists, ProjectNotFound, ProjectStepError, ProjectStepLimit, SheetNotFound, SlopeNotFound
 from app.projects.draw import create_excel, draw_plan
 from app.projects.redis import add_function_to_undo, redo_action, undo_action
-from app.projects.schemas import AccessoriesEstimateResponse, AccessoriesRequest, AccessoriesResponse, CutoutResponse, EstimateRequest, EstimateResponse, LineData, LineRequest, LineRequestUpdate, LineResponse, LineSlopeResponse, MaterialEstimateResponse, MaterialRequest, MaterialResponse, PointData, ProjectRequest, ProjectResponse, RoofEstimateResponse, ScrewsEstimateResponse, SheetResponse, SlopeEstimateResponse, SlopeResponse, SlopeSheetsResponse, SofitsEstimateResponce, Step1Response, Step3Response, Step6Response
+from app.projects.schemas import AccessoriesEstimateResponse, AccessoriesRequest, AccessoriesResponse, CutoutResponse, EstimateRequest, EstimateResponse, LineData, LineRequest, LineRequestUpdate, LineResponse, LineSlopeResponse, MaterialEstimateResponse, MaterialRequest, MaterialResponse, PointData, ProjectRequest, ProjectResponse, RoofEstimateResponse, ScrewsEstimateResponse, SheetRequest, SheetResponse, SlopeEstimateResponse, SlopeResponse, SlopeSheetsResponse, SofitsEstimateResponce, Step1Response, Step3Response, Step6Response
 from app.projects.dao import AccessoriesDAO, CutoutsDAO, LinesDAO, LinesSlopeDAO, MaterialsDAO, ProjectsDAO, SheetsDAO, SlopesDAO
 from app.projects.slope import LineRotate, SlopeExtractor, SlopeUpdate, align_figure, create_hole, create_sheets, get_next_name
 from app.users.dependencies import get_current_user
@@ -1277,8 +1277,43 @@ async def update_sheet(
             sheet_area_usefull=sheet.area_usefull
     )
 
-@router.patch("/projects/{project_id}/slopes/{slope_id}/sheets/", description="Calculate roof sheets for slope")
-async def update_sheets(
+@router.patch("/projects/{project_id}/slopes/{slope_id}/sheets")
+async def update_sheet(
+    project_id: UUID4,
+    slope_id: UUID4,
+    sheets: List[SheetRequest], 
+    user: Users = Depends(get_current_user)
+) -> List[SheetResponse]:
+    project = await ProjectsDAO.find_by_id(project_id)
+    if not project or project.user_id != user.id:
+        raise ProjectNotFound
+
+    slope = await SlopesDAO.find_by_id(slope_id)
+    if not slope or slope.project_id != project_id:
+        raise SlopeNotFound
+    roof = await RoofsDAO.find_by_id(project.roof_id)
+    sheets_response = []
+    for sheet in sheets:
+        updated_sheet = await SheetsDAO.update_(
+            model_id=sheet.id,
+            x_start=sheet.sheet_x_start,
+            y_start=sheet.sheet_y_start,
+            length=sheet.sheet_length,
+            area_overall=sheet.sheet_lengt*roof.overall_width,
+            area_usefull=sheet.sheet_length*roof.useful_width
+        )
+        sheets_response.append(SheetResponse(
+            id=updated_sheet.id,
+            sheet_x_start=updated_sheet.x_start,
+            sheet_y_start=updated_sheet.y_start,
+            sheet_length=updated_sheet.length,
+            sheet_area_overall=sheet.area_overall,
+            sheet_area_usefull=sheet.area_usefull
+        ))
+    return sheets_response
+
+@router.patch("/projects/{project_id}/slopes/{slope_id}/sheets/overlay", description="Calculate roof sheets for slope")
+async def update_sheets_overlay(
     project_id: UUID4,
     slope_id: UUID4,
     user: Users = Depends(get_current_user)
