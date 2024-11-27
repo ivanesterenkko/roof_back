@@ -108,6 +108,7 @@ class Accessories(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
     name: Mapped[str] = mapped_column(String, nullable=False)
+    type: Mapped[str] = mapped_column(String, nullable=False)
     length: Mapped[float] = mapped_column(Float, nullable=False)
     lines_length: Mapped[float] = mapped_column(Float, nullable=False)
     width: Mapped[float] = mapped_column(Float, nullable=True)

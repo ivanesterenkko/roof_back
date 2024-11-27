@@ -109,6 +109,7 @@ class CutoutResponse(BaseModel):
 
 class AccessoriesRequest(BaseModel):
     name: str
+    type: str
     lines_id: list[UUID4]
     length: float
     width: Optional[float] = None
@@ -116,6 +117,7 @@ class AccessoriesRequest(BaseModel):
 class AccessoriesResponse(BaseModel):
     id: UUID4
     accessory_name: str
+    type: str
     lines_id: list[UUID4]
     lines_length: float
     length: float
@@ -125,14 +127,18 @@ class AccessoriesResponse(BaseModel):
 # Estimate
 
 class AccessoriesEstimateResponse(BaseModel):
+    id: UUID4
     name: str
+    type: str
     length: Optional[float] = None
     overall_length: Optional[float] = None
     amount: int
     price: Optional[float] = None
 
 class SofitsEstimateResponce(BaseModel):
+    id: UUID4
     name: str
+    type: str
     length: Optional[float] = None
     width: Optional[float] = None
     overall_length: Optional[float] = None

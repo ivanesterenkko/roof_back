@@ -229,6 +229,7 @@ async def get_project_on_step(
             accessories=[
                 AccessoriesResponse(
                     id=accessory.id,
+                    type=accessory.type,
                     accessory_name=accessory.name,
                     lines_id=accessory.lines_id,
                     lines_length=accessory.lines_length,
@@ -292,6 +293,7 @@ async def get_project_on_step(
                     sofits_estimate.append(
                         SofitsEstimateResponce(
                             name=accessory.name,
+                            type=accessory.type,
                             length=accessory.length,
                             width=accessory.width,
                             overall_length=accessory.lines_length,
@@ -302,6 +304,7 @@ async def get_project_on_step(
                     accessories_estimate.append(
                         AccessoriesEstimateResponse(
                             name=accessory.name,
+                            type=accessory.type,
                             length=accessory.length,
                             overall_length=accessory.lines_length,
                             amount=accessory.quantity,
@@ -484,6 +487,7 @@ async def get_project_on_step(
             accessories=[
                 AccessoriesResponse(
                     id=accessory.id,
+                    type=accessory.type,
                     accessory_name=accessory.name,
                     lines_id=accessory.lines_id,
                     lines_length=accessory.lines_length,
@@ -547,6 +551,7 @@ async def get_project_on_step(
                     sofits_estimate.append(
                         SofitsEstimateResponce(
                             name=accessory.name,
+                            type=accessory.type,
                             length=accessory.length,
                             width=accessory.width,
                             overall_length=accessory.lines_length,
@@ -557,6 +562,7 @@ async def get_project_on_step(
                     accessories_estimate.append(
                         AccessoriesEstimateResponse(
                             name=accessory.name,
+                            type=accessory.type,
                             length=accessory.length,
                             overall_length=accessory.lines_length,
                             amount=accessory.quantity,
@@ -671,7 +677,7 @@ async def add_line_perimeter(
         args={"project_id": project_id},
         undo_data={
         "line_id": new_line.id,
-        "line_name": new_line.name,  # Обязательно добавьте line_name
+        "line_name": new_line.name,  
         "x_start": new_line.x_start,
         "y_start": new_line.y_start,
         "x_end": new_line.x_end,
@@ -721,7 +727,7 @@ async def add_line_nontype(
         args={"project_id": project_id},
         undo_data={
         "line_id": new_line.id,
-        "line_name": new_line.name,  # Обязательно добавьте line_name
+        "line_name": new_line.name, 
         "x_start": new_line.x_start,
         "y_start": new_line.y_start,
         "x_end": new_line.x_end,
@@ -1360,6 +1366,7 @@ async def get_accessories(
     accessories = await AccessoriesDAO.find_all(project_id=project_id)
     return [ AccessoriesResponse(
             id=accessory.id,
+            type=accessory.type,
             accessory_name=accessory.name,
             lines_id=accessory.lines_id,
             lines_length=accessory.lines_length,
@@ -1400,6 +1407,7 @@ async def add_accessory(
         amount = step1 // 5
         new_accessory = await AccessoriesDAO.add(
             name=accessory.name,
+            type=accessory.type,
             lines_id=accessory.lines_id,
             length=accessory.length,
             lines_length=lines_length,
@@ -1411,6 +1419,7 @@ async def add_accessory(
         amount = lines_length // 1.9
         new_accessory = await AccessoriesDAO.add(
             name=accessory.name,
+            type=accessory.type,
             lines_id=accessory.lines_id,
             length=accessory.length,
             lines_length=lines_length,
@@ -1419,6 +1428,7 @@ async def add_accessory(
         )
     return AccessoriesResponse(
         id=new_accessory.id,
+        type=new_accessory.type,
         accessory_name=new_accessory.name,
         lines_id=new_accessory.lines_id,
         lines_length=new_accessory.lines_length,
@@ -1463,6 +1473,7 @@ async def update_accessory(
         )
     return AccessoriesResponse(
         id=new_accessory.id,
+        type=new_accessory.type,
         accessory_name=new_accessory.name,
         lines_id=new_accessory.lines_id,
         lines_length=new_accessory.lines_length,
@@ -1545,6 +1556,8 @@ async def get_estimate(
         if 'Софит' in accessory.name or 'профиль' in accessory.name:
             sofits_estimate.append(
                 SofitsEstimateResponce(
+                    id=accessory.id,
+                    type=accessory.type,
                     name=accessory.name,
                     length=accessory.length,
                     width=accessory.width,
@@ -1555,6 +1568,8 @@ async def get_estimate(
         else:
             accessories_estimate.append(
                 AccessoriesEstimateResponse(
+                    id=accessory.id,
+                    type=accessory.type,
                     name=accessory.name,
                     length=accessory.length,
                     overall_length=accessory.lines_length,
