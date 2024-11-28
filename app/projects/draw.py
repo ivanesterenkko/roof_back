@@ -88,74 +88,74 @@ def create_excel(data_dict):
         bottom=Side(border_style="thin"),
     )
 
-    # Ввод основной информации
-    ws.merge_cells("A1:F1")
-    ws["A1"] = f"Проект: {data['project_name']}, Адрес: {data['project_address']}"
-    ws["A1"].alignment = center_alignment
-    ws["A1"].font = Font(bold=True, size=14)
+    # # Ввод основной информации
+    # ws.merge_cells("A1:F1")
+    # ws["A1"] = f"Проект: {data['project_name']}, Адрес: {data['project_address']}"
+    # ws["A1"].alignment = center_alignment
+    # ws["A1"].font = Font(bold=True, size=14)
 
-    # Добавление метаинформации о кровле
-    roof_info = [
-        ["Тип покрытия", data["roof_base"]["roof_type"]],
-        ["Полезная ширина листа", data["roof_base"]["roof_useful_width"]],
-        ["Полная ширина листа", data["roof_base"]["roof_overall_width"]],
-        ["Длина волны", data["roof_base"]["roof_overlap"]],
-        ["Макс. реальная длина листа", data["roof_base"]["roof_max_length"]],
-    ]
+    # # Добавление метаинформации о кровле
+    # roof_info = [
+    #     ["Тип покрытия", data["roof_base"]["roof_type"]],
+    #     ["Полезная ширина листа", data["roof_base"]["roof_useful_width"]],
+    #     ["Полная ширина листа", data["roof_base"]["roof_overall_width"]],
+    #     ["Длина волны", data["roof_base"]["roof_overlap"]],
+    #     ["Макс. реальная длина листа", data["roof_base"]["roof_max_length"]],
+    # ]
 
-    ws.append([])
-    ws.append(["Метаинформация"])
-    for key, value in roof_info:
-        ws.append([key, value])
+    # ws.append([])
+    # ws.append(["Метаинформация"])
+    # for key, value in roof_info:
+    #     ws.append([key, value])
 
-    # Листы
-    ws.append([])
-    ws.append(["Длина листа (м)", "Количество (шт)"])
-    for length, count in data["sheets_amount"].items():
-        ws.append([length, count])
+    # # Листы
+    # ws.append([])
+    # ws.append(["Длина листа (м)", "Количество (шт)"])
+    # for length, count in data["sheets_amount"].items():
+    #     ws.append([length, count])
 
-    # Скатные крыши
-    ws.append([])
-    ws.append(["Скат", "Общая площадь (м2)", "Полезная площадь (м2)"])
-    for slope in data["slopes"]:
-        ws.append(
-            [slope["slope_name"], slope["area_overall"], slope["area_usefull"]]
-        )
+    # # Скатные крыши
+    # ws.append([])
+    # ws.append(["Скат", "Общая площадь (м2)", "Полезная площадь (м2)"])
+    # for slope in data["slopes"]:
+    #     ws.append(
+    #         [slope["slope_name"], slope["area_overall"], slope["area_usefull"]]
+    #     )
 
-    # Доборные элементы
-    ws.append([])
-    ws.append(["Название", "Общая длина", "Количество", "Цена"])
-    for accessory in data["accessories"]:
-        ws.append(
-            [
-                accessory["name"],
-                accessory["overall_length"],
-                accessory["amount"],
-                accessory["price"],
-            ]
-        )
+    # # Доборные элементы
+    # ws.append([])
+    # ws.append(["Название", "Общая длина", "Количество", "Цена"])
+    # for accessory in data["accessories"]:
+    #     ws.append(
+    #         [
+    #             accessory["name"],
+    #             accessory["overall_length"],
+    #             accessory["amount"],
+    #             accessory["price"],
+    #         ]
+    #     )
 
-    # Софиты и J-профили
-    ws.append([])
-    ws.append(["Название", "Общая длина", "Ширина", "Количество", "Цена"])
-    for soffit in data["sofits"]:
-        ws.append(
-            [soffit["name"], soffit["overall_length"], soffit["width"], soffit["amount"], soffit["price"]]
-        )
+    # # Софиты и J-профили
+    # ws.append([])
+    # ws.append(["Название", "Общая длина", "Ширина", "Количество", "Цена"])
+    # for soffit in data["sofits"]:
+    #     ws.append(
+    #         [soffit["name"], soffit["overall_length"], soffit["width"], soffit["amount"], soffit["price"]]
+    #     )
 
-    # Саморезы
-    ws.append([])
-    ws.append(["Название", "Количество", "Цена"])
-    for screw in data["screws"]:
-        ws.append([screw["name"], screw["amount"], screw["price"]])
+    # # Саморезы
+    # ws.append([])
+    # ws.append(["Название", "Количество", "Цена"])
+    # for screw in data["screws"]:
+    #     ws.append([screw["name"], screw["amount"], screw["price"]])
 
-    # Применение стилей к заголовкам
-    for row in ws.iter_rows():
-        for cell in row:
-            cell.border = border
-            if cell.row == 1:
-                cell.font = header_font
-                cell.alignment = center_alignment
+    # # Применение стилей к заголовкам
+    # for row in ws.iter_rows():
+    #     for cell in row:
+    #         cell.border = border
+    #         if cell.row == 1:
+    #             cell.font = header_font
+    #             cell.alignment = center_alignment
 
     # Сохранение в байтовый поток
     output = BytesIO()
