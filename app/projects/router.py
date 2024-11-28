@@ -183,6 +183,12 @@ async def get_project_on_step(
             slopes_data = []
             for slope in slopes:
                 lines_slope = await LinesSlopeDAO.find_all(slope_id=slope.id)
+                cutouts = await CutoutsDAO.find_all(slope_id=slope.id)
+                cutouts_data = [CutoutResponse(
+                    id=cutout.id,
+                    cutout_name=cutout.name,
+                    cutout_points=list(zip(cutout.x_coords, cutout.y_coords))
+                ) for cutout in cutouts]
                 lines_slope_data = [LineSlopeResponse(
                     id=line.id,
                     line_id=line.line_id,
@@ -206,7 +212,8 @@ async def get_project_on_step(
                     slope_length=slope.length,
                     slope_area=slope.area,
                     lines=lines_slope_data,
-                    sheets=sheets_data
+                    sheets=sheets_data,
+                    cutouts=cutouts_data
                 ))
             return Step3Response(
                 general_plan=lines_data,
@@ -441,6 +448,12 @@ async def get_project_on_step(
             slopes_data = []
             for slope in slopes:
                 lines_slope = await LinesSlopeDAO.find_all(slope_id=slope.id)
+                cutouts = await CutoutsDAO.find_all(slope_id=slope.id)
+                cutouts_data = [CutoutResponse(
+                    id=cutout.id,
+                    cutout_name=cutout.name,
+                    cutout_points=list(zip(cutout.x_coords, cutout.y_coords))
+                ) for cutout in cutouts]
                 lines_slope_data = [LineSlopeResponse(
                     id=line.id,
                     line_id=line.line_id,
@@ -464,7 +477,8 @@ async def get_project_on_step(
                     slope_name=slope.name,
                     slope_area=slope.area,
                     lines=lines_slope_data,
-                    sheets=sheets_data
+                    sheets=sheets_data,
+                    cutouts=cutouts_data
                 ))
             return Step3Response(
                 general_plan=lines_data,
@@ -599,18 +613,25 @@ async def get_project_on_step(
                 sheets_extended=plans_data
             )
 
-@router.get("/projects/{project_id}/lines/{line_id}", description="Get list of projects")
-async def get_line(line_id: UUID4,
-                   user: Users = Depends(get_current_user)) -> LineResponse:
-    line = await LinesDAO.find_by_id(line_id)
-    return LineResponse(
-        id=line.id,
-        line_type=line.type,
-        line_name=line.name,
-        line_length=line.length,
-        coords=LineData(start=PointData(x=line.x_start, y=line.y_start), 
+@router.get("/projects/{project_id}/lines", description="Get list of lines")
+async def get_lines(
+    project_id: UUID4,
+    user: Users = Depends(get_current_user)) -> List[LineResponse]:
+    project = await ProjectsDAO.find_by_id(project_id)
+    if not project or project.user_id != user.id:
+        raise ProjectNotFound
+    lines = await LinesDAO.find_all(project_id=project_id)
+    lines_plan = [
+        LineResponse(
+            id=line.id,
+            line_type=line.type,
+            line_name=line.name,
+            line_length=line.length,
+            coords=LineData(start=PointData(x=line.x_start, y=line.y_start), 
                             end=PointData(x=line.x_end, y=line.y_end))
-    )
+        ) for line in lines
+        ]
+    return lines_plan
 
 @router.delete("/projects/{project_id}/lines/{line_id}", description="Delete a line")
 async def delete_line(
@@ -1088,10 +1109,9 @@ async def add_cutout(
         y_coords=points_y
     )
     return CutoutResponse(
-        cutout_id=new_cutout.id,
+        id=new_cutout.id,
         cutout_name=new_cutout.name,
         cutout_points=points,
-        slope_id=new_cutout.slope_id
     )
 
 @router.patch("/projects/{project_id}/slopes/{slope_id}/cutouts/{cutout_id}", description="Update cutout")
@@ -1119,10 +1139,9 @@ async def update_cutout(
         y_coords=points_y
     )
     return CutoutResponse(
-        cutout_id=new_cutout.id,
+        id=new_cutout.id,
         cutout_name=new_cutout.name,
         cutout_points=points,
-        slope_id=new_cutout.slope_id
     )
 
 @router.get("/projects/{project_id}/slopes/{slope_id}/sheets", description="View sheets for slope")
@@ -1212,12 +1231,18 @@ async def add_sheets(
                 points.append((line.x_end, line.y_end))
             elif (line.x_end == points[-1][0] and line.y_end == points[-1][1]):
                 points.append((line.x_start, line.y_start))
+    cutouts_data = []
     if cutouts is None:
         figure = Polygon(points)
     else:
         figure = Polygon(points)
         for cutout in cutouts:
             points_cut = list(zip(cutout.x_coords, cutout.y_coords))
+            cutouts_data.append(CutoutResponse(
+                id=cutout.id,
+                cutout_name=cutout.name,
+                cutout_points=points_cut
+            ))
             figure = create_hole(figure, points_cut)
     area = figure.area
     slope = await SlopesDAO.update_(model_id=slope_id, 
@@ -1247,7 +1272,8 @@ async def add_sheets(
                                slope_name=slope.name,
                                slope_area=slope.area,
                                lines=lines_data,
-                               sheets=sheets_data
+                               sheets=sheets_data,
+                               cutouts=cutouts_data
     )
 
 @router.patch("/projects/{project_id}/slopes/{slope_id}/sheets/{sheet_id}", description="Calculate roof sheets for slope")
