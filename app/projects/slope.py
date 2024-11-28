@@ -196,22 +196,43 @@ class LineRotate:
 
 def align_figure(lines):
     """
-    Разворачивает фигуру так, чтобы линия с типом 'Perimeter' была параллельна оси OX
-    и вся фигура находилась в первой четверти (без отрицательных координат).
-    Все координаты округляются до 2 знаков после запятой.
-    Если линия с типом 'Perimeter' не найдена, возвращаются исходные данные.
-    Если несколько линий с типом 'Perimeter', выбирается линия с максимальной длиной.
+    Разворачивает линии фигуры.
     """
+    
     # Находим все линии с типом 'Perimeter'
     perimeter_lines = [line for line in lines if line.line_type == 'Perimeter']
     
-    # Если нет линий с типом 'Perimeter', возвращаем исходные данные
+    # Если нет линий с типом 'Perimeter', сдвигаем все линии так, чтобы минимальная точка была в (0, 0)
     if not perimeter_lines:
+        # Собираем все точки (стартовые и конечные) всех линий
+        all_points = np.vstack(([line.start for line in lines], [line.end for line in lines]))
+        
+        # Находим минимальные координаты
+        min_x = np.min(all_points[:, 0])
+        min_y = np.min(all_points[:, 1])
+        
+        # Сдвигаем все точки так, чтобы минимальная точка стала (0, 0)
+        translation_vector = np.array([-min_x, -min_y])
+        for line in lines:
+            line.start += translation_vector
+            line.end += translation_vector
+        
+        # Округляем координаты до 2 знаков после запятой
+        for line in lines:
+            line.start = np.round(line.start, 2)
+            line.end = np.round(line.end, 2)
+        
+        # Возвращаем линии после сдвига
         return lines
 
-    # Выбираем линию с максимальной длиной
+    # Если линии с типом 'Perimeter' найдены, выбираем линию с максимальной длиной
     cornice_line = max(perimeter_lines, key=lambda line: np.linalg.norm(np.array(line.end) - np.array(line.start)))
 
+    # Устанавливаем тип всех остальных линий как '' (кроме cornice_line)
+    for line in lines:
+        if line != cornice_line:
+            line.line_type = ''
+    
     # Вычисление угла поворота для выравнивания по оси OX
     dx = cornice_line.end[0] - cornice_line.start[0]
     dy = cornice_line.end[1] - cornice_line.start[1]
@@ -238,9 +259,6 @@ def align_figure(lines):
     for i, line in enumerate(lines):
         line.start = starts_rotated[i]
         line.end = ends_rotated[i]
-
-    # Получение обновленного cornice_line после поворота
-    cornice_line = max(perimeter_lines, key=lambda line: np.linalg.norm(np.array(line.end) - np.array(line.start)))
 
     # Вычисляем среднее по Y для cornice_line
     cornice_y = (cornice_line.start[1] + cornice_line.end[1]) / 2
