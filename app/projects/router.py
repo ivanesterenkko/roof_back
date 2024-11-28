@@ -631,13 +631,14 @@ async def get_line(
                             end=PointData(x=line.x_end, y=line.y_end))
     ) 
 
-@router.get("/projects/{project_id}/lines", description="Get list of lines")
-async def get_lines(
+@router.get("/projects/{project_id}/slopes", description="Get list of lines")
+async def get_slopes(
     project_id: UUID4,
     user: Users = Depends(get_current_user)) -> List[LineResponse]:
     project = await ProjectsDAO.find_by_id(project_id)
     if not project or project.user_id != user.id:
         raise ProjectNotFound
+    slopes = await SlopesDAO.find_all(project_id=project_id)
     lines = await LinesDAO.find_all(project_id=project_id)
     lines_plan = [
         LineResponse(
@@ -649,7 +650,30 @@ async def get_lines(
                             end=PointData(x=line.x_end, y=line.y_end))
         ) for line in lines
         ]
-    return lines_plan
+    slopes_data = []
+    for slope in slopes:
+        lines = await LinesSlopeDAO.find_all(slope_id=slope.id)
+        lines_data = [LineSlopeResponse(
+            id=line.id,
+            line_id=line.line_id,
+            line_name=line.name,
+            line_length=line.length,
+            coords=LineData(start=PointData(x=line.x_start, y=line.y_start), 
+                            end=PointData(x=line.x_end, y=line.y_end)
+                            )
+            ) for line in lines
+        ]
+        slopes_data.append(SlopeResponse(
+            id=slope.id,
+            slope_name=slope.name,
+            slope_length=slope.length,
+            lines=lines_data
+            )
+        )
+    return Step3Response(
+        general_plan=lines_plan,
+        slopes=slopes_data
+    )
 
 @router.delete("/projects/{project_id}/lines/{line_id}", description="Delete a line")
 async def delete_line(
