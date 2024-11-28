@@ -72,7 +72,7 @@ def draw_plan(lines, sheets, width):
     return image_base64
 
 
-def create_excel(data_dict):
+async def create_excel(data_dict):
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "Спецификация"
@@ -118,30 +118,19 @@ def create_excel(data_dict):
     ws.append([])
     ws.append(["Скат", "Общая площадь (м2)", "Полезная площадь (м2)"])
     for slope in data["slopes"]:
-        ws.append(
-            [slope["slope_name"], slope["area_overall"], slope["area_usefull"]]
-        )
+        ws.append([slope["slope_name"], slope["area_overall"], slope["area_usefull"]])
 
     # Доборные элементы
     ws.append([])
     ws.append(["Название", "Общая длина", "Количество", "Цена"])
     for accessory in data["accessories"]:
-        ws.append(
-            [
-                accessory["name"],
-                accessory["overall_length"],
-                accessory["amount"],
-                accessory["price"],
-            ]
-        )
+        ws.append([accessory["name"], accessory["overall_length"], accessory["amount"], accessory["price"]])
 
     # Софиты и J-профили
     ws.append([])
     ws.append(["Название", "Общая длина", "Ширина", "Количество", "Цена"])
     for soffit in data["sofits"]:
-        ws.append(
-            [soffit["name"], soffit["overall_length"], soffit["width"], soffit["amount"], soffit["price"]]
-        )
+        ws.append([soffit["name"], soffit["overall_length"], soffit["width"], soffit["amount"], soffit["price"]])
 
     # Саморезы
     ws.append([])
