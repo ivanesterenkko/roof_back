@@ -1653,8 +1653,12 @@ async def get_estimate(
 
 @router.post("/projects/{project_id}/estimate/excel")
 async def generate_excel_endpoint(
+    project_id: UUID4,
     data: EstimateRequest,
     user: Users = Depends(get_current_user)):
+    project = await ProjectsDAO.find_by_id(project_id)
+    if not project or project.user_id != user.id:
+        raise ProjectNotFound
     excel_file = create_excel(data)
     headers = {
         "Content-Disposition": "attachment; filename=specification.xlsx"
