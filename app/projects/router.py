@@ -613,6 +613,24 @@ async def get_project_on_step(
                 sheets_extended=plans_data
             )
 
+@router.get("/projects/{project_id}/lines/{line_id}", description="Get line")
+async def get_line(
+    project_id: UUID4,
+    line_id: UUID4,
+    user: Users = Depends(get_current_user)) -> LineResponse:
+    project = await ProjectsDAO.find_by_id(project_id)
+    if not project or project.user_id != user.id:
+        raise ProjectNotFound
+    line = await LinesDAO.find_by_id(line_id)
+    return LineResponse(
+            id=line.id,
+            line_type=line.type,
+            line_name=line.name,
+            line_length=line.length,
+            coords=LineData(start=PointData(x=line.x_start, y=line.y_start), 
+                            end=PointData(x=line.x_end, y=line.y_end))
+    ) 
+
 @router.get("/projects/{project_id}/lines", description="Get list of lines")
 async def get_lines(
     project_id: UUID4,
