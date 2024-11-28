@@ -1088,6 +1088,27 @@ async def update_slope_length(
         ))
     return updated_lines
 
+@router.get("/projects/{project_id}/add_line/slopes/{slope_id}/cutounts", description="Get list of cutouts")
+async def get_cutouts(
+    project_id: UUID4,
+    slope_id: UUID4,
+    user: Users = Depends(get_current_user)) -> List[CutoutResponse]:
+    project = await ProjectsDAO.find_by_id(project_id)
+    if not project or project.user_id != user.id:
+        raise ProjectNotFound
+    slope = await SlopesDAO.find_by_id(slope_id)
+    if not slope or slope.project_id != project_id:
+        raise SlopeNotFound
+    cutouts = await CutoutsDAO.find_all(slope_id=slope_id)
+    cutouts_data = [
+        CutoutResponse(
+            id=cutout.id,
+            cutout_name=cutout.name,
+            cutout_points=list(zip(cutout.x_coords, cutout.y_coords))
+        ) for cutout in cutouts
+        ]
+    return cutouts_data
+
 @router.delete("/projects/{project_id}/add_line/slopes/{slope_id}/cutounts/{cutout_id}", description="Delete cutout")
 async def delete_cutout(
     slope_id: UUID4,
