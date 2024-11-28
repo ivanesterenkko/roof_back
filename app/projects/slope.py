@@ -199,11 +199,18 @@ def align_figure(lines):
     Разворачивает фигуру так, чтобы линия с типом 'Perimeter' была параллельна оси OX
     и вся фигура находилась в первой четверти (без отрицательных координат).
     Все координаты округляются до 2 знаков после запятой.
+    Если линия с типом 'Perimeter' не найдена, возвращаются исходные данные.
+    Если несколько линий с типом 'Perimeter', выбирается линия с максимальной длиной.
     """
-    # Поиск линии типа 'Perimeter'
-    cornice_line = next((line for line in lines if line.line_type == 'Perimeter'), None)
-    if cornice_line is None:
-        raise ValueError("Линия с типом 'Perimeter' не найдена")
+    # Находим все линии с типом 'Perimeter'
+    perimeter_lines = [line for line in lines if line.line_type == 'Perimeter']
+    
+    # Если нет линий с типом 'Perimeter', возвращаем исходные данные
+    if not perimeter_lines:
+        return lines
+
+    # Выбираем линию с максимальной длиной
+    cornice_line = max(perimeter_lines, key=lambda line: np.linalg.norm(np.array(line.end) - np.array(line.start)))
 
     # Вычисление угла поворота для выравнивания по оси OX
     dx = cornice_line.end[0] - cornice_line.start[0]
@@ -233,7 +240,7 @@ def align_figure(lines):
         line.end = ends_rotated[i]
 
     # Получение обновленного cornice_line после поворота
-    cornice_line = next((line for line in lines if line.line_type == 'Perimeter'), None)
+    cornice_line = max(perimeter_lines, key=lambda line: np.linalg.norm(np.array(line.end) - np.array(line.start)))
 
     # Вычисляем среднее по Y для cornice_line
     cornice_y = (cornice_line.start[1] + cornice_line.end[1]) / 2
@@ -294,8 +301,6 @@ def align_figure(lines):
             raise ValueError("После трансформации некоторые координаты отрицательны")
 
     return lines
-
-
 
 class Point:
     def __init__(self, x, y):
