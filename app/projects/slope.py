@@ -194,6 +194,12 @@ class LineRotate:
     def __repr__(self):
         return f"Line(id={self.id}, start={self.start}, end={self.end}, type={self.line_type})"
 
+    def __eq__(self, other):
+        # Переопределяем метод сравнения
+        if isinstance(other, LineRotate):
+            return np.array_equal(self.start, other.start) and np.array_equal(self.end, other.end)
+        return False
+
 def align_figure(lines):
     """
     Разворачивает линии фигуры.
@@ -259,6 +265,9 @@ def align_figure(lines):
     for i, line in enumerate(lines):
         line.start = starts_rotated[i]
         line.end = ends_rotated[i]
+
+    # Получение обновленного cornice_line после поворота
+    cornice_line = max(perimeter_lines, key=lambda line: np.linalg.norm(np.array(line.end) - np.array(line.start)))
 
     # Вычисляем среднее по Y для cornice_line
     cornice_y = (cornice_line.start[1] + cornice_line.end[1]) / 2
