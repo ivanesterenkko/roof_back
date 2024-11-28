@@ -1328,7 +1328,7 @@ async def update_sheet(
     )
 
 @router.patch("/projects/{project_id}/slopes/{slope_id}/sheets")
-async def update_sheet(
+async def update_sheets(
     project_id: UUID4,
     slope_id: UUID4,
     sheets: List[SheetRequest], 
