@@ -187,7 +187,7 @@ async def get_project_on_step(
                 cutouts_data = [CutoutResponse(
                     id=cutout.id,
                     cutout_name=cutout.name,
-                    cutout_points=list(zip(cutout.x_coords, cutout.y_coords))
+                    cutout_points = [PointData(x=x, y=y) for x, y in zip(cutout.x_coords, cutout.y_coords)]
                 ) for cutout in cutouts]
                 lines_slope_data = [LineSlopeResponse(
                     id=line.id,
@@ -452,7 +452,7 @@ async def get_project_on_step(
                 cutouts_data = [CutoutResponse(
                     id=cutout.id,
                     cutout_name=cutout.name,
-                    cutout_points=list(zip(cutout.x_coords, cutout.y_coords))
+                    cutout_points = [PointData(x=x, y=y) for x, y in zip(cutout.x_coords, cutout.y_coords)]
                 ) for cutout in cutouts]
                 lines_slope_data = [LineSlopeResponse(
                     id=line.id,
@@ -1071,7 +1071,7 @@ async def update_line_slope(
     y_list.sort()
     slope_length = y_list[-1] - y_list[0]
     if slope_length != slope.length:
-        new_slope = await SlopesDAO.update_(model_id=new_slope.id, length=length)
+        new_slope = await SlopesDAO.update_(model_id=slope.id, length=length)
     return updated_lines
 
 @router.patch("/projects/{project_id}/slopes/{slope_id}", description="Update length slope dimensions")
@@ -1128,7 +1128,7 @@ async def get_cutouts(
         CutoutResponse(
             id=cutout.id,
             cutout_name=cutout.name,
-            cutout_points=list(zip(cutout.x_coords, cutout.y_coords))
+            cutout_points = [PointData(x=x, y=y) for x, y in zip(cutout.x_coords, cutout.y_coords)]
         ) for cutout in cutouts
         ]
     return cutouts_data
@@ -1304,7 +1304,7 @@ async def add_sheets(
             cutouts_data.append(CutoutResponse(
                 id=cutout.id,
                 cutout_name=cutout.name,
-                cutout_points=points_cut
+                cutout_points = [PointData(x=x, y=y) for x, y in zip(cutout.x_coords, cutout.y_coords)]
             ))
             figure = create_hole(figure, points_cut)
     area = figure.area

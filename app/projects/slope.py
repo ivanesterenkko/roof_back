@@ -329,7 +329,6 @@ def align_figure(lines):
 
     return lines
 
-
 class Point:
     def __init__(self, x, y):
         self.x = round(x, 2)
@@ -359,8 +358,21 @@ class Point:
             moved_lines.add(line)
             line.point_moved(self, moved_lines, moved_points)
 
+class PointFactory:
+    def __init__(self):
+        self.points = {}
+
+    def get_or_create_point(self, x, y):
+        # Округляем координаты для согласованности
+        x = round(x, 2)
+        y = round(y, 2)
+        # Проверяем, существует ли уже точка с такими координатами
+        if (x, y) not in self.points:
+            self.points[(x, y)] = Point(x, y)
+        return self.points[(x, y)]
+
 class Line:
-    def __init__(self, point1, point2, id, parent_id):
+    def __init__(self, point1,point2, id, parent_id):
         self.point1 = point1
         self.point2 = point2
         self.line_id = id
@@ -379,14 +391,14 @@ class Line:
     def point_moved(self, moved_point, moved_lines, moved_points):
         other_point = self.point2 if moved_point == self.point1 else self.point1
 
-        # Пересчитываем длину линии
+        # Пересчитываем длину, не учитывая угол
         self.update_length()
 
         # Перемещаем другую точку для сохранения длины линии
         dx = other_point.x - moved_point.x
         dy = other_point.y - moved_point.y
         distance = math.hypot(dx, dy)
-
+        
         if distance > 1e-9:
             scaling_factor = self.length / distance
             new_x = moved_point.x + dx * scaling_factor
@@ -407,7 +419,7 @@ class Line:
         dx = self.point2.x - self.point1.x
         dy = self.point2.y - self.point1.y
         distance = math.hypot(dx, dy)
-
+        
         if distance > 1e-9:
             scaling_factor = self.length / distance
             new_x = self.point1.x + dx * scaling_factor
@@ -420,11 +432,12 @@ class Line:
 
 class SlopeUpdate:
     def __init__(self, lines_s):
+        point_factory = PointFactory()
         lines = []
         for line_s in lines_s:
             # Получаем существующую точку или создаем новую, если её еще нет
-            point1 = Point(line_s.x_start, line_s.y_start)
-            point2 = Point(line_s.x_end, line_s.y_end)
+            point1 = point_factory.get_or_create_point(line_s.x_start, line_s.y_start)
+            point2 = point_factory.get_or_create_point(line_s.x_end, line_s.y_end)
             lines.append(Line(point1, point2, line_s.id, line_s.line_id))
         self.lines = lines
 
@@ -434,6 +447,7 @@ class SlopeUpdate:
         return min_y, max_y
     
     def change_line_length(self, line_id, new_line_length):
+        
         for line_s in self.lines:
             if line_s.line_id == line_id:
                 line_s.change_length(new_line_length)
