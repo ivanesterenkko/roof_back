@@ -215,3 +215,7 @@ class Step1Response(BaseModel):
     project_name: str
     project_address: str
     roof_id: UUID4
+
+class Step5Response(BaseModel):
+    general_plan: List[LineResponse]
+    slopes: List[SlopeSheetsResponse]

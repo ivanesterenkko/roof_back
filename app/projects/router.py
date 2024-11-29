@@ -7,7 +7,7 @@ from app.base.dao import RoofsDAO
 from app.exceptions import LineNotFound, ProjectAlreadyExists, ProjectNotFound, ProjectStepError, ProjectStepLimit, SheetNotFound, SlopeNotFound
 from app.projects.draw import create_excel, draw_plan
 from app.projects.redis import add_function_to_undo, redo_action, undo_action
-from app.projects.schemas import AccessoriesEstimateResponse, AccessoriesRequest, AccessoriesResponse, CutoutResponse, EstimateRequest, EstimateResponse, LineData, LineRequest, LineRequestUpdate, LineResponse, LineSlopeResponse, MaterialEstimateResponse, MaterialRequest, MaterialResponse, PointData, ProjectRequest, ProjectResponse, RoofEstimateResponse, ScrewsEstimateResponse, SheetRequest, SheetResponse, SlopeEstimateResponse, SlopeResponse, SlopeSheetsResponse, SofitsEstimateResponce, Step1Response, Step3Response, Step6Response
+from app.projects.schemas import AccessoriesEstimateResponse, AccessoriesRequest, AccessoriesResponse, CutoutResponse, EstimateRequest, EstimateResponse, LineData, LineRequest, LineRequestUpdate, LineResponse, LineSlopeResponse, MaterialEstimateResponse, MaterialRequest, MaterialResponse, PointData, ProjectRequest, ProjectResponse, RoofEstimateResponse, ScrewsEstimateResponse, SheetRequest, SheetResponse, SlopeEstimateResponse, SlopeResponse, SlopeSheetsResponse, SofitsEstimateResponce, Step1Response, Step3Response, Step6Response, Step5Response
 from app.projects.dao import AccessoriesDAO, CutoutsDAO, LinesDAO, LinesSlopeDAO, MaterialsDAO, ProjectsDAO, SheetsDAO, SlopesDAO
 from app.projects.slope import LineRotate, SlopeExtractor, SlopeUpdate, align_figure, create_hole, create_sheets, get_next_name
 from app.users.dependencies import get_current_user
@@ -215,7 +215,7 @@ async def get_project_on_step(
                     sheets=sheets_data,
                     cutouts=cutouts_data
                 ))
-            return Step3Response(
+            return Step5Response(
                 general_plan=lines_data,
                 slopes=slopes_data
             )
@@ -480,7 +480,7 @@ async def get_project_on_step(
                     sheets=sheets_data,
                     cutouts=cutouts_data
                 ))
-            return Step3Response(
+            return Step5Response(
                 general_plan=lines_data,
                 slopes=slopes_data
             )
@@ -652,16 +652,15 @@ async def get_slopes(
         ]
     slopes_data = []
     for slope in slopes:
-        lines = await LinesSlopeDAO.find_all(slope_id=slope.id)
-        lines_data = [LineSlopeResponse(
+        lines_slope = await LinesSlopeDAO.find_all(slope_id=slope.id)
+        lines_data = [LineResponse(
             id=line.id,
-            line_id=line.line_id,
             line_name=line.name,
             line_length=line.length,
             coords=LineData(start=PointData(x=line.x_start, y=line.y_start), 
                             end=PointData(x=line.x_end, y=line.y_end)
                             )
-            ) for line in lines
+            ) for line in lines_slope
         ]
         slopes_data.append(SlopeResponse(
             id=slope.id,
@@ -1526,7 +1525,7 @@ async def add_accessory(
         amount=new_accessory.quantity
     )
 
-@router.patch("/projects/{project_id}/slopes/{slope_id}/sheets/", description="Calculate roof sheets for slope")
+@router.patch("/projects/{project_id}/accessories/{accessory_id}", description="Calculate roof sheets for slope")
 async def update_accessory(
     project_id: UUID4,
     accessory_id: UUID4,
