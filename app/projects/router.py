@@ -652,15 +652,16 @@ async def get_slopes(
         ]
     slopes_data = []
     for slope in slopes:
-        lines_slope = await LinesSlopeDAO.find_all(slope_id=slope.id)
-        lines_data = [LineResponse(
+        lines = await LinesSlopeDAO.find_all(slope_id=slope.id)
+        lines_data = [LineSlopeResponse(
             id=line.id,
+            line_id=line.line_id,
             line_name=line.name,
             line_length=line.length,
             coords=LineData(start=PointData(x=line.x_start, y=line.y_start), 
                             end=PointData(x=line.x_end, y=line.y_end)
                             )
-            ) for line in lines_slope
+            ) for line in lines
         ]
         slopes_data.append(SlopeResponse(
             id=slope.id,
