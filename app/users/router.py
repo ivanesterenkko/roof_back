@@ -4,7 +4,7 @@ from app.exceptions import (IncorrectEmailOrPasswordException,
                             UserAlreadyExistsException)
 from app.users.auth import (authenticate_user, create_access_token,
                             get_password_hash)
-from app.users.dao import UsersDAO
+from app.users.dao import UsersDAO, SessionsDAO
 from app.users.dependencies import get_current_user
 from app.users.models import Users
 from app.users.schemas import SUserAuth, SUserRegister, TokenResponse
@@ -32,7 +32,12 @@ async def login_user(user_data: SUserAuth, response: Response) -> TokenResponse:
     if not user:
 
         raise IncorrectEmailOrPasswordException
+    
+    sessions = await SessionsDAO.find_all(user_id=user.id)
+    for session in sessions:
+        await SessionsDAO.delete_(model_id=session.id)
 
+    await SessionDAO.add(user_id=user.id, jwt_token=access_token)
     access_token = create_access_token(
         {"sub": str(user.id)}
     )
@@ -42,5 +47,15 @@ async def login_user(user_data: SUserAuth, response: Response) -> TokenResponse:
 
 @router.post("/logout")
 async def logout_user(response: Response) -> None:
+    
+    user = await authenticate_user(login=user_data.login, password=user_data.password)
+
+    if not user:
+
+        raise IncorrectEmailOrPasswordException
+    
+    sessions = await SessionsDAO.find_all(user_id=user.id)
+    for session in sessions:
+        await SessionsDAO.delete_(model_id=session.id)
 
     response.delete_cookie("access_token")
