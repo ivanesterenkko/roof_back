@@ -1246,6 +1246,23 @@ async def delete_sheet(
         raise SlopeNotFound
     await SheetsDAO.delete_(model_id=sheet_id)
 
+@router.delete("/projects/{project_id}/add_line/slopes/{slope_id}/sheets", description="Delete sheets")
+async def delete_sheets(
+    slope_id: UUID4,
+    project_id: UUID4,
+    sheets_id: List[UUID4],
+    user: Users = Depends(get_current_user)
+) -> None:
+    project = await ProjectsDAO.find_by_id(project_id)
+    if not project or project.user_id != user.id:
+        raise ProjectNotFound
+
+    slope = await SlopesDAO.find_by_id(slope_id)
+    if not slope or slope.project_id != project_id:
+        raise SlopeNotFound
+    for sheet_id in sheets_id:
+        await SheetsDAO.delete_(model_id=sheet_id)
+
 @router.post("/projects/{project_id}/slopes/{slope_id}/sheets", description="Calculate roof sheets for slope")
 async def add_sheets(
     project_id: UUID4,
