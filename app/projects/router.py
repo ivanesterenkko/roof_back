@@ -1377,16 +1377,16 @@ async def update_sheet(
     
     updated_sheet = await SheetsDAO.update_(
         model_id=sheet_id,
-        x_start=sheet_data.start.x,
-        y_start=sheet_data.start.y,
+        x_start=sheet_data.x,
+        y_start=sheet_data.y,
     )
     return SheetResponse(
         id=updated_sheet.id,
-            sheet_x_start=updated_sheet.x_start,
-            sheet_y_start=updated_sheet.y_start,
-            sheet_length=updated_sheet.length,
-            sheet_area_overall=sheet.area_overall,
-            sheet_area_usefull=sheet.area_usefull
+        sheet_x_start=updated_sheet.x_start,
+        sheet_y_start=updated_sheet.y_start,
+        sheet_length=updated_sheet.length,
+        sheet_area_overall=updated_sheet.area_overall,
+        sheet_area_usefull=updated_sheet.area_usefull
     )
 
 @router.patch("/projects/{project_id}/slopes/{slope_id}/sheets")
@@ -1424,7 +1424,7 @@ async def update_sheets(
         ))
     return sheets_response
 
-@router.patch("/projects/{project_id}/slopes/{slope_id}/sheets/overlay", description="Calculate roof sheets for slope")
+@router.patch("/projects/{project_id}/slopes/{slope_id}/overlay", description="Calculate roof sheets for slope")
 async def update_sheets_overlay(
     project_id: UUID4,
     slope_id: UUID4,
