@@ -16,7 +16,7 @@ class Users(Base):
     hashed_password: Mapped[str] = mapped_column(nullable=False)
 
     projects = relationship("Projects", back_populates="user")
-    # session = relationship("Sessions", back_populates="sessions")
+    session = relationship("Sessions", back_populates="user")
 
     def __str__(self):
 
