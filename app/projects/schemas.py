@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple
-from pydantic import UUID4, BaseModel
+from pydantic import UUID4, BaseModel, Field
 
 # Line and Point
 class PointData(BaseModel):
@@ -91,6 +91,10 @@ class SheetRequest(BaseModel):
     sheet_y_start: float
     sheet_length: float
     
+class NewSheetRequest(BaseModel):
+    sheet_x_start: float
+    sheet_y_start: float
+    sheet_length: float
 class CutoutResponse(BaseModel):
     id: UUID4
     cutout_name: str

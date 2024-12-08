@@ -7,7 +7,7 @@ from app.base.dao import RoofsDAO
 from app.exceptions import LineNotFound, ProjectAlreadyExists, ProjectNotFound, ProjectStepError, ProjectStepLimit, SheetNotFound, SlopeNotFound
 from app.projects.draw import create_excel, draw_plan
 from app.projects.redis import add_function_to_undo, redo_action, undo_action
-from app.projects.schemas import AccessoriesEstimateResponse, AccessoriesRequest, AccessoriesResponse, CutoutResponse, EstimateRequest, EstimateResponse, LineData, LineRequest, LineRequestUpdate, LineResponse, LineSlopeResponse, MaterialEstimateResponse, MaterialRequest, MaterialResponse, PointData, ProjectRequest, ProjectResponse, RoofEstimateResponse, ScrewsEstimateResponse, SheetRequest, SheetResponse, SlopeEstimateResponse, SlopeResponse, SlopeSheetsResponse, SofitsEstimateResponce, Step1Response, Step3Response, Step6Response, Step5Response
+from app.projects.schemas import AccessoriesEstimateResponse, AccessoriesRequest, AccessoriesResponse, CutoutResponse, EstimateRequest, EstimateResponse, LineData, LineRequest, LineRequestUpdate, LineResponse, LineSlopeResponse, MaterialEstimateResponse, MaterialRequest, MaterialResponse, NewSheetRequest, PointData, ProjectRequest, ProjectResponse, RoofEstimateResponse, ScrewsEstimateResponse, SheetRequest, SheetResponse, SlopeEstimateResponse, SlopeResponse, SlopeSheetsResponse, SofitsEstimateResponce, Step1Response, Step3Response, Step6Response, Step5Response
 from app.projects.dao import AccessoriesDAO, CutoutsDAO, LinesDAO, LinesSlopeDAO, MaterialsDAO, ProjectsDAO, SheetsDAO, SlopesDAO
 from app.projects.slope import LineRotate, SlopeExtractor, SlopeUpdate, align_figure, create_hole, create_sheets, get_next_name
 from app.users.dependencies import get_current_user
@@ -634,7 +634,7 @@ async def get_line(
 @router.get("/projects/{project_id}/slopes", description="Get list of lines")
 async def get_slopes(
     project_id: UUID4,
-    user: Users = Depends(get_current_user)) -> List[LineResponse]:
+    user: Users = Depends(get_current_user)) -> Step3Response:
     project = await ProjectsDAO.find_by_id(project_id)
     if not project or project.user_id != user.id:
         raise ProjectNotFound
@@ -1263,6 +1263,36 @@ async def delete_sheets(
     for sheet_id in sheets_id:
         await SheetsDAO.delete_(model_id=sheet_id)
 
+@router.post("/projects/{project_id}/slopes/{slope_id}/sheet", description="Add roof sheet for slope")
+async def add_sheet(
+    project_id: UUID4,
+    slope_id: UUID4,
+    sheet: NewSheetRequest,
+    user: Users = Depends(get_current_user)
+) -> SheetResponse:
+    project = await ProjectsDAO.find_by_id(project_id)
+    if not project or project.user_id != user.id:
+        raise ProjectNotFound
+    roof = await RoofsDAO.find_by_id(project.roof_id)
+    slope = await SlopesDAO.find_by_id(slope_id)
+    if not slope or slope.project_id != project_id:
+        raise SlopeNotFound
+    new_sheet = await SheetsDAO.add(
+        x_start=sheet.sheet_x_start,
+        y_start=sheet.sheet_y_start,
+        length=sheet.sheet_length,
+        area_overall=sheet.sheet_length*roof.overall_width,
+        area_usefull=sheet.sheet_length*roof.useful_width,
+        slope_id=slope_id
+    )
+    return SheetResponse(
+        id=new_sheet.id,
+        sheet_x_start=new_sheet.x_start,
+        sheet_y_start=new_sheet.y_start,
+        sheet_length=new_sheet.length,
+        sheet_area_overall=new_sheet.area_overall,
+        sheet_area_usefull=new_sheet.area_usefull
+    )
 @router.post("/projects/{project_id}/slopes/{slope_id}/sheets", description="Calculate roof sheets for slope")
 async def add_sheets(
     project_id: UUID4,
@@ -1411,7 +1441,7 @@ async def update_sheets(
             x_start=sheet.sheet_x_start,
             y_start=sheet.sheet_y_start,
             length=sheet.sheet_length,
-            area_overall=sheet.sheet_lengt*roof.overall_width,
+            area_overall=sheet.sheet_length*roof.overall_width,
             area_usefull=sheet.sheet_length*roof.useful_width
         )
         sheets_response.append(SheetResponse(
