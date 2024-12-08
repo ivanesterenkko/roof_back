@@ -7,7 +7,7 @@ from app.config import settings
 from app.exceptions import (IncorrectTokenFormatException,
                             TokenAbsentException, TokenExpiredException,
                             UserIsNotPresentException)
-from app.users.dao import UsersDAO
+from app.users.dao import SessionsDAO, UsersDAO
 
 
 def get_token(request: Request):
@@ -51,5 +51,10 @@ async def get_current_user(token: str = Depends(get_token)):
 
     if not user:
         raise UserIsNotPresentException
-
+    
+    session = await SessionsDAO.find_one_or_none(user_id=user.id)
+    
+    if token != session.jwt_token:
+        raise HTTPException(status_code=401, detail="Token mismatch")
+    
     return user

@@ -7,7 +7,7 @@ from fastapi_cache.backends.redis import RedisBackend
 from fastapi_cache import FastAPICache
 from sqladmin import Admin
 
-from prometheus_fastapi_instrumentator import Instrumentator
+# from prometheus_fastapi_instrumentator import Instrumentator
 
 from redis import asyncio as aioredis
 
@@ -50,10 +50,11 @@ app.add_middleware(
                    "Access-Control-Allow-Origin", "Authorization"],
 )
 
-# Подключаем эндпоинт для сбора метрик
-instrumentator = Instrumentator(
-    should_group_status_codes=False,
-    excluded_handlers=[".*admin.*", "/metrics"]
-)
 
-instrumentator.instrument(app).expose(app)
+# Подключаем эндпоинт для сбора метрик
+# instrumentator = Instrumentator(
+#     should_group_status_codes=False,
+#     excluded_handlers=[".*admin.*", "/metrics"]
+# )
+
+# instrumentator.instrument(app).expose(app)

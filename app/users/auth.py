@@ -1,10 +1,11 @@
 from datetime import datetime, timedelta
 
-from jose import jwt
+from jose import JWTError, jwt
 from passlib.context import CryptContext
 from pydantic import EmailStr
 
 from app.config import settings
+from app.exceptions import TokenExpiredException
 from app.users.dao import UsersDAO
 from app.users.models import Users
 
@@ -37,3 +38,10 @@ async def authenticate_user(login: str, password: str) -> None | Users:
 
     else:
         return user
+    
+def verify_access_token(token: str) -> dict:
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+        return payload
+    except JWTError:
+        raise TokenExpiredException

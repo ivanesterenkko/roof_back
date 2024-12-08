@@ -33,14 +33,14 @@ async def login_user(user_data: SUserAuth, response: Response) -> TokenResponse:
 
         raise IncorrectEmailOrPasswordException
     
-    # sessions = await SessionsDAO.find_all(user_id=user.id)
-    # for session in sessions:
-    #     await SessionsDAO.delete_(model_id=session.id)
+    existing_session = await SessionsDAO.find_one_or_none(user_id=user.id)
+    if existing_session:
+        await SessionsDAO.delete_(model_id=existing_session.id)
 
     access_token = create_access_token(
         {"sub": str(user.id)}
     )
-    # await SessionsDAO.add(user_id=user.id, jwt_token=access_token)
+    await SessionsDAO.add(user_id=user.id, jwt_token=access_token)
 
     response.set_cookie("access_token", access_token, httponly=True)
     return TokenResponse(access_token=access_token)
@@ -48,12 +48,9 @@ async def login_user(user_data: SUserAuth, response: Response) -> TokenResponse:
 
 @router.post("/logout")
 async def logout_user(response: Response, user: Users = Depends(get_current_user)) -> None:
-    # if not user:
-
-    #     raise IncorrectEmailOrPasswordException
     
-    # sessions = await SessionsDAO.find_all(user_id=user.id)
-    # for session in sessions:
-    #     await SessionsDAO.delete_(model_id=session.id)
+    existing_session = await SessionsDAO.find_one_or_none(user_id=user.id)
+    if existing_session:
+        await SessionsDAO.delete_(model_id=existing_session.id)
 
     response.delete_cookie("access_token")
