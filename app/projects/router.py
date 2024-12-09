@@ -1386,44 +1386,47 @@ async def add_sheets(
                                cutouts=cutouts_data
     )
 
-@router.patch("/projects/{project_id}/slopes/{slope_id}/sheets/{sheet_id}", description="Calculate roof sheets for slope")
-async def update_sheet(
+@router.patch("/projects/{project_id}/slopes/{slope_id}/update_length_sheets", description="Calculate roof sheets for slope")
+async def update_length_sheets(
     project_id: UUID4,
     slope_id: UUID4,
-    sheet_id: UUID4,
-    sheet_data: PointData, 
+    sheets_id: List[UUID4], 
+    length: float,
     user: Users = Depends(get_current_user)
 ) -> List[SheetResponse]:
     project = await ProjectsDAO.find_by_id(project_id)
     if not project or project.user_id != user.id:
         raise ProjectNotFound
-
+    roof = await RoofsDAO.find_by_id(project.roof_id)
     slope = await SlopesDAO.find_by_id(slope_id)
     if not slope or slope.project_id != project_id:
         raise SlopeNotFound
-    sheet = await SheetsDAO.find_by_id(sheet_id)
-    if not sheet or sheet.slope_id != slope_id:
-        raise SheetNotFound
-    
-    updated_sheet = await SheetsDAO.update_(
-        model_id=sheet_id,
-        x_start=sheet_data.x,
-        y_start=sheet_data.y,
-    )
-    return SheetResponse(
-        id=updated_sheet.id,
-        sheet_x_start=updated_sheet.x_start,
-        sheet_y_start=updated_sheet.y_start,
-        sheet_length=updated_sheet.length,
-        sheet_area_overall=updated_sheet.area_overall,
-        sheet_area_usefull=updated_sheet.area_usefull
-    )
+    sheets_response = []
+    sheets = [ await SheetsDAO.find_by_id(sheet_id) for sheet_id in sheets_id]
+    for sheet in sheets:
+        new_length = sheet.length + length
+        updated_sheet = await SheetsDAO.update_(
+            model_id=sheet.id,
+            length=new_length,
+            area_overall = new_length*roof.overall_width,
+            area_usefull=new_length*roof.useful_width
+        )
+        sheets_response.append(SheetResponse(
+            id=updated_sheet.id,
+            sheet_x_start=updated_sheet.x_start,
+            sheet_y_start=updated_sheet.y_start,
+            sheet_length=updated_sheet.length,
+            sheet_area_overall=updated_sheet.area_overall,
+            sheet_area_usefull=updated_sheet.area_usefull
+        ))
+    return sheets_response
 
-@router.patch("/projects/{project_id}/slopes/{slope_id}/sheets")
-async def update_sheets(
+@router.patch("/projects/{project_id}/slopes/{slope_id}/offset_sheets")
+async def offset_sheets(
     project_id: UUID4,
     slope_id: UUID4,
-    sheets: List[SheetRequest], 
+    sheets_id: List[UUID4], 
+    data: PointData,
     user: Users = Depends(get_current_user)
 ) -> List[SheetResponse]:
     project = await ProjectsDAO.find_by_id(project_id)
@@ -1435,22 +1438,20 @@ async def update_sheets(
         raise SlopeNotFound
     roof = await RoofsDAO.find_by_id(project.roof_id)
     sheets_response = []
+    sheets = [ await SheetsDAO.find_by_id(sheet_id) for sheet_id in sheets_id]
     for sheet in sheets:
         updated_sheet = await SheetsDAO.update_(
             model_id=sheet.id,
-            x_start=sheet.sheet_x_start,
-            y_start=sheet.sheet_y_start,
-            length=sheet.sheet_length,
-            area_overall=sheet.sheet_length*roof.overall_width,
-            area_usefull=sheet.sheet_length*roof.useful_width
+            x_start=sheet.sheet_x_start + data.x,
+            y_start=sheet.sheet_y_start + data.y,
         )
         sheets_response.append(SheetResponse(
             id=updated_sheet.id,
             sheet_x_start=updated_sheet.x_start,
             sheet_y_start=updated_sheet.y_start,
             sheet_length=updated_sheet.length,
-            sheet_area_overall=sheet.area_overall,
-            sheet_area_usefull=sheet.area_usefull
+            sheet_area_overall=updated_sheet.area_overall,
+            sheet_area_usefull=updated_sheet.area_usefull
         ))
     return sheets_response
 

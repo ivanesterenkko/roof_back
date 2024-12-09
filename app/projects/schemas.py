@@ -95,6 +95,7 @@ class NewSheetRequest(BaseModel):
     sheet_x_start: float
     sheet_y_start: float
     sheet_length: float
+
 class CutoutResponse(BaseModel):
     id: UUID4
     cutout_name: str
