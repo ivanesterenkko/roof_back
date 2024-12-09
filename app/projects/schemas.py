@@ -75,6 +75,7 @@ class SlopeResponse(BaseModel):
     id: UUID4
     slope_name: str
     slope_length: float
+    slope_area: float | None
     lines: list[LineSlopeResponse]
 
 class SheetResponse(BaseModel):

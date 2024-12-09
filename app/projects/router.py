@@ -150,6 +150,7 @@ async def get_project_on_step(
                     id=slope.id,
                     slope_length=slope.length,
                     slope_name=slope.name,
+                    slope_area= slope.area if slope.area != None else None,
                     lines=lines_data
                     )
                 )
@@ -415,6 +416,7 @@ async def get_project_on_step(
                     id=slope.id,
                     slope_name=slope.name,
                     slope_length=slope.length,
+                    slope_area= slope.area if slope.area != None else None,
                     lines=lines_data
                     )
                 )
@@ -667,6 +669,7 @@ async def get_slopes(
             id=slope.id,
             slope_name=slope.name,
             slope_length=slope.length,
+            slope_area= slope.area if slope.area != None else None,
             lines=lines_data
             )
         )
@@ -928,6 +931,7 @@ async def get_slope(
         id=slope.id,
         slope_length=slope.length,
         slope_name=slope.name,
+        slope_area= slope.area if slope.area != None else None,
         lines=[ LineSlopeResponse(id=line.id,
                                   line_id=line.line_id,
                                   line_name=line.name,
@@ -1016,6 +1020,7 @@ async def add_slope(
             id=new_slope.id,
             slope_length=new_slope.length,
             slope_name=new_slope.name,
+            slope_area= new_slope.area if new_slope.area != None else None,
             lines=[ LineSlopeResponse(id=line.id,
                                       line_id=line.line_id,
                                       line_name=line.name,
