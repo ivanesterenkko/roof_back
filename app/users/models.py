@@ -16,7 +16,8 @@ class Company(Base):
     INN: Mapped[str] = mapped_column(nullable=False)
 
     users = relationship("Users", back_populates="company", cascade="all, delete-orphan")
-    
+
+
 class Users(Base):
 
     __tablename__ = 'users'
@@ -36,6 +37,7 @@ class Users(Base):
     def __str__(self):
 
         return f"Пользователь {self.login}"
+
 
 class Sessions(Base):
     __tablename__ = 'sessions'

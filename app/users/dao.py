@@ -6,9 +6,11 @@ class UsersDAO(BaseDAO):
 
     model = Users
 
+
 class SessionsDAO(BaseDAO):
 
     model = Sessions
+
 
 class CompanyDAO(BaseDAO):
 

@@ -7,8 +7,6 @@ import numpy as np
 from shapely.geometry import Polygon
 from shapely.prepared import prep
 
-from app.projects.schemas import PointData
-
 
 class SlopeExtractor:
     def __init__(self, lines):
@@ -148,12 +146,12 @@ async def create_sheets(figure, roof):
                 continue
             # elif sheet_height < length_min:
             #     coords[3] = coords[1] + length_min
-            length =round(coords[3] - coords[1], 2)
+            length = round(coords[3] - coords[1], 2)
             sheets.append([
                 round(x_start, 2),
                 round(coords[1], 2),
                 length,
-                round( overall_width*length, 2),
+                round(overall_width*length, 2),
                 round(roof.useful_width*length, 2)
             ])
 
@@ -200,34 +198,35 @@ class LineRotate:
             return np.array_equal(self.start, other.start) and np.array_equal(self.end, other.end)
         return False
 
+
 def align_figure(lines):
     """
     Разворачивает линии фигуры.
     """
-    
+
     # Находим все линии с типом 'Perimeter'
     perimeter_lines = [line for line in lines if line.line_type == 'Perimeter']
-    
+
     # Если нет линий с типом 'Perimeter', сдвигаем все линии так, чтобы минимальная точка была в (0, 0)
     if not perimeter_lines:
         # Собираем все точки (стартовые и конечные) всех линий
         all_points = np.vstack(([line.start for line in lines], [line.end for line in lines]))
-        
+
         # Находим минимальные координаты
         min_x = np.min(all_points[:, 0])
         min_y = np.min(all_points[:, 1])
-        
+
         # Сдвигаем все точки так, чтобы минимальная точка стала (0, 0)
         translation_vector = np.array([-min_x, -min_y])
         for line in lines:
             line.start += translation_vector
             line.end += translation_vector
-        
+
         # Округляем координаты до 2 знаков после запятой
         for line in lines:
             line.start = np.round(line.start, 2)
             line.end = np.round(line.end, 2)
-        
+
         # Возвращаем линии после сдвига
         return lines
 
@@ -238,7 +237,7 @@ def align_figure(lines):
     for line in lines:
         if line != cornice_line:
             line.line_type = ''
-    
+
     # Вычисление угла поворота для выравнивания по оси OX
     dx = cornice_line.end[0] - cornice_line.start[0]
     dy = cornice_line.end[1] - cornice_line.start[1]
@@ -329,6 +328,7 @@ def align_figure(lines):
 
     return lines
 
+
 class Point:
     def __init__(self, x, y):
         self.x = round(x, 2)
@@ -358,6 +358,7 @@ class Point:
             moved_lines.add(line)
             line.point_moved(self, moved_lines, moved_points)
 
+
 class PointFactory:
     def __init__(self):
         self.points = {}
@@ -371,8 +372,9 @@ class PointFactory:
             self.points[(x, y)] = Point(x, y)
         return self.points[(x, y)]
 
+
 class Line:
-    def __init__(self, point1,point2, id, parent_id):
+    def __init__(self, point1, point2, id, parent_id):
         self.point1 = point1
         self.point2 = point2
         self.line_id = id
@@ -398,7 +400,7 @@ class Line:
         dx = other_point.x - moved_point.x
         dy = other_point.y - moved_point.y
         distance = math.hypot(dx, dy)
-        
+
         if distance > 1e-9:
             scaling_factor = self.length / distance
             new_x = moved_point.x + dx * scaling_factor
@@ -419,7 +421,7 @@ class Line:
         dx = self.point2.x - self.point1.x
         dy = self.point2.y - self.point1.y
         distance = math.hypot(dx, dy)
-        
+
         if distance > 1e-9:
             scaling_factor = self.length / distance
             new_x = self.point1.x + dx * scaling_factor
@@ -445,9 +447,9 @@ class SlopeUpdate:
         min_y = min(min(line.point1.y, line.point2.y) for line in self.lines)
         max_y = max(max(line.point1.y, line.point2.y) for line in self.lines)
         return min_y, max_y
-    
+
     def change_line_length(self, line_id, new_line_length):
-        
+
         for line_s in self.lines:
             if line_s.line_id == line_id:
                 line_s.change_length(new_line_length)
@@ -460,17 +462,17 @@ class SlopeUpdate:
         if current_slope_length <= 0:
             return
 
-        scaling_factor = new_slope_length / current_slope_length
+        # scaling_factor = new_slope_length / current_slope_length
         for line in self.lines:
             if line.point1.y == max_y or line.point2.y == max_y:
                 # Находим точку с наибольшим y и перемещаем её
                 top_point = line.point1 if line.point1.y == max_y else line.point2
-                fixed_point = line.point2 if top_point == line.point1 else line.point1
-                
+                # fixed_point = line.point2 if top_point == line.point1 else line.point1
+
                 # Пересчитываем y верхней точки для новой длины ската
                 new_top_y = min_y + new_slope_length
                 top_point.move(top_point.x, new_top_y)
-                
+
                 # Обновляем длину линии
                 line.update_length()
         return self.lines

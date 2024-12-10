@@ -9,6 +9,7 @@ class SUserRegister(BaseModel):
     is_admin: bool
     company_id: UUID4
 
+
 class SAdminRegister(BaseModel):
     name: str
     company: str
@@ -16,17 +17,21 @@ class SAdminRegister(BaseModel):
     login: str
     password: str
 
+
 class UserResponse(BaseModel):
     name: str
     is_admin: bool
+
 
 class SUserAuth(BaseModel):
 
     login: str
     password: str
 
+
 class TokenResponse(BaseModel):
     access_token: str
+
 
 class CompanyProjectResponse(BaseModel):
     id: UUID4

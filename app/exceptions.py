@@ -10,25 +10,30 @@ class AutoException(HTTPException):
 
         super().__init__(status_code=self.status_code, detail=self.detail)
 
+
 class SlopeNotFound(AutoException):
 
     status_code = status.HTTP_400_BAD_REQUEST
     detail = "Скат не найден."
+
 
 class SheetNotFound(AutoException):
 
     status_code = status.HTTP_400_BAD_REQUEST
     detail = "Лист кровли не найден."
 
+
 class LineNotFound(AutoException):
 
     status_code = status.HTTP_400_BAD_REQUEST
     detail = "Линия не найдена."
 
+
 class ProjectNotFound(AutoException):
 
     status_code = status.HTTP_400_BAD_REQUEST
     detail = "Проект не найден."
+
 
 class UserNotFound(AutoException):
 
@@ -41,10 +46,12 @@ class ProjectStepLimit(AutoException):
     status_code = status.HTTP_400_BAD_REQUEST
     detail = "Превышен лимит шагов в проекте."
 
+
 class ProjectStepError(AutoException):
 
     status_code = status.HTTP_400_BAD_REQUEST
     detail = "Вы пытаетесь перейти на недопустимый шаг."
+
 
 class RoofNotFound(AutoException):
 
@@ -56,17 +63,21 @@ class ProjectAlreadyExists(AutoException):
     status_code = status.HTTP_409_CONFLICT
     detail = "Проект с данным названием уже существует."
 
+
 class UserAlreadyExistsException(AutoException):
     status_code = status.HTTP_409_CONFLICT
     detail = "Пользователь уже существует"
+
 
 class CompanyAlreadyExistsException(AutoException):
     status_code = status.HTTP_409_CONFLICT
     detail = "Компания уже существует"
 
+
 class CompanyNotFound(AutoException):
     status_code = status.HTTP_400_BAD_REQUEST
     detail = "Компания не найдена."
+
 
 class IncorrectEmailOrPasswordException(AutoException):
     status_code = status.HTTP_401_UNAUTHORIZED
@@ -90,6 +101,7 @@ class IncorrectTokenFormatException(AutoException):
 
 class UserIsNotPresentException(AutoException):
     status_code = status.HTTP_401_UNAUTHORIZED
+
 
 class PermissionDeniedException(AutoException):
     status_code = status.HTTP_403_FORBIDDEN
