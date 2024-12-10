@@ -16,7 +16,7 @@ class Projects(Base):
     step: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
     datetime_created: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
     
-    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True),ForeignKey('users.id'), nullable=False)
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True),ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
     roof_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True),ForeignKey('roof.id'), nullable=True)
     
     lines = relationship("Lines", back_populates="project", cascade="all, delete-orphan")

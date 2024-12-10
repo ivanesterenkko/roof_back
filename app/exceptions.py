@@ -30,6 +30,12 @@ class ProjectNotFound(AutoException):
     status_code = status.HTTP_400_BAD_REQUEST
     detail = "Проект не найден."
 
+class UserNotFound(AutoException):
+
+    status_code = status.HTTP_400_BAD_REQUEST
+    detail = "Пользователь не найден."
+
+
 class ProjectStepLimit(AutoException):
 
     status_code = status.HTTP_400_BAD_REQUEST
@@ -54,6 +60,13 @@ class UserAlreadyExistsException(AutoException):
     status_code = status.HTTP_409_CONFLICT
     detail = "Пользователь уже существует"
 
+class CompanyAlreadyExistsException(AutoException):
+    status_code = status.HTTP_409_CONFLICT
+    detail = "Компания уже существует"
+
+class CompanyNotFound(AutoException):
+    status_code = status.HTTP_400_BAD_REQUEST
+    detail = "Компания не найдена."
 
 class IncorrectEmailOrPasswordException(AutoException):
     status_code = status.HTTP_401_UNAUTHORIZED
@@ -77,3 +90,7 @@ class IncorrectTokenFormatException(AutoException):
 
 class UserIsNotPresentException(AutoException):
     status_code = status.HTTP_401_UNAUTHORIZED
+
+class PermissionDeniedException(AutoException):
+    status_code = status.HTTP_403_FORBIDDEN
+    detail = "У вас нет прав для выполнения этого действия."

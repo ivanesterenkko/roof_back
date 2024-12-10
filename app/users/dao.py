@@ -1,5 +1,5 @@
 from app.dao.base import BaseDAO
-from app.users.models import Users, Sessions
+from app.users.models import Company, Users, Sessions
 
 
 class UsersDAO(BaseDAO):
@@ -9,3 +9,7 @@ class UsersDAO(BaseDAO):
 class SessionsDAO(BaseDAO):
 
     model = Sessions
+
+class CompanyDAO(BaseDAO):
+
+    model = Company

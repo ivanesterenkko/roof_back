@@ -1,28 +1,40 @@
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 
-from app.exceptions import (IncorrectEmailOrPasswordException,
+from app.exceptions import (CompanyAlreadyExistsException, CompanyNotFound, IncorrectEmailOrPasswordException,
                             UserAlreadyExistsException)
 from app.users.auth import (authenticate_user, create_access_token,
                             get_password_hash)
-from app.users.dao import UsersDAO, SessionsDAO
+from app.users.dao import CompanyDAO, UsersDAO, SessionsDAO
 from app.users.dependencies import get_current_user
 from app.users.models import Users
-from app.users.schemas import SUserAuth, SUserRegister, TokenResponse
+from app.users.schemas import SAdminRegister, SUserAuth, SUserRegister, TokenResponse
 
 
 router = APIRouter(prefix="/auth", tags=["Auth & Пользователи"])
 
-
 @router.post("/register")
-async def register_user(user_data: SUserRegister) -> None:
+async def register_admin(user_data: SAdminRegister) -> None:
+    existing_company = await CompanyDAO.find_one_or_none(INN=user_data.INN)
+    if existing_company:
+            raise CompanyAlreadyExistsException
+    
+    company = await CompanyDAO.add(
+        name=user_data.company,
+        INN=user_data.INN
+    )
     existing_user = await UsersDAO.find_one_or_none(login=user_data.login)
-
     if existing_user:
                 raise UserAlreadyExistsException
 
     hashed_password = get_password_hash(user_data.password)
-    await UsersDAO.add(login=user_data.login, hashed_password=hashed_password)
 
+    await UsersDAO.add(
+        name=user_data.name,
+        login=user_data.login,
+        hashed_password=hashed_password,
+        is_admin=True,
+        company_id=company.id
+    )
 
 @router.post("/login")
 async def login_user(user_data: SUserAuth, response: Response) -> TokenResponse:
@@ -54,3 +66,5 @@ async def logout_user(response: Response, user: Users = Depends(get_current_user
         await SessionsDAO.delete_(model_id=existing_session.id)
 
     response.delete_cookie("access_token")
+
+
