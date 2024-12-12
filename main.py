@@ -12,6 +12,7 @@ from redis import asyncio as aioredis
 
 from app.db import delete_tables, create_tables
 from app.users.router import router as user_router
+from app.users.payment_router import router as payment_router
 from app.users.account_router import router as account_router
 from app.projects.router import router as roof_router
 from app.base.router import router as base_router
@@ -40,6 +41,7 @@ app.include_router(user_router)
 app.include_router(roof_router)
 app.include_router(base_router)
 app.include_router(account_router)
+app.include_router(payment_router)
 
 origins = [
     "http://localhost:8000",

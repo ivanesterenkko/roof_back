@@ -29,6 +29,12 @@ class LineNotFound(AutoException):
     detail = "Линия не найдена."
 
 
+class TariffNotFound(AutoException):
+
+    status_code = status.HTTP_400_BAD_REQUEST
+    detail = "Тариф не найден."
+
+
 class ProjectNotFound(AutoException):
 
     status_code = status.HTTP_400_BAD_REQUEST

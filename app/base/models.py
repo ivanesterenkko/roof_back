@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import UUID, Float, Numeric, String
+from sqlalchemy import UUID, Float, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -13,7 +13,8 @@ class AccessoriesBD(Base):
     type: Mapped[str] = mapped_column(nullable=False)
     description: Mapped[str] = mapped_column(nullable=True)
     sale: Mapped[float] = mapped_column(nullable=False)
-    
+
+
 class Roofs(Base):
     __tablename__ = 'roof'
 
@@ -27,4 +28,13 @@ class Roofs(Base):
 
     projects = relationship("Projects", back_populates="roof")
 
-    
+
+class Tariffs(Base):
+    __tablename__ = 'tariff'
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    limit_users: Mapped[int] = mapped_column(Integer, nullable=False)
+    price: Mapped[int] = mapped_column(Integer, nullable=False)
+
+    subscriptions = relationship("Subscriptions", back_populates="tariff")

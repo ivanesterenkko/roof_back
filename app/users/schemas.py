@@ -39,3 +39,8 @@ class CompanyProjectResponse(BaseModel):
     project_step: int
     user_id: UUID4
     datetime_created: datetime
+
+
+class OrderRequest(BaseModel):
+    tariff_id: UUID4
+    duration: int
