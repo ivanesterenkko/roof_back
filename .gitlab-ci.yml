@@ -16,8 +16,5 @@ test-job:
 
 deploy-job:
   stage: deploy
-  before_script:
-  - echo "$ENV_FILE_CONTENT" > .env
-  - if [ -f .env ]; then echo ".env file created successfully"; else echo ".env file creation failed" && exit 1; fi
   script:
     - docker compose up -d
