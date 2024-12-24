@@ -12,7 +12,7 @@ build-job:
 test-job:
   stage: test
   script:
-    - docker run --rm roof_image -d
+    - docker run --rm -d roof_image
 
 deploy-job:
   stage: deploy
