@@ -16,5 +16,7 @@ test-job:
 
 deploy-job:
   stage: deploy
+  before_script:
+  - echo "$ENV_FILE_CONTENT" > .env
   script:
     - docker compose up -d
