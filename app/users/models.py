@@ -1,7 +1,7 @@
 from datetime import datetime
 import uuid
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy import Boolean, DateTime, ForeignKey
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -13,12 +13,12 @@ class Orders(Base):
 
     id: Mapped[str] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
-    price: Mapped[int] = mapped_column(Integer, nullable=False)
-    id_paid: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    duration: Mapped[int] = mapped_column(Integer, nullable=False)
+    is_paid: Mapped[bool] = mapped_column(Boolean, nullable=False)
 
     subscription_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('subscription.id', ondelete='CASCADE'), nullable=True)
 
-    subscription = relationship("Subscriptions", back_populates="company", cascade="all, delete-orphan")
+    subscription = relationship("Subscriptions", back_populates="order")
 
 
 class Subscriptions(Base):
@@ -31,8 +31,8 @@ class Subscriptions(Base):
     company_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('company.id', ondelete='CASCADE'), nullable=False)
     tariff_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('tariff.id'), nullable=True)
 
-    company = relationship("Company", back_populates="users")
-    tariif = relationship("Tariffs", back_populates="subscriptions")
+    company = relationship("Company", back_populates="subscription")
+    tariff = relationship("Tariffs", back_populates="subscriptions")
     order = relationship("Orders", back_populates="subscription", cascade="all, delete-orphan")
 
 
@@ -74,6 +74,7 @@ class Sessions(Base):
 
     id: Mapped[str] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     jwt_token: Mapped[str] = mapped_column(nullable=False, unique=True)
+    device: Mapped[str] = mapped_column(nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
 
     user_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('users.id', ondelete='CASCADE'), nullable=False)

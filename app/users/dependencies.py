@@ -55,9 +55,9 @@ async def get_current_user(token: str = Depends(get_token)):
     if not user:
         raise UserIsNotPresentException
 
-    session = await SessionsDAO.find_one_or_none(user_id=user.id)
+    session = await SessionsDAO.find_one_or_none(jwt_token=token)
 
-    if token != session.jwt_token:
+    if not session:
         raise HTTPException(status_code=401, detail="Token mismatch")
 
     return user

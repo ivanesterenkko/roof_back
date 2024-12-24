@@ -26,6 +26,12 @@ class LineData(BaseModel):
     start: PointData
     end: PointData
 
+
+class LinesData(BaseModel):
+    start: PointData
+    end: PointData
+    type: str
+
 # Project
 
 

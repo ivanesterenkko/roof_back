@@ -94,7 +94,7 @@ class SlopeExtractor:
         return slopes
 
 
-async def create_sheets(figure, roof):
+async def create_sheets(figure, roof, del_x, del_y):
     """Создание листов для ската."""
     sheets = []
     overall_width = roof.overall_width
@@ -106,14 +106,14 @@ async def create_sheets(figure, roof):
     prepared_figure = prep(figure)
 
     x_positions = []
-    x = x_min
+    x = x_min + del_x
     while x < x_max:
         x_positions.append(x)
         x += overall_width
         x -= delta_width
 
     y_positions = []
-    y = y_min
+    y = y_min + del_y
     while y < y_max:
         y_positions.append(y)
         y += length_max

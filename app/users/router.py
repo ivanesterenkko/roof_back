@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Depends, Request, Response
+from user_agents import parse
 
 from app.exceptions import (CompanyAlreadyExistsException,
                             IncorrectEmailOrPasswordException,
@@ -41,6 +42,7 @@ async def register_admin(user_data: SAdminRegister) -> None:
 
 @router.post("/login")
 async def login_user(
+      request: Request,
       user_data: SUserAuth,
       response: Response
       ) -> TokenResponse:
@@ -53,15 +55,23 @@ async def login_user(
     if not user:
 
         raise IncorrectEmailOrPasswordException
+    user_agent_str = request.headers.get("user-agent", "")
+    user_agent = parse(user_agent_str)
+    if user_agent.is_mobile:
+        device_type = "mobile"
+    elif user_agent.is_tablet:
+        device_type = "tablet"
+    else:
+        device_type = "desktop"
 
-    existing_session = await SessionsDAO.find_one_or_none(user_id=user.id)
+    existing_session = await SessionsDAO.find_one_or_none(user_id=user.id, device=device_type)
     if existing_session:
         await SessionsDAO.delete_(model_id=existing_session.id)
 
     access_token = create_access_token(
         {"sub": str(user.id)}
     )
-    await SessionsDAO.add(user_id=user.id, jwt_token=access_token)
+    await SessionsDAO.add(user_id=user.id, jwt_token=access_token, device=device_type)
 
     response.set_cookie("access_token", access_token, httponly=True)
     return TokenResponse(access_token=access_token)
@@ -69,11 +79,21 @@ async def login_user(
 
 @router.post("/logout")
 async def logout_user(
+      request: Request,
       response: Response,
       user: Users = Depends(get_current_user)
       ) -> None:
 
-    existing_session = await SessionsDAO.find_one_or_none(user_id=user.id)
+    user_agent_str = request.headers.get("user-agent", "")
+    user_agent = parse(user_agent_str)
+    if user_agent.is_mobile:
+        device_type = "mobile"
+    elif user_agent.is_tablet:
+        device_type = "tablet"
+    else:
+        device_type = "desktop"
+
+    existing_session = await SessionsDAO.find_one_or_none(user_id=user.id, device=device_type)
     if existing_session:
         await SessionsDAO.delete_(model_id=existing_session.id)
 

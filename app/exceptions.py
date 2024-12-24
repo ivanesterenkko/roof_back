@@ -41,6 +41,12 @@ class ProjectNotFound(AutoException):
     detail = "Проект не найден."
 
 
+class OrderNotFound(AutoException):
+
+    status_code = status.HTTP_400_BAD_REQUEST
+    detail = "Заказ не найден."
+
+
 class UserNotFound(AutoException):
 
     status_code = status.HTTP_400_BAD_REQUEST

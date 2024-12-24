@@ -44,3 +44,17 @@ class CompanyProjectResponse(BaseModel):
 class OrderRequest(BaseModel):
     tariff_id: UUID4
     duration: int
+
+
+class OrderResponse(BaseModel):
+    id: UUID4
+    subscription_id: UUID4
+    duration: int
+    is_paid: bool
+
+
+class SubscriptionResponse(BaseModel):
+    id: UUID4
+    expired_at: datetime
+    tariff_id: UUID4
+    company_id: UUID4
