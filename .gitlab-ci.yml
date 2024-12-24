@@ -4,6 +4,10 @@ stages:
   - test
   - deploy
 
+variables:
+  DOCKER_HOST: tcp://docker:2375/
+  DOCKER_DRIVER: overlay2
+
 build-job:
   stage: build
   script:
@@ -18,5 +22,6 @@ deploy-job:
   stage: deploy
   before_script:
   - echo "$ENV_FILE_CONTENT" > .env
+  - if [ -f .env ]; then echo ".env file created successfully"; else echo ".env file creation failed" && exit 1; fi
   script:
     - docker compose up -d
