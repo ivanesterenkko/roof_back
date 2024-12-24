@@ -9,6 +9,7 @@ class RoofRequest(BaseModel):
     overlap: float
     max_length: float
 
+
 class RoofResponse(BaseModel):
     roof_id: UUID4
     roof_name: str
@@ -17,3 +18,16 @@ class RoofResponse(BaseModel):
     roof_useful_width: float
     roof_overlap: float
     roof_max_length: float
+
+
+class TariffRequest(BaseModel):
+    name: str
+    limit_users: int
+    price: int
+
+
+class TariffResponse(BaseModel):
+    id: UUID4
+    name: str
+    limit_users: int
+    price: int

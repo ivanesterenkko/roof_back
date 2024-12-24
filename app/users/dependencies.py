@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from fastapi import Depends, HTTPException, Request, status
+from fastapi import Depends, HTTPException, Request
 from jose import JWTError, jwt
 
 from app.config import settings
@@ -12,7 +12,10 @@ from app.users.dao import SessionsDAO, UsersDAO
 
 def get_token(request: Request):
 
-    token = request.cookies.get("access_token") or request.headers.get("Authorization")
+    token = (
+        request.cookies.get("access_token")
+        or request.headers.get("Authorization")
+    )
 
     if not token:
         raise TokenAbsentException
@@ -51,10 +54,10 @@ async def get_current_user(token: str = Depends(get_token)):
 
     if not user:
         raise UserIsNotPresentException
-    
-    session = await SessionsDAO.find_one_or_none(user_id=user.id)
-    
-    if token != session.jwt_token:
+
+    session = await SessionsDAO.find_one_or_none(jwt_token=token)
+
+    if not session:
         raise HTTPException(status_code=401, detail="Token mismatch")
-    
+
     return user

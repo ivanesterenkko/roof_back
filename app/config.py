@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     @property
     def db_url(self):
         return f"postgresql+asyncpg://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
-    
+
     @property
     def redis_url(self):
 
@@ -37,5 +37,6 @@ class Settings(BaseSettings):
             scheme="redis",
             host=self.REDIS_HOST
         ))
+
 
 settings = Settings()

@@ -1,7 +1,7 @@
 from datetime import datetime
 import uuid
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy import ARRAY, JSON, Boolean, DateTime, Float, ForeignKey, Integer, String
+from sqlalchemy import ARRAY, DateTime, Float, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -15,10 +15,10 @@ class Projects(Base):
     address: Mapped[str] = mapped_column(String, nullable=False)
     step: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
     datetime_created: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
-    
-    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True),ForeignKey('users.id'), nullable=False)
-    roof_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True),ForeignKey('roof.id'), nullable=True)
-    
+
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    roof_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('roof.id'), nullable=True)
+
     lines = relationship("Lines", back_populates="project", cascade="all, delete-orphan")
     user = relationship("Users", back_populates="projects")
     roof = relationship("Roofs", back_populates="projects")
@@ -44,6 +44,7 @@ class Lines(Base):
     project = relationship("Projects", back_populates="lines")
     lines_slope = relationship("LinesSlope", back_populates="line", cascade="all, delete-orphan")
 
+
 class LinesSlope(Base):
     __tablename__ = 'line_slope'
 
@@ -62,6 +63,7 @@ class LinesSlope(Base):
     line = relationship("Lines", back_populates="lines_slope")
     slope = relationship("Slopes", back_populates="lines_slope")
 
+
 class Slopes(Base):
     __tablename__ = 'slope'
 
@@ -77,6 +79,7 @@ class Slopes(Base):
     cutouts = relationship("Cutouts", back_populates="slope", cascade="all, delete-orphan")
     sheets = relationship("Sheets", back_populates="slope", cascade="all, delete-orphan")
 
+
 class Cutouts(Base):
     __tablename__ = 'cutout'
 
@@ -88,6 +91,7 @@ class Cutouts(Base):
     slope_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('slope.id', ondelete='CASCADE'), nullable=False)
 
     slope = relationship("Slopes", back_populates="cutouts")
+
 
 class Sheets(Base):
     __tablename__ = 'sheet'
@@ -102,6 +106,7 @@ class Sheets(Base):
     slope_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('slope.id', ondelete='CASCADE'), nullable=False)
 
     slope = relationship("Slopes", back_populates="sheets")
+
 
 class Accessories(Base):
     __tablename__ = 'accessory'
@@ -118,6 +123,7 @@ class Accessories(Base):
     lines_id: Mapped[list[uuid.UUID]] = mapped_column(ARRAY(UUID(as_uuid=True)), nullable=False)
 
     project = relationship("Projects", back_populates="accessories")
+
 
 class Materials(Base):
     __tablename__ = 'material'
