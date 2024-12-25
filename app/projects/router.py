@@ -7,7 +7,7 @@ from app.base.dao import RoofsDAO
 from app.exceptions import LineNotFound, ProjectAlreadyExists, ProjectNotFound, ProjectStepError, ProjectStepLimit, SlopeNotFound
 from app.projects.draw import create_excel, draw_plan
 from app.projects.redis import add_function_to_undo, redo_action, undo_action
-from app.projects.schemas import AccessoriesEstimateResponse, AccessoriesRequest, AccessoriesResponse, CutoutResponse, EstimateRequest, EstimateResponse, LineData, LineRequest, LineRequestUpdate, LineResponse, LineSlopeResponse, LinesData, MaterialEstimateResponse, MaterialRequest, MaterialResponse, NewSheetRequest, PointData, ProjectRequest, ProjectResponse, RoofEstimateResponse, ScrewsEstimateResponse, SheetResponse, SlopeEstimateResponse, SlopeResponse, SlopeSheetsResponse, SofitsEstimateResponce, Step1Response, Step3Response, Step6Response, Step5Response
+from app.projects.schemas import AccessoriesEstimateResponse, AccessoriesRequest, AccessoriesResponse, CutoutResponse, EstimateRequest, EstimateResponse, LineData, LineRequest, LineRequestUpdate, LineResponse, LineSlopeResponse, LineUpdateRequest, LinesData, MaterialEstimateResponse, MaterialRequest, MaterialResponse, NewSheetRequest, PointData, ProjectRequest, ProjectResponse, RoofEstimateResponse, ScrewsEstimateResponse, SheetResponse, SlopeEstimateResponse, SlopeResponse, SlopeSheetsResponse, SofitsEstimateResponce, Step1Response, Step3Response, Step6Response, Step5Response
 from app.projects.dao import AccessoriesDAO, CutoutsDAO, LinesDAO, LinesSlopeDAO, MaterialsDAO, ProjectsDAO, SheetsDAO, SlopesDAO
 from app.projects.slope import LineRotate, SlopeExtractor, SlopeUpdate, align_figure, create_hole, create_sheets, get_next_name
 from app.users.dependencies import get_current_user
@@ -682,6 +682,32 @@ async def get_lines(
         await LinesDAO.delete_(model_id=line.id)
     return lines_response
 
+
+@router.patch("/projects/{project_id}/update_lines", description="Update line dimensions")
+async def update_lines(
+    project_id: UUID4,
+    lines_data: LineUpdateRequest,
+    user: Users = Depends(get_current_user)
+) -> List[LineResponse]:
+    project = await ProjectsDAO.find_by_id(project_id)
+    if not project or project.user_id != user.id:
+        raise ProjectNotFound
+    for line in lines_data:
+        await LinesDAO.update_(
+            model_id=line.id,
+            length=line.length
+        )
+    lines = await LinesDAO.find_all(project_id=project_id)
+    return [LineResponse(
+        id=line.id,
+        line_type=line.type,
+        line_name=line.name,
+        line_length=line.length,
+        coords=LineData(start=PointData(x=line.x_start, y=line.y_start),
+                        end=PointData(x=line.x_end, y=line.y_end))
+    ) for line in lines]
+
+
 @router.get("/projects/{project_id}/lines/{line_id}", description="Get line")
 async def get_line(
       project_id: UUID4,
@@ -935,7 +961,7 @@ async def update_line(
 
 
 @router.patch("/projects/{project_id}/lines", description="Update line dimensions")
-async def update_lines(
+async def up_lines(
     project_id: UUID4,
     lines_data: LineRequestUpdate,
     user: Users = Depends(get_current_user)

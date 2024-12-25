@@ -69,6 +69,11 @@ class LineRequestUpdate(BaseModel):
     coords: LineData
 
 
+class LineUpdateRequest(BaseModel):
+    id: UUID4
+    length: float
+
+
 class LineResponse(BaseModel):
     id: UUID4
     line_name: str
