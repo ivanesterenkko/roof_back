@@ -476,3 +476,11 @@ class SlopeUpdate:
                 # Обновляем длину линии
                 line.update_length()
         return self.lines
+
+
+def update_coords(x1, y1, x2, y2, length, new_length):
+    k = new_length / length
+    x2_new = x1 + (x2 - x1) * k
+    y2_new = y1 + (y2 - y1) * k
+
+    return (x1, y1, x2_new, y2_new)
