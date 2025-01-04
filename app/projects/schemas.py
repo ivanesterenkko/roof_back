@@ -30,7 +30,7 @@ class LineData(BaseModel):
 class LinesData(BaseModel):
     start: PointData
     end: PointData
-    type: str
+    type: Optional[str] = None
 
 # Project
 
@@ -76,6 +76,15 @@ class LineUpdateRequest(BaseModel):
 
 class LineResponse(BaseModel):
     id: UUID4
+    name: str
+    start: PointData
+    end: PointData
+    type: Optional[str] = None
+    length: Optional[float] = None
+
+
+class LinesResponse(BaseModel):
+    id: UUID4
     line_name: str
     coords: LineData
     line_type: Optional[str] = ""
@@ -84,25 +93,58 @@ class LineResponse(BaseModel):
 
 class LineSlopeResponse(BaseModel):
     id: UUID4
-    line_id: UUID4
-    line_name: str
-    coords: LineData
-    line_length: float
+    parent_id: UUID4
+    name: str
+    start: PointData
+    end: PointData
+    length: Optional[float] = None
 
+class LineSlopeGenPlanResponse(BaseModel):
+    id: UUID4
+    parent_id: UUID4
 
-class LineRequest(BaseModel):
+class NodeRequest(BaseModel):
     type: str
+    lines_id: list[UUID4]
 
 
 # Slope, Cutout and Sheet
 
+class LengthSlopeResponse(BaseModel):
+    id: UUID4
+    start: PointData
+    end: PointData
+    length: Optional[float] = None
+
 
 class SlopeResponse(BaseModel):
     id: UUID4
-    slope_name: str
-    slope_length: float
-    slope_area: float | None
+    name: str
+    area: Optional[float] = None
     lines: list[LineSlopeResponse]
+    length_line: list[LengthSlopeResponse]
+
+
+class LinesSizesRequest(BaseModel):
+    id: UUID4
+    length: float
+
+
+class LengthSizesRequest(BaseModel):
+    id: UUID4
+    length: float
+
+
+class SlopeSizesRequest(BaseModel):
+    lines: list[LinesSizesRequest]
+    length_line: list[LengthSizesRequest]
+
+
+class SlopeGenPlanResponse(BaseModel):
+    id: UUID4
+    name: str
+    lines: list[LineSlopeGenPlanResponse]
+    length_line: list[LengthSlopeResponse]
 
 
 class SheetResponse(BaseModel):
@@ -255,6 +297,11 @@ class EstimateRequest(BaseModel):
 class Step6Response(BaseModel):
     lines: list[LineResponse]
     accessories: list[AccessoriesResponse]
+
+
+class GenPlanResponse(BaseModel):
+    lines: List[LineResponse]
+    slopes: List[SlopeGenPlanResponse]
 
 
 class Step3Response(BaseModel):

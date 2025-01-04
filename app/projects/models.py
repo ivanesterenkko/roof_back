@@ -1,7 +1,7 @@
 from datetime import datetime
 import uuid
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy import ARRAY, DateTime, Float, ForeignKey, Integer, String
+from sqlalchemy import ARRAY, DateTime, Float, ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -17,14 +17,26 @@ class Projects(Base):
     datetime_created: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
 
     user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
-    roof_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('roof.id'), nullable=True)
+    roof_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('roof.id', ondelete='CASCADE'), nullable=True)
 
     lines = relationship("Lines", back_populates="project", cascade="all, delete-orphan")
-    user = relationship("Users", back_populates="projects")
-    roof = relationship("Roofs", back_populates="projects")
     slopes = relationship("Slopes", back_populates="project", cascade="all, delete-orphan")
     accessories = relationship("Accessories", back_populates="project", cascade="all, delete-orphan")
     materials = relationship("Materials", back_populates="project", cascade="all, delete-orphan")
+    user = relationship("Users", back_populates="projects")
+    roof = relationship("Roofs", back_populates="projects")
+
+
+class Point(Base):
+    __tablename__ = 'point'
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
+    x: Mapped[float] = mapped_column(Float, nullable=False)
+    y: Mapped[float] = mapped_column(Float, nullable=False)
+
+    lines_as_start = relationship("Lines", back_populates="start", foreign_keys='Lines.start_id', cascade="all, delete-orphan", lazy='joined')
+    lines_as_end = relationship("Lines", back_populates="end", foreign_keys='Lines.end_id', cascade="all, delete-orphan", lazy='joined')
+    point_slope = relationship("PointSlope", back_populates="point", cascade="all, delete-orphan")
 
 
 class Lines(Base):
@@ -33,16 +45,34 @@ class Lines(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
     name: Mapped[str] = mapped_column(String, nullable=False)
     type: Mapped[str] = mapped_column(String, nullable=True)
-    x_start: Mapped[float] = mapped_column(Float, nullable=True)
-    y_start: Mapped[float] = mapped_column(Float, nullable=True)
-    x_end: Mapped[float] = mapped_column(Float, nullable=True)
-    y_end: Mapped[float] = mapped_column(Float, nullable=True)
-    length: Mapped[float] = mapped_column(Float, nullable=False)
+    length: Mapped[float] = mapped_column(Float, nullable=True)
 
+    start_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('point.id', ondelete='CASCADE'), nullable=False)
+    end_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('point.id', ondelete='CASCADE'), nullable=False)
     project_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('project.id', ondelete='CASCADE'), nullable=False)
 
-    project = relationship("Projects", back_populates="lines")
+    start: Mapped['Point'] = relationship("Point", foreign_keys=[start_id], back_populates='lines_as_start', lazy='joined')
+    end: Mapped['Point'] = relationship("Point", foreign_keys=[end_id], back_populates='lines_as_end', lazy='joined')
+
     lines_slope = relationship("LinesSlope", back_populates="line", cascade="all, delete-orphan")
+    project = relationship("Projects", back_populates="lines")
+
+
+class PointSlope(Base):
+    __tablename__ = 'point_slope'
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
+    x: Mapped[float] = mapped_column(Float, nullable=False)
+    y: Mapped[float] = mapped_column(Float, nullable=False)
+
+    parent_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('point.id', ondelete='CASCADE'), nullable=False)
+    slope_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('slope.id', ondelete='CASCADE'), nullable=False)
+
+    lines_as_start = relationship("LinesSlope", back_populates="start", foreign_keys='LinesSlope.start_id', cascade="all, delete-orphan", lazy='joined')
+    lines_as_end = relationship("LinesSlope", back_populates="end", foreign_keys='LinesSlope.end_id', cascade="all, delete-orphan", lazy='joined')
+    point = relationship("Point", back_populates="point_slope")
+    length_slope = relationship("LengthSlope", back_populates="point", foreign_keys='LengthSlope.point_id', cascade="all, delete-orphan", lazy='joined')
+    slope = relationship("Slopes", back_populates="points_slope")
 
 
 class LinesSlope(Base):
@@ -50,18 +80,35 @@ class LinesSlope(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
     name: Mapped[str] = mapped_column(String, nullable=False)
-    x_start: Mapped[float] = mapped_column(Float, nullable=True)
-    y_start: Mapped[float] = mapped_column(Float, nullable=True)
-    x_end: Mapped[float] = mapped_column(Float, nullable=True)
-    y_end: Mapped[float] = mapped_column(Float, nullable=True)
-    length: Mapped[float] = mapped_column(Float, nullable=False)
-    number: Mapped[int] = mapped_column(Integer, nullable=False)
+    type: Mapped[str] = mapped_column(String, nullable=True)
+    length: Mapped[float] = mapped_column(Float, nullable=True)
 
-    line_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('line.id', ondelete='CASCADE'), nullable=False)
+    start_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('point_slope.id', ondelete='CASCADE'), nullable=False)
+    end_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('point_slope.id', ondelete='CASCADE'), nullable=False)
+    parent_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('line.id', ondelete='CASCADE'), nullable=False)
     slope_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('slope.id', ondelete='CASCADE'), nullable=False)
 
+    start: Mapped['Point'] = relationship("PointSlope", foreign_keys=[start_id], back_populates='lines_as_start', lazy='joined')
+    end: Mapped['Point'] = relationship("PointSlope", foreign_keys=[end_id], back_populates='lines_as_end', lazy='joined')
+
     line = relationship("Lines", back_populates="lines_slope")
+    length_slope = relationship("LengthSlope", back_populates="line_slope", foreign_keys='LengthSlope.line_slope_id', cascade="all, delete-orphan", lazy='joined')
     slope = relationship("Slopes", back_populates="lines_slope")
+
+
+class LengthSlope(Base):
+    __tablename__ = 'length_slope'
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
+    length: Mapped[float] = mapped_column(Float, nullable=True)
+
+    point_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('point_slope.id', ondelete='CASCADE'), nullable=False)
+    line_slope_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('line_slope.id', ondelete='CASCADE'), nullable=False)
+    slope_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('slope.id', ondelete='CASCADE'), nullable=False)
+
+    point: Mapped['Point'] = relationship("PointSlope", foreign_keys=[point_id], back_populates='length_slope', lazy='joined')
+    line_slope: Mapped['LinesSlope'] = relationship("LinesSlope", foreign_keys=[line_slope_id], back_populates='length_slope', lazy='joined')
+    slope = relationship("Slopes", back_populates="length_slope")
 
 
 class Slopes(Base):
@@ -76,8 +123,10 @@ class Slopes(Base):
 
     project = relationship("Projects", back_populates="slopes")
     lines_slope = relationship("LinesSlope", back_populates="slope", cascade="all, delete-orphan")
+    length_slope = relationship("LengthSlope", back_populates="slope", cascade="all, delete-orphan")
     cutouts = relationship("Cutouts", back_populates="slope", cascade="all, delete-orphan")
     sheets = relationship("Sheets", back_populates="slope", cascade="all, delete-orphan")
+    points_slope = relationship("PointSlope", back_populates="slope", cascade="all, delete-orphan")
 
 
 class Cutouts(Base):

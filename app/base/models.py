@@ -26,7 +26,7 @@ class Roofs(Base):
     overlap: Mapped[float] = mapped_column(Float, nullable=False)
     max_length: Mapped[float] = mapped_column(Float, nullable=False)
 
-    projects = relationship("Projects", back_populates="roof")
+    projects = relationship("Projects", back_populates="roof", cascade="all, delete-orphan")
 
 
 class Tariffs(Base):
