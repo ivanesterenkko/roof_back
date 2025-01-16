@@ -783,7 +783,7 @@ async def get_lines(
 #     )
 
 
-@router.patch("/projects/{project_id}/lines/{line_id}/node_line", description="Add roof node")
+@router.patch("/projects/{project_id}/lines/node_line", description="Add roof node")
 async def add_node(
     project_id: UUID4,
     node_data: NodeRequest,
