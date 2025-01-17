@@ -308,21 +308,45 @@ async def add_sizes(
     project = await ProjectsDAO.find_by_id(project_id)
     if not project or project.user_id != user.id:
         raise ProjectNotFound
+    lines = await LinesSlopeDAO.find_all(slope_id=slope_id)
+    x_min = 10**6
+    x_max = 0
+    for line in lines:
+        if line.start.x < x_min:
+            x_min = line.start.x
+        elif line.start.x > x_max:
+            x_max = line.start.x
+        if line.end.x < x_min:
+            x_min = line.end.x
+        elif line.end.x > x_max:
+            x_max = line.end.x
+    center = (x_max - x_min)/2
     for line_d in data.lines:
         id = line_d.id
         length = line_d.length
         line = await LinesSlopeDAO.find_by_id(id)
+        if line.start.x == 0 and line.start.y == 0:
+            point_O_id = line.start_id
+        if line.end.x == 0 and line.end.y == 0:
+            point_O_id = line.end_id
         if line.start.y == line.end.y:
-            old_length = line.start.x - line.end.x
-            if old_length > 0:
+            if line.start.x  < line.end.x:
                 await PointsSlopeDAO.update_(
                     model_id=line.start_id,
-                    x=line.end.x+length
+                    x=center - length/2
+                )
+                await PointsSlopeDAO.update_(
+                    model_id=line.end_id,
+                    x=center + length/2
                 )
             else:
                 await PointsSlopeDAO.update_(
                     model_id=line.end_id,
-                    x=line.start.x+length
+                    x=center - length/2
+                )
+                await PointsSlopeDAO.update_(
+                    model_id=line.start_id,
+                    x=center + length/2
                 )
         elif line.start.x == line.end.x:
             old_length = line.start.y - line.end.y
@@ -336,10 +360,6 @@ async def add_sizes(
                     model_id=line.end_id,
                     x=line.start.y+length
                 )
-        await LinesSlopeDAO.update_(
-            model_id=id,
-            length=length
-        )
         await LinesDAO.update_(
             model_id=line.parent_id,
             length=length
@@ -347,6 +367,10 @@ async def add_sizes(
     for length_line_d in data.length_line:
         id = length_line_d.id
         length = length_line_d.length
+        await LengthSlopeDAO.update_(
+            model_id=id,
+            length=length
+            )
         length_slope = await LengthSlopeDAO.find_by_id(id)
         if length_slope.line_slope.start.y == length_slope.line_slope.end.y:
             if length_slope.line_slope.type == "конёк":
@@ -389,6 +413,19 @@ async def add_sizes(
                         model_id=length_slope.point_id,
                         y=length_slope.line_slope.start.y+length
                     )
+        points = await PointsSlopeDAO.find_all(slope_id=slope_id)
+        point_O = await PointsSlopeDAO.find_by_id(model_id=point_O_id)
+        for point in points:
+            await PointsSlopeDAO.update_(
+                model_id=point.id,
+                x=point.x - point_O.x
+            )
+        lines_slope = await LinesSlopeDAO.find_all(slope_id=slope_id)
+        for line_slope in lines_slope:
+            await LinesSlopeDAO.update_(
+                model_id=line_slope.id,
+                length=round(((line_slope.start.x - line_slope.end.x) ** 2 + (line_slope.start.y - line_slope.end.y) ** 2) ** 0.5, 2)
+            )
 
 
 @router.delete("/projects/{project_id}/slopes", description="Delete roof slopes")
