@@ -2,7 +2,9 @@ from datetime import datetime
 from typing import Dict, List, Optional
 from pydantic import UUID4, BaseModel
 
-# Line and Point
+from app.base.schemas import RoofResponse
+
+# Response
 
 
 class PointData(BaseModel):
@@ -22,56 +24,12 @@ class PointData(BaseModel):
         return NotImplemented
 
 
-class LineData(BaseModel):
-    start: PointData
-    end: PointData
-
-
-class LinesData(BaseModel):
-    start: PointData
-    end: PointData
-    type: Optional[str] = None
-
-# Project
-
-
-class ProjectResponse(BaseModel):
+class AboutResponse(BaseModel):
     id: UUID4
-    project_name: str
-    project_step: int
+    name: str
+    step: int
     datetime_created: datetime
-
-
-class ProjectRequest(BaseModel):
-    name: str
-    address: str
-    roof_id: UUID4
-
-
-class MaterialRequest(BaseModel):
-    name: str
-    material: str
-    color: str
-
-
-class MaterialResponse(BaseModel):
-    id: UUID4
-    name: str
-    material: str
-    color: str
-
-
-# Line
-
-
-class LineRequestUpdate(BaseModel):
-    id: UUID4
-    coords: LineData
-
-
-class LineUpdateRequest(BaseModel):
-    id: UUID4
-    length: float
+    roof: RoofResponse
 
 
 class LineResponse(BaseModel):
@@ -83,14 +41,6 @@ class LineResponse(BaseModel):
     length: Optional[float] = None
 
 
-class LinesResponse(BaseModel):
-    id: UUID4
-    line_name: str
-    coords: LineData
-    line_type: Optional[str] = ""
-    line_length: float
-
-
 class LineSlopeResponse(BaseModel):
     id: UUID4
     parent_id: UUID4
@@ -99,52 +49,14 @@ class LineSlopeResponse(BaseModel):
     end: PointData
     length: Optional[float] = None
 
-class LineSlopeGenPlanResponse(BaseModel):
-    id: UUID4
-    parent_id: UUID4
-
-class NodeRequest(BaseModel):
-    type: str
-    lines_id: list[UUID4]
-
-
-# Slope, Cutout and Sheet
 
 class LengthSlopeResponse(BaseModel):
     id: UUID4
     start: PointData
     end: PointData
+    point_id: UUID4
+    line_slope_id: UUID4
     length: Optional[float] = None
-
-
-class SlopeResponse(BaseModel):
-    id: UUID4
-    name: str
-    area: Optional[float] = None
-    lines: list[LineSlopeResponse]
-    length_line: list[LengthSlopeResponse]
-
-
-class LinesSizesRequest(BaseModel):
-    id: UUID4
-    length: float
-
-
-class LengthSizesRequest(BaseModel):
-    id: UUID4
-    length: float
-
-
-class SlopeSizesRequest(BaseModel):
-    lines: list[LinesSizesRequest]
-    length_line: list[LengthSizesRequest]
-
-
-class SlopeGenPlanResponse(BaseModel):
-    id: UUID4
-    name: str
-    lines: list[LineSlopeGenPlanResponse]
-    length_line: list[LengthSlopeResponse]
 
 
 class SheetResponse(BaseModel):
@@ -156,44 +68,27 @@ class SheetResponse(BaseModel):
     sheet_area_usefull: float
 
 
-class SheetRequest(BaseModel):
-    id: UUID4
-    sheet_x_start: float
-    sheet_y_start: float
-    sheet_length: float
-
-
-class NewSheetRequest(BaseModel):
-    sheet_x_start: float
-    sheet_y_start: float
-    sheet_length: float
-
-
 class CutoutResponse(BaseModel):
     id: UUID4
-    cutout_name: str
-    cutout_points: list[PointData]
-
-
-class SlopeSheetsResponse(BaseModel):
-    id: UUID4
-    slope_name: str
-    slope_area: float
-    slope_length: float
-    lines: list[LineSlopeResponse]
-    sheets: list[SheetResponse]
-    cutouts: list[CutoutResponse]
-
-
-# Accessoies
-
-
-class AccessoriesRequest(BaseModel):
     name: str
-    type: str
-    lines_id: list[UUID4]
-    length: float
-    width: Optional[float] = None
+    points: list[PointData]
+
+
+class SlopeResponse(BaseModel):
+    id: UUID4
+    name: str
+    area: Optional[float] = None
+    lines: Optional[list[LineSlopeResponse]] = None
+    length_line: Optional[list[LengthSlopeResponse]] = None
+    cutouts: Optional[list[CutoutResponse]] = None
+    sheets: Optional[list[SheetResponse]] = None
+
+
+class MaterialResponse(BaseModel):
+    id: UUID4
+    name: str
+    material: str
+    color: str
 
 
 class AccessoriesResponse(BaseModel):
@@ -279,6 +174,77 @@ class EstimateResponse(BaseModel):
     sheets_extended: list[str]
 
 
+class ProjectResponse(AboutResponse):
+    lines: Optional[List[LineResponse]] = None
+    slopes: Optional[List[SlopeResponse]] = None
+
+# Request
+
+
+class ProjectRequest(BaseModel):
+    name: str
+    address: str
+    roof_id: UUID4
+
+
+class LineRequest(BaseModel):
+    start: PointData
+    end: PointData
+    type: Optional[str] = None
+
+
+class MaterialRequest(BaseModel):
+    name: str
+    material: str
+    color: str
+
+
+class LineUpdateRequest(BaseModel):
+    id: UUID4
+    length: float
+
+
+class LinesSizesRequest(BaseModel):
+    id: UUID4
+    length: float
+
+
+class LengthSizesRequest(BaseModel):
+    id: UUID4
+    length: float
+
+
+class SlopeSizesRequest(BaseModel):
+    lines: list[LinesSizesRequest]
+    length_line: list[LengthSizesRequest]
+
+
+class NodeRequest(BaseModel):
+    type: str
+    lines_id: list[UUID4]
+
+
+# class SheetRequest(BaseModel):
+#     id: UUID4
+#     sheet_x_start: float
+#     sheet_y_start: float
+#     sheet_length: float
+
+
+# class NewSheetRequest(BaseModel):
+#     sheet_x_start: float
+#     sheet_y_start: float
+#     sheet_length: float
+
+
+class AccessoriesRequest(BaseModel):
+    name: str
+    type: str
+    lines_id: list[UUID4]
+    length: float
+    width: Optional[float] = None
+
+
 class EstimateRequest(BaseModel):
     project_name: str
     project_address: str
@@ -292,30 +258,3 @@ class EstimateRequest(BaseModel):
     accessories: list[AccessoriesEstimateResponse]
     sofits: list[SofitsEstimateResponce]
     screws: list[ScrewsEstimateResponse]
-
-
-class Step6Response(BaseModel):
-    lines: list[LineResponse]
-    accessories: list[AccessoriesResponse]
-
-
-class GenPlanResponse(BaseModel):
-    lines: List[LineResponse]
-    slopes: List[SlopeGenPlanResponse]
-
-
-class Step3Response(BaseModel):
-    general_plan: List[LineResponse]
-    slopes: List[SlopeResponse]
-
-
-class Step1Response(BaseModel):
-    id: UUID4
-    project_name: str
-    project_address: str
-    roof_id: UUID4
-
-
-class Step5Response(BaseModel):
-    general_plan: List[LineResponse]
-    slopes: List[SlopeSheetsResponse]

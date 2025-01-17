@@ -14,8 +14,8 @@ router = APIRouter(prefix="/base", tags=["Base"])
 async def add_roof_base(
       roof: RoofRequest,
       user: Users = Depends(get_current_user)
-      ) -> RoofResponse:
-    result = await RoofsDAO.add(
+      ) -> None:
+    await RoofsDAO.add(
         name=roof.name,
         type=roof.type,
         overall_width=roof.overall_width,
@@ -23,13 +23,6 @@ async def add_roof_base(
         overlap=roof.overlap,
         max_length=roof.max_length
         )
-    return RoofResponse(roof_id=result.id,
-                        roof_name=result.name,
-                        roof_type=result.type,
-                        roof_overall_width=result.overall_width,
-                        roof_useful_width=result.useful_width,
-                        roof_overlap=result.overlap,
-                        roof_max_length=result.max_length)
 
 
 @router.get("/roofs_base", description="Получение покрытий из библиотеки")
@@ -41,13 +34,13 @@ async def get_roof_base(
         raise RoofNotFound
     return [
         RoofResponse(
-            roof_id=result.id,
-            roof_name=result.name,
-            roof_type=result.type,
-            roof_overall_width=result.overall_width,
-            roof_useful_width=result.useful_width,
-            roof_overlap=result.overlap,
-            roof_max_length=result.max_length
+            id=result.id,
+            name=result.name,
+            type=result.type,
+            overall_width=result.overall_width,
+            useful_width=result.useful_width,
+            overlap=result.overlap,
+            max_length=result.max_length
             ) for result in results]
 
 

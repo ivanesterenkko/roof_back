@@ -23,10 +23,10 @@ class SheetNotFound(AutoException):
     detail = "Лист кровли не найден."
 
 
-class LineNotFound(AutoException):
+class LinesNotFound(AutoException):
 
     status_code = status.HTTP_400_BAD_REQUEST
-    detail = "Линия не найдена."
+    detail = "Линии не найдены."
 
 
 class TariffNotFound(AutoException):
