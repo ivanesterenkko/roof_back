@@ -41,10 +41,22 @@ class LineResponse(BaseModel):
     length: Optional[float] = None
 
 
+class PointSlopeResponse(BaseModel):
+    id: UUID4
+    x: float
+    y: float
+
+
+class PointCutoutResponse(PointSlopeResponse):
+    number: int
+
+
 class LineSlopeResponse(BaseModel):
     id: UUID4
     parent_id: UUID4
     name: str
+    start_id: UUID4
+    end_id: UUID4
     start: PointData
     end: PointData
     length: Optional[float] = None
@@ -70,14 +82,14 @@ class SheetResponse(BaseModel):
 
 class CutoutResponse(BaseModel):
     id: UUID4
-    name: str
-    points: list[PointData]
+    points: list[PointCutoutResponse]
 
 
 class SlopeResponse(BaseModel):
     id: UUID4
     name: str
     area: Optional[float] = None
+    points: Optional[list[PointSlopeResponse]] = None
     lines: Optional[list[LineSlopeResponse]] = None
     length_line: Optional[list[LengthSlopeResponse]] = None
     cutouts: Optional[list[CutoutResponse]] = None

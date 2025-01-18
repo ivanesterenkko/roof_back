@@ -25,6 +25,7 @@ class Projects(Base):
     materials = relationship("Materials", back_populates="project", cascade="all, delete-orphan")
     user = relationship("Users", back_populates="projects")
     roof = relationship("Roofs", back_populates="projects")
+    points = relationship("Point", back_populates="project", cascade="all, delete-orphan")
 
 
 class Point(Base):
@@ -34,9 +35,12 @@ class Point(Base):
     x: Mapped[float] = mapped_column(Float, nullable=False)
     y: Mapped[float] = mapped_column(Float, nullable=False)
 
+    project_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('project.id', ondelete='CASCADE'), nullable=False)
+
     lines_as_start = relationship("Lines", back_populates="start", foreign_keys='Lines.start_id', cascade="all, delete-orphan", lazy='joined')
     lines_as_end = relationship("Lines", back_populates="end", foreign_keys='Lines.end_id', cascade="all, delete-orphan", lazy='joined')
     point_slope = relationship("PointSlope", back_populates="point", cascade="all, delete-orphan")
+    project = relationship("Projects", back_populates="points")
 
 
 class Lines(Base):
@@ -81,6 +85,7 @@ class LinesSlope(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
     name: Mapped[str] = mapped_column(String, nullable=False)
     type: Mapped[str] = mapped_column(String, nullable=True)
+    number: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
     length: Mapped[float] = mapped_column(Float, nullable=True)
 
     start_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('point_slope.id', ondelete='CASCADE'), nullable=False)
@@ -133,13 +138,24 @@ class Cutouts(Base):
     __tablename__ = 'cutout'
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
-    name: Mapped[str] = mapped_column(String, nullable=False)
-    x_coords: Mapped[list[float]] = mapped_column(ARRAY(Float), nullable=False)
-    y_coords: Mapped[list[float]] = mapped_column(ARRAY(Float), nullable=False)
 
     slope_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('slope.id', ondelete='CASCADE'), nullable=False)
 
+    points = relationship("PointsCutout", back_populates="cutout", cascade="all, delete-orphan")
     slope = relationship("Slopes", back_populates="cutouts")
+
+
+class PointsCutout(Base):
+    __tablename__ = 'cutout_points'
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
+    number: Mapped[int] = mapped_column(Integer, nullable=False)
+    x: Mapped[float] = mapped_column(Float, nullable=False)
+    y: Mapped[float] = mapped_column(Float, nullable=False)
+
+    cutout_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('cutout.id', ondelete='CASCADE'), nullable=False)
+
+    cutout = relationship("Cutouts", back_populates="points")
 
 
 class Sheets(Base):
