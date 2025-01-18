@@ -8,7 +8,7 @@ from app.base.schemas import RoofResponse
 from app.exceptions import ProjectAlreadyExists, ProjectNotFound, ProjectStepLimit, RoofNotFound, SlopeNotFound
 from app.projects.draw import create_excel, draw_plan
 from app.projects.rotate import rotate_slope
-from app.projects.schemas import AboutResponse, AccessoriesEstimateResponse, AccessoriesRequest, AccessoriesResponse, CutoutResponse, EstimateRequest, EstimateResponse, LengthSlopeResponse, LineRequest, LineResponse, LineSlopeResponse, MaterialEstimateResponse, MaterialRequest, NodeRequest, PointCutoutResponse, PointData, PointSlopeResponse, ProjectRequest, ProjectResponse, RoofEstimateResponse, ScrewsEstimateResponse, SlopeEstimateResponse, SlopeResponse, SlopeSizesRequest, SofitsEstimateResponce
+from app.projects.schemas import AboutResponse, AccessoriesEstimateResponse, AccessoriesRequest, AccessoriesResponse, CutoutResponse, EstimateRequest, EstimateResponse, LengthSlopeResponse, LineRequest, LineResponse, LineSlopeResponse, MaterialEstimateResponse, MaterialRequest, NodeRequest, PointCutoutResponse, PointData, PointSlopeResponse, ProjectRequest, ProjectResponse, RoofEstimateResponse, ScrewsEstimateResponse, SheetResponse, SlopeEstimateResponse, SlopeResponse, SlopeSizesRequest, SofitsEstimateResponce
 from app.projects.dao import AccessoriesDAO, CutoutsDAO, LengthSlopeDAO, LinesDAO, LinesSlopeDAO, MaterialsDAO, PointsCutoutsDAO, PointsDAO, PointsSlopeDAO, ProjectsDAO, SheetsDAO, SlopesDAO
 from app.projects.slope import create_figure, create_hole, create_sheets, find_slope, get_next_name, process_lines_and_generate_slopes
 from app.users.dependencies import get_current_user
@@ -168,7 +168,16 @@ async def get_project(
                 cutouts_response = None
             sheets = await SheetsDAO.find_all(slope_id=slope.id)
             if sheets:
-                sheets_response = []
+                sheets_response = [
+                    SheetResponse(
+                        id=sheet.id,
+                        x_start=sheet.x_start,
+                        y_start=sheet.y_start,
+                        length=sheet.length,
+                        area_overall=sheet.area_overall,
+                        area_usefull=sheet.area_usefull
+                        ) for sheet in sheets
+                    ]
             else:
                 sheets_response = None
             slope_response.append(SlopeResponse(

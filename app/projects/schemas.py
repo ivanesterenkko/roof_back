@@ -73,11 +73,11 @@ class LengthSlopeResponse(BaseModel):
 
 class SheetResponse(BaseModel):
     id: UUID4
-    sheet_x_start: float
-    sheet_y_start: float
-    sheet_length: float
-    sheet_area_overall: float
-    sheet_area_usefull: float
+    x_start: float
+    y_start: float
+    length: float
+    area_overall: float
+    area_usefull: float
 
 
 class CutoutResponse(BaseModel):
