@@ -1,4 +1,3 @@
-
 stages:
   - build
   - test
@@ -8,13 +7,19 @@ build-job:
   stage: build
   script:
     - docker build -t roof_image .
+  only:
+    - main
 
 test-job:
   stage: test
   script:
     - docker run --rm -d roof_image
+  only:
+    - main
 
 deploy-job:
   stage: deploy
   script:
     - docker compose up -d
+  only:
+    - main

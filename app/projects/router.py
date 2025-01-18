@@ -197,12 +197,13 @@ async def add_project(
     roof = await RoofsDAO.find_by_id(model_id=project.roof_id)
     if not roof:
         raise RoofNotFound
-    await ProjectsDAO.add(
+    project = await ProjectsDAO.add(
         name=project.name,
         address=project.address,
         roof_id=project.roof_id,
         user_id=user.id
     )
+    return {"project_id": project.id}
 
 
 @router.patch("/projects/{project_id}/step", description="Create a roofing project")

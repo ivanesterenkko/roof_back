@@ -15,7 +15,7 @@ async def add_roof_base(
       roof: RoofRequest,
       user: Users = Depends(get_current_user)
       ) -> None:
-    await RoofsDAO.add(
+    roof = await RoofsDAO.add(
         name=roof.name,
         type=roof.type,
         overall_width=roof.overall_width,
@@ -23,6 +23,7 @@ async def add_roof_base(
         overlap=roof.overlap,
         max_length=roof.max_length
         )
+    return {"roof_id": roof.id}
 
 
 @router.get("/roofs_base", description="Получение покрытий из библиотеки")
