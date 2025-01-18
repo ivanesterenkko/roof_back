@@ -83,6 +83,7 @@ def create_figure(points, cutouts):
     for cutout in cutouts:
         figure = create_hole(figure, cutout)
     return figure
+
 def get_next_name(existing_names: List[str]) -> str:
     """Генерирует следующее имя для линии в формате Excel-стиля."""
     alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'

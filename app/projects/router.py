@@ -717,10 +717,11 @@ async def add_sheets(
         if len(points_id) == 0:
             points_id.append(line.start_id)
             points_id.append(line.end_id)
-        if line.start_id == points_id[-1]:
-            points_id.append(line.end_id)
         else:
-            points_id.append(line.start_id)
+            if line.start_id == points_id[-1]:
+                points_id.append(line.end_id)
+            else:
+                points_id.append(line.start_id)
     points = []
     for id in points_id:
         point = await PointsSlopeDAO.find_by_id(id)
