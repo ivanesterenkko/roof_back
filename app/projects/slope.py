@@ -72,26 +72,26 @@ async def create_sheets(figure, roof, del_x, del_y):
     return sheets
 
 
-def create_hole(figure, points):
-    """Создает отверстие в фигуре, вырезая полигон из заданных точек."""
-    hole_polygon = Polygon(points)
-    return figure.difference(hole_polygon)
-
-
-def create_figure(points, cutouts):
-    figure = Polygon(points)
-    for cutout in cutouts:
-        figure = create_hole(figure, cutout)
-    return figure
-
 def get_next_name(existing_names: List[str]) -> str:
-    """Генерирует следующее имя для линии в формате Excel-стиля."""
     alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
 
     def generate_names():
         for length in range(1, 3):
             for letters in product(alphabet, repeat=length):
                 yield ''.join(letters)
+
+    name_generator = generate_names()
+
+    for name in name_generator:
+        if name not in existing_names:
+            return name
+
+
+def get_next_length_name(existing_names: List[str]) -> str:
+
+    def generate_names():
+        for i in range(1, 101):
+            yield 'L'+str(i)
 
     name_generator = generate_names()
 
@@ -225,6 +225,26 @@ def find_slope(lines):
     builder = GraphBuilder(lines, points)
     minimal_cycles = builder.find_minimal_cycles_by_geometry()
     return minimal_cycles
+
+
+def create_hole(figure, points):
+    hole_polygon = Polygon(points)
+    return figure.difference(hole_polygon)
+
+
+def create_figure(lines, cutouts):
+    points = {}
+    for line in lines:
+        if line.start_id not in points:
+            points[line.start_id] = (line.start.x, line.start.y)
+        if line.end_id not in points:
+            points[line.end_id] = (line.end.x, line.end.y)
+    builder = GraphBuilder(lines, points)
+    cycles = builder.find_all_cycles()
+    figure = builder._build_polygon(cycles[0])
+    for cutout in cutouts:
+        figure = create_hole(figure, cutout)
+    return figure
 
 
 def process_lines_and_generate_slopes(lines: List[LinesSlope]):

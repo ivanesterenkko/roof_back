@@ -27,6 +27,7 @@ class PointData(BaseModel):
 class AboutResponse(BaseModel):
     id: UUID4
     name: str
+    address: str
     step: int
     datetime_created: datetime
     roof: RoofResponse
@@ -37,6 +38,7 @@ class LineResponse(BaseModel):
     name: str
     start: PointData
     end: PointData
+    is_perimeter: bool
     type: Optional[str] = None
     length: Optional[float] = None
 
@@ -64,6 +66,7 @@ class LineSlopeResponse(BaseModel):
 
 class LengthSlopeResponse(BaseModel):
     id: UUID4
+    name: str
     start: PointData
     end: PointData
     point_id: UUID4
@@ -202,7 +205,7 @@ class ProjectRequest(BaseModel):
 class LineRequest(BaseModel):
     start: PointData
     end: PointData
-    type: Optional[str] = None
+    is_perimeter: bool
 
 
 class MaterialRequest(BaseModel):

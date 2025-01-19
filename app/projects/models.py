@@ -1,7 +1,7 @@
 from datetime import datetime
 import uuid
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy import ARRAY, DateTime, Float, ForeignKey, Integer, String, UniqueConstraint
+from sqlalchemy import ARRAY, Boolean, DateTime, Float, ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -50,6 +50,7 @@ class Lines(Base):
     name: Mapped[str] = mapped_column(String, nullable=False)
     type: Mapped[str] = mapped_column(String, nullable=True)
     length: Mapped[float] = mapped_column(Float, nullable=True)
+    is_perimeter: Mapped[bool] = mapped_column(Boolean, nullable=False)
 
     start_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('point.id', ondelete='CASCADE'), nullable=False)
     end_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('point.id', ondelete='CASCADE'), nullable=False)
@@ -105,6 +106,7 @@ class LengthSlope(Base):
     __tablename__ = 'length_slope'
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
+    name: Mapped[str] = mapped_column(String, nullable=False)
     length: Mapped[float] = mapped_column(Float, nullable=True)
 
     point_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('point_slope.id', ondelete='CASCADE'), nullable=False)
