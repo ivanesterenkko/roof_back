@@ -46,7 +46,7 @@ app.include_router(payment_router)
 origins = [
     "http://localhost:8000",
     "http://localhost:5173",
-    "https://roof-2d-editor.vercel.app"
+    "https://roof-pro.vercel.app"
 ]
 
 app.add_middleware(
