@@ -27,6 +27,7 @@ class PointData(BaseModel):
 class AboutResponse(BaseModel):
     id: UUID4
     name: str
+    address: str
     step: int
     datetime_created: datetime
     roof: RoofResponse
@@ -37,14 +38,27 @@ class LineResponse(BaseModel):
     name: str
     start: PointData
     end: PointData
+    is_perimeter: bool
     type: Optional[str] = None
     length: Optional[float] = None
+
+
+class PointSlopeResponse(BaseModel):
+    id: UUID4
+    x: float
+    y: float
+
+
+class PointCutoutResponse(PointSlopeResponse):
+    number: int
 
 
 class LineSlopeResponse(BaseModel):
     id: UUID4
     parent_id: UUID4
     name: str
+    start_id: UUID4
+    end_id: UUID4
     start: PointData
     end: PointData
     length: Optional[float] = None
@@ -52,6 +66,7 @@ class LineSlopeResponse(BaseModel):
 
 class LengthSlopeResponse(BaseModel):
     id: UUID4
+    name: str
     start: PointData
     end: PointData
     point_id: UUID4
@@ -61,23 +76,23 @@ class LengthSlopeResponse(BaseModel):
 
 class SheetResponse(BaseModel):
     id: UUID4
-    sheet_x_start: float
-    sheet_y_start: float
-    sheet_length: float
-    sheet_area_overall: float
-    sheet_area_usefull: float
+    x_start: float
+    y_start: float
+    length: float
+    area_overall: float
+    area_usefull: float
 
 
 class CutoutResponse(BaseModel):
     id: UUID4
-    name: str
-    points: list[PointData]
+    points: list[PointCutoutResponse]
 
 
 class SlopeResponse(BaseModel):
     id: UUID4
     name: str
     area: Optional[float] = None
+    points: Optional[list[PointSlopeResponse]] = None
     lines: Optional[list[LineSlopeResponse]] = None
     length_line: Optional[list[LengthSlopeResponse]] = None
     cutouts: Optional[list[CutoutResponse]] = None
@@ -190,7 +205,7 @@ class ProjectRequest(BaseModel):
 class LineRequest(BaseModel):
     start: PointData
     end: PointData
-    type: Optional[str] = None
+    is_perimeter: bool
 
 
 class MaterialRequest(BaseModel):

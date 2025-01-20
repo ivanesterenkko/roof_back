@@ -5,12 +5,12 @@ from pydantic import UUID4
 from shapely.geometry import Polygon
 from app.base.dao import RoofsDAO
 from app.base.schemas import RoofResponse
-from app.exceptions import ProjectAlreadyExists, ProjectNotFound, ProjectStepLimit, RoofNotFound, SlopeNotFound
+from app.exceptions import CutoutNotFound, ProjectAlreadyExists, ProjectNotFound, ProjectStepLimit, RoofNotFound, SlopeNotFound
 from app.projects.draw import create_excel, draw_plan
 from app.projects.rotate import rotate_slope
-from app.projects.schemas import AboutResponse, AccessoriesEstimateResponse, AccessoriesRequest, AccessoriesResponse, EstimateRequest, EstimateResponse, LengthSlopeResponse, LineRequest, LineResponse, LineSlopeResponse, MaterialEstimateResponse, MaterialRequest, NodeRequest, PointData, ProjectRequest, ProjectResponse, RoofEstimateResponse, ScrewsEstimateResponse, SlopeEstimateResponse, SlopeResponse, SlopeSizesRequest, SofitsEstimateResponce
-from app.projects.dao import AccessoriesDAO, CutoutsDAO, LengthSlopeDAO, LinesDAO, LinesSlopeDAO, MaterialsDAO, PointsDAO, PointsSlopeDAO, ProjectsDAO, SheetsDAO, SlopesDAO
-from app.projects.slope import create_hole, create_sheets, find_slope, get_next_name, process_lines_and_generate_slopes
+from app.projects.schemas import AboutResponse, AccessoriesEstimateResponse, AccessoriesRequest, AccessoriesResponse, CutoutResponse, EstimateRequest, EstimateResponse, LengthSlopeResponse, LineRequest, LineResponse, LineSlopeResponse, MaterialEstimateResponse, MaterialRequest, NodeRequest, PointCutoutResponse, PointData, PointSlopeResponse, ProjectRequest, ProjectResponse, RoofEstimateResponse, ScrewsEstimateResponse, SheetResponse, SlopeEstimateResponse, SlopeResponse, SlopeSizesRequest, SofitsEstimateResponce
+from app.projects.dao import AccessoriesDAO, CutoutsDAO, LengthSlopeDAO, LinesDAO, LinesSlopeDAO, MaterialsDAO, PointsCutoutsDAO, PointsDAO, PointsSlopeDAO, ProjectsDAO, SheetsDAO, SlopesDAO
+from app.projects.slope import create_figure, create_hole, create_sheets, find_slope, get_next_length_name, get_next_name, process_lines_and_generate_slopes
 from app.users.dependencies import get_current_user
 from app.users.models import Users
 import asyncio
@@ -29,6 +29,7 @@ async def get_projects(user: Users = Depends(get_current_user)) -> List[AboutRes
             AboutResponse(
                 id=project.id,
                 name=project.name,
+                address=project.address,
                 step=project.step,
                 datetime_created=project.datetime_created,
                 roof=RoofResponse(
@@ -61,6 +62,7 @@ async def get_project(
         lines_response = [
             LineResponse(
                 id=line.id,
+                is_perimeter=line.is_perimeter,
                 type=line.type,
                 name=line.name,
                 start=PointData(
@@ -70,7 +72,8 @@ async def get_project(
                 end=PointData(
                     x=line.end.x,
                     y=line.end.y
-                    )
+                    ),
+                length=line.length
             ) for line in lines
         ]
     else:
@@ -79,16 +82,26 @@ async def get_project(
     if slopes:
         slope_response = []
         for slope in slopes:
+            points_slope = await PointsSlopeDAO.find_all(slope_id=slope.id)
+            points_response = [
+                PointSlopeResponse(
+                    id=point.id,
+                    x=point.x,
+                    y=point.y
+                ) for point in points_slope
+            ]
             lines_slope = await LinesSlopeDAO.find_all(slope_id=slope.id)
             lines_slope_response = [
                 LineSlopeResponse(
                     id=line_slope.id,
                     parent_id=line_slope.parent_id,
                     name=line_slope.name,
+                    start_id=line_slope.start_id,
                     start=PointData(
                         x=line_slope.start.x,
                         y=line_slope.start.y
                     ),
+                    end_id=line_slope.end_id,
                     end=PointData(
                         x=line_slope.end.x,
                         y=line_slope.end.y
@@ -105,6 +118,7 @@ async def get_project(
                     length_slope_response.append(
                         LengthSlopeResponse(
                             id=line_length.id,
+                            name=line_length.name,
                             start=PointData(
                                 x=point.x,
                                 y=point.y
@@ -122,6 +136,7 @@ async def get_project(
                     length_slope_response.append(
                         LengthSlopeResponse(
                             id=line_length.id,
+                            name=line_length.name,
                             start=PointData(
                                 x=point.x,
                                 y=point.y
@@ -138,17 +153,43 @@ async def get_project(
             cutouts = await CutoutsDAO.find_all(slope_id=slope.id)
             if cutouts:
                 cutouts_response = []
+                for cutout in cutouts:
+                    points_cutout = await PointsCutoutsDAO.find_all(cutout_id=cutout.id)
+                    points_cutout_response = [
+                        PointCutoutResponse(
+                            id=point.id,
+                            x=point.x,
+                            y=point.y,
+                            number=point.number
+                        ) for point in points_cutout
+                    ]
+                    cutouts_response.append(
+                        CutoutResponse(
+                            id=cutout.id,
+                            points=points_cutout_response
+                        )
+                    )
             else:
                 cutouts_response = None
             sheets = await SheetsDAO.find_all(slope_id=slope.id)
             if sheets:
-                sheets_response = []
+                sheets_response = [
+                    SheetResponse(
+                        id=sheet.id,
+                        x_start=sheet.x_start,
+                        y_start=sheet.y_start,
+                        length=sheet.length,
+                        area_overall=sheet.area_overall,
+                        area_usefull=sheet.area_usefull
+                        ) for sheet in sheets
+                    ]
             else:
                 sheets_response = None
             slope_response.append(SlopeResponse(
                 id=slope.id,
                 name=slope.name,
                 area=slope.area,
+                points=points_response,
                 lines=lines_slope_response,
                 length_line=length_slope_response,
                 cutouts=cutouts_response,
@@ -159,6 +200,7 @@ async def get_project(
     return ProjectResponse(
         id=project.id,
         name=project.name,
+        address=project.address,
         step=project.step,
         datetime_created=project.datetime_created,
         roof=RoofResponse(
@@ -228,8 +270,13 @@ async def add_lines(
     project = await ProjectsDAO.find_by_id(project_id)
     if not project or project.user_id != user.id:
         raise ProjectNotFound
-    existing_names = []
+    existing_lines = await LinesDAO.find_all(project_id=project.id)
+    existing_names = [line.name for line in existing_lines]
     existing_points = {}
+    ex_points = await PointsDAO.find_all(project_id=project_id)
+    for point in ex_points:
+        if PointData(x=point.x, y=point.y) not in existing_points:
+            existing_points[PointData(x=point.x, y=point.y)] = point.id
     for line in lines:
         line_name = get_next_name(existing_names)
 
@@ -239,6 +286,7 @@ async def add_lines(
             point = await PointsDAO.add(
                 x=line.start.x,
                 y=line.start.y,
+                project_id=project_id
             )
             start_id = point.id
             existing_points[line.start] = start_id
@@ -249,6 +297,7 @@ async def add_lines(
             point = await PointsDAO.add(
                 x=line.end.x,
                 y=line.end.y,
+                project_id=project_id
             )
             end_id = point.id
             existing_points[line.end] = end_id
@@ -256,7 +305,7 @@ async def add_lines(
         await LinesDAO.add(
             project_id=project_id,
             name=line_name,
-            type=line.type,
+            is_perimeter=line.is_perimeter,
             start_id=start_id,
             end_id=end_id,
         )
@@ -276,6 +325,7 @@ async def get_lines(
     for line in lines:
         lines_response.append(LineResponse(
             id=line.id,
+            is_perimeter=line.is_perimeter,
             type=line.type,
             name=line.name,
             start=PointData(x=line.start.x,
@@ -326,6 +376,10 @@ async def add_sizes(
         id = line_d.id
         length = line_d.length
         line = await LinesSlopeDAO.find_by_id(id)
+        await LinesDAO.update_(
+            model_id=line.parent_id,
+            length=length
+        )
         if line.start.x == 0 and line.start.y == 0:
             point_O_id = line.start_id
         if line.end.x == 0 and line.end.y == 0:
@@ -361,10 +415,6 @@ async def add_sizes(
                     model_id=line.end_id,
                     x=line.start.y+length
                 )
-        await LinesDAO.update_(
-            model_id=line.parent_id,
-            length=length
-        )
     for length_line_d in data.length_line:
         id = length_line_d.id
         length = length_line_d.length
@@ -468,6 +518,7 @@ async def add_slope(
             project_id=project.id
         )
         new_lines = rotate_slope(lines)
+        count = 1
         for line in new_lines:
             if line.start.id in existing_points:
                 start_id = existing_points[line.start.id]
@@ -498,41 +549,169 @@ async def add_slope(
                 type=line.type,
                 start_id=start_id,
                 end_id=end_id,
-                slope_id=new_slope.id
+                slope_id=new_slope.id,
+                number=count
             )
+            count += 1
         lines_slope = await LinesSlopeDAO.find_all(
             slope_id=new_slope.id
         )
         lengths_slope = process_lines_and_generate_slopes(lines_slope)
+        existing_names_length = []
         for length_slope in lengths_slope:
+            name = get_next_length_name(existing_names_length)
+            existing_names_length.append(name)
             await LengthSlopeDAO.add(
+                name=name,
                 point_id=length_slope[0],
                 line_slope_id=length_slope[1],
                 slope_id=new_slope.id
             )
 
 
+@router.patch("/projects/{project_id}/slopes/{slope_id}/lines_slope/{line_slope_id}", description="Update length of line for slope")
+async def update_line_slope(
+    project_id: UUID4,
+    slope_id: UUID4,
+    line_slope_id: UUID4,
+    length: float,
+    user: Users = Depends(get_current_user)
+) -> None:
+    project = await ProjectsDAO.find_by_id(project_id)
+    if not project or project.user_id != user.id:
+        raise ProjectNotFound
+    slope = await SlopesDAO.find_by_id(slope_id)
+    if not slope or slope.project_id != project_id:
+        raise SlopeNotFound
+    line = await LinesSlopeDAO.find_by_id(line_slope_id)
+    k = length/line.length
+    if line.start.x <= line.end.x or line.start.y <= line.end.y:
+        await PointsSlopeDAO.update_(
+            model_id=line.end_id,
+            x=line.start.x+k*(line.end.x-line.start.x),
+            y=line.start.y+k*(line.end.y-line.start.y)
+        )
+    else:
+        await PointsSlopeDAO.update_(
+            model_id=line.start_id,
+            x=line.end.x+k*(line.start.x-line.end.x),
+            y=line.end.y+k*(line.start.y-line.end.y)
+        )
+    lines = await LinesSlopeDAO.find_all(slope_id=slope_id)
+    for line in lines:
+        await LinesSlopeDAO.update_(
+            model_id=line.id,
+            length=round(((line.start.x - line.end.x) ** 2 + (line.start.y - line.end.y) ** 2) ** 0.5, 2)
+        )
+    length_lines = await LengthSlopeDAO.find_all(slope_id=slope_id)
+    for line in length_lines:
+        await LengthSlopeDAO.update_(
+            model_id=line.id,
+            length=round(abs(line.point.y - line.line_slope.start.y), 2)
+        )
 
-# @router.get("/projects/{project_id}/add_line/slopes/{slope_id}/cutounts", description="Get list of cutouts")
-# async def get_cutouts(
-#       project_id: UUID4,
-#       slope_id: UUID4,
-#       user: Users = Depends(get_current_user)) -> List[CutoutResponse]:
-#     project = await ProjectsDAO.find_by_id(project_id)
-#     if not project or project.user_id != user.id:
-#         raise ProjectNotFound
-#     slope = await SlopesDAO.find_by_id(slope_id)
-#     if not slope or slope.project_id != project_id:
-#         raise SlopeNotFound
-#     cutouts = await CutoutsDAO.find_all(slope_id=slope_id)
-#     cutouts_data = [
-#         CutoutResponse(
-#             id=cutout.id,
-#             cutout_name=cutout.name,
-#             cutout_points=[PointData(x=x, y=y) for x, y in zip(cutout.x_coords, cutout.y_coords)]
-#         ) for cutout in cutouts
-#         ]
-#     return cutouts_data
+
+@router.patch("/projects/{project_id}/slopes/{slope_id}/lengths_slope/{length_slope_id}", description="Update length of line for slope")
+async def update_length_slope(
+    project_id: UUID4,
+    slope_id: UUID4,
+    length_slope_id: UUID4,
+    length: float,
+    user: Users = Depends(get_current_user)
+) -> None:
+    project = await ProjectsDAO.find_by_id(project_id)
+    if not project or project.user_id != user.id:
+        raise ProjectNotFound
+    slope = await SlopesDAO.find_by_id(slope_id)
+    if not slope or slope.project_id != project_id:
+        raise SlopeNotFound
+    length_slope = await LengthSlopeDAO.find_by_id(length_slope_id)
+    if length_slope.line_slope.start.y == length_slope.line_slope.end.y:
+        if length_slope.line_slope.type == "конёк":
+            await PointsSlopeDAO.update_(
+                model_id=length_slope.line_slope.start_id,
+                y=length_slope.point.y+length
+            )
+            await PointsSlopeDAO.update_(
+                model_id=length_slope.line_slope.end_id,
+                y=length_slope.point.y+length
+            )
+        else:
+            k = 0
+            lines_1 = await LinesSlopeDAO.find_all(start_id=length_slope.point_id)
+            for line_1 in lines_1:
+                if line_1.start.y == line_1.end.y:
+                    await PointsSlopeDAO.update_(
+                        model_id=line_1.start_id,
+                        y=length_slope.line_slope.start.y+length
+                    )
+                    await PointsSlopeDAO.update_(
+                        model_id=line_1.end_id,
+                        y=length_slope.line_slope.start.y+length
+                    )
+                    k += 1
+            lines_2 = await LinesSlopeDAO.find_all(end_id=length_slope.point_id)
+            for line_2 in lines_2:
+                if line_2.start.y == line_2.end.y:
+                    await PointsSlopeDAO.update_(
+                        model_id=line_2.start_id,
+                        y=length_slope.line_slope.start.y+length
+                    )
+                    await PointsSlopeDAO.update_(
+                        model_id=line_2.end_id,
+                        y=length_slope.line_slope.start.y+length
+                    )
+                    k += 1
+            if k == 0:
+                await PointsSlopeDAO.update_(
+                    model_id=length_slope.point_id,
+                    y=length_slope.line_slope.start.y+length
+                )
+    lines = await LinesSlopeDAO.find_all(slope_id=slope_id)
+    for line in lines:
+        await LinesSlopeDAO.update_(
+            model_id=line.id,
+            length=round(((line.start.x - line.end.x) ** 2 + (line.start.y - line.end.y) ** 2) ** 0.5, 2)
+        )
+    length_lines = await LengthSlopeDAO.find_all(slope_id=slope_id)
+    for line in length_lines:
+        await LengthSlopeDAO.update_(
+            model_id=line.id,
+            length=round(abs(line.point.y - line.line_slope.start.y), 2)
+        )
+
+
+@router.patch("/projects/{project_id}/slopes/{slope_id}/points_slope/{point_slope_id}", description="Update coords point for slope")
+async def update_point_slope(
+    project_id: UUID4,
+    slope_id: UUID4,
+    point_slope_id: UUID4,
+    point: PointData,
+    user: Users = Depends(get_current_user)
+) -> None:
+    project = await ProjectsDAO.find_by_id(project_id)
+    if not project or project.user_id != user.id:
+        raise ProjectNotFound
+    slope = await SlopesDAO.find_by_id(slope_id)
+    if not slope or slope.project_id != project_id:
+        raise SlopeNotFound
+    await PointsSlopeDAO.update_(
+        model_id=point_slope_id,
+        x=point.x,
+        y=point.y
+    )
+    lines = await LinesSlopeDAO.find_all(slope_id=slope_id)
+    for line in lines:
+        await LinesSlopeDAO.update_(
+            model_id=line.id,
+            length=round(((line.start.x - line.end.x) ** 2 + (line.start.y - line.end.y) ** 2) ** 0.5, 2)
+        )
+    length_lines = await LengthSlopeDAO.find_all(slope_id=slope_id)
+    for line in length_lines:
+        await LengthSlopeDAO.update_(
+            model_id=line.id,
+            length=round(abs(line.point.y - line.line_slope.start.y), 2)
+        )
 
 
 @router.delete("/projects/{project_id}/add_line/slopes/{slope_id}/cutounts/{cutout_id}", description="Delete cutout")
@@ -557,23 +736,19 @@ async def add_cutout(
     project = await ProjectsDAO.find_by_id(project_id)
     if not project or project.user_id != user.id:
         raise ProjectNotFound
-
     slope = await SlopesDAO.find_by_id(slope_id)
     if not slope or slope.project_id != project_id:
         raise SlopeNotFound
-
-    existing_cutouts = await CutoutsDAO.find_all(slope_id=slope.id)
-    existing_names = [cutout.name for cutout in existing_cutouts]
-    cutout_name = get_next_name(existing_names)
-    points_x = [point.x for point in points]
-    points_y = [point.y for point in points]
-
-    await CutoutsDAO.add(
-        slope_id=slope_id,
-        name=cutout_name,
-        x_coords=points_x,
-        y_coords=points_y
-    )
+    cutout = await CutoutsDAO.add(slope_id=slope_id)
+    count = 1
+    for point in points:
+        await PointsCutoutsDAO.add(
+            x=point.x,
+            y=point.y,
+            number=count,
+            cutout_id=cutout.id
+        )
+        count += 1
 
 
 @router.patch("/projects/{project_id}/slopes/{slope_id}/cutouts/{cutout_id}", description="Update cutout")
@@ -581,25 +756,25 @@ async def update_cutout(
     project_id: UUID4,
     slope_id: UUID4,
     cutout_id: UUID4,
-    points: List[PointData],
+    points_cutout: List[PointCutoutResponse],
     user: Users = Depends(get_current_user)
 ) -> None:
     project = await ProjectsDAO.find_by_id(project_id)
     if not project or project.user_id != user.id:
         raise ProjectNotFound
-
     slope = await SlopesDAO.find_by_id(slope_id)
     if not slope or slope.project_id != project_id:
         raise SlopeNotFound
+    cutout = await CutoutsDAO.find_by_id(cutout_id)
+    if not cutout:
+        raise CutoutNotFound
+    for point in points_cutout:
+        await PointsCutoutsDAO.update_(
+            model_id=point.id,
+            x=point.x,
+            y=point.y
+        )
 
-    points_x = [point.x for point in points]
-    points_y = [point.y for point in points]
-
-    await CutoutsDAO.update_(
-        model_id=cutout_id,
-        x_coords=points_x,
-        y_coords=points_y
-    )
 
 
 # @router.get("/projects/{project_id}/slopes/{slope_id}/sheets", description="View sheets for slope")
@@ -698,40 +873,18 @@ async def add_sheets(
     slope = await SlopesDAO.find_by_id(slope_id)
     if not slope or slope.project_id != project_id:
         raise SlopeNotFound
-    cutouts = await CutoutsDAO.find_all(slope_id=slope_id)
+    cutouts_slope = await CutoutsDAO.find_all(slope_id=slope_id)
     lines = await LinesSlopeDAO.find_all(slope_id=slope_id)
     lines = sorted(lines, key=lambda line: line.number)
-    points = []
-    points1 = []
-    for line in lines:
-        if len(points) == 0:
-            points.append((line.x_start, line.y_start))
-            points.append((line.x_end, line.y_end))
-            points1.append((line.x_end, line.y_end))
-            points1.append((line.x_start, line.y_start))
-        elif len(points) == 2:
-            if (line.x_start == points[-1][0] and line.y_start == points[-1][1]):
-                points.append((line.x_end, line.y_end))
-            elif (line.x_end == points[-1][0] and line.y_end == points[-1][1]):
-                points.append((line.x_start, line.y_start))
-            elif (line.x_start == points1[-1][0] and line.y_start == points1[-1][1]):
-                points = points1
-                points.append((line.x_end, line.y_end))
-            elif (line.x_end == points1[-1][0] and line.y_end == points1[-1][1]):
-                points = points1
-                points.append((line.x_start, line.y_start))
-        else:
-            if (line.x_start == points[-1][0] and line.y_start == points[-1][1]):
-                points.append((line.x_end, line.y_end))
-            elif (line.x_end == points[-1][0] and line.y_end == points[-1][1]):
-                points.append((line.x_start, line.y_start))
-    if cutouts is None:
-        figure = Polygon(points)
-    else:
-        figure = Polygon(points)
-        for cutout in cutouts:
-            points_cut = list(zip(cutout.x_coords, cutout.y_coords))
-            figure = create_hole(figure, points_cut)
+    cutouts = []
+    for cutout in cutouts_slope:
+        points_cutout_slope = await PointsCutoutsDAO.find_all(cutout_id=cutout.id)
+        points_cutout_slope = sorted(points_cutout_slope, key=lambda point: point.number)
+        points_cutout = [
+            (point.x, point.y) for point in points_cutout_slope
+        ]
+        cutouts.append(points_cutout)
+    figure = create_figure(lines, cutouts)
     area = figure.area
     slope = await SlopesDAO.update_(model_id=slope_id, area=area)
     roof = await RoofsDAO.find_by_id(project.roof_id)

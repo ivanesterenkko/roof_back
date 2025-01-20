@@ -41,6 +41,12 @@ class ProjectNotFound(AutoException):
     detail = "Проект не найден."
 
 
+class CutoutNotFound(AutoException):
+
+    status_code = status.HTTP_400_BAD_REQUEST
+    detail = "Вырез не найден."
+
+
 class OrderNotFound(AutoException):
 
     status_code = status.HTTP_400_BAD_REQUEST
