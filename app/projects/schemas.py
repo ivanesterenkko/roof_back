@@ -67,10 +67,13 @@ class LineSlopeResponse(BaseModel):
 class LengthSlopeResponse(BaseModel):
     id: UUID4
     name: str
+    type: int
     start: PointData
     end: PointData
-    point_id: UUID4
-    line_slope_id: UUID4
+    line_slope_1_id: Optional[UUID4] = None
+    line_slope_2_id: Optional[UUID4] = None
+    point_1_id: Optional[UUID4] = None
+    point_2_id: Optional[UUID4] = None
     length: Optional[float] = None
 
 

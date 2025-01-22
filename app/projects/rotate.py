@@ -16,8 +16,16 @@ def move_geometry_to_point(geom, point: ShapelyPoint):
     return translate(geom, xoff=-point.x, yoff=-point.y)
 
 
+def up_line(line):
+    return LineString([(x, -y) for x, y in line.coords])
+
+
+def right_line(line):
+    return LineString([(-x, y) for x, y in line.coords])
+
+
 def rotate_geometry(geom, angle_degrees: float):
-    return rotate(geom, -angle_degrees, origin=(0, 0))
+    return rotate(geom, angle_degrees, origin=(0, 0))
 
 
 def find_intersection(line1: LineString, line2: LineString):
@@ -43,87 +51,194 @@ def maybe_flip_in_first_quadrant(rotated_lines: List[LineString]) -> List[LineSt
 
 
 def transform_roof(lines_dict: Dict[str, List[LineString]]) -> Dict[str, List[LineString]]:
-    eaves   = lines_dict.get('карниз', [])
-    gables  = lines_dict.get('фронтон', [])
+    eaves = lines_dict.get('карниз', [])
+    gables = lines_dict.get('фронтон', [])
     valleys = lines_dict.get('ендова', [])
-    ridges  = lines_dict.get('конёк', [])
-    all_lines = eaves + gables + valleys + ridges
-    result = {'карниз': [], 'фронтон': [], 'ендова': [], 'конёк': []}
+    ridges = lines_dict.get('конёк', [])
+    dop_lines = lines_dict.get('примыкание', [])
+    all_lines = eaves + gables + valleys + ridges + dop_lines
+    result = {'карниз': [], 'фронтон': [], 'ендова': [], 'конёк': [], 'примыкание': []}
     if eaves:
-        main_eave = eaves[0]
-        angle_eave = line_angle_with_x(main_eave)
-        anchor_x, anchor_y = main_eave.coords[0]
+        main_eave = None
+        for eave in eaves:
+            if eave.coords[0][0] == eave.coords[1][0]:
+                main_eave = eave
+                angle = 90
+            elif eave.coords[0][1] == eave.coords[1][1]:
+                main_eave = eave
+                angle = 0
+        if main_eave.coords[0][0] == main_eave.coords[1][0]:
+            if main_eave.coords[0][1] > main_eave.coords[1][1]:
+                anchor_x, anchor_y = main_eave.coords[0]
+            else:
+                anchor_x, anchor_y = main_eave.coords[1]
+        else:
+            if main_eave.coords[0][0] < main_eave.coords[1][0]:
+                anchor_x, anchor_y = main_eave.coords[0]
+            else:
+                anchor_x, anchor_y = main_eave.coords[1]
+        high = 1
+        right = 1
+        for line in all_lines:
+            if anchor_x > line.coords[0][0] or anchor_x > line.coords[1][0]:
+                right = 0
+            if anchor_y > line.coords[0][1] or anchor_y > line.coords[1][1]:
+                high = 0
         anchor_point = ShapelyPoint(anchor_x, anchor_y)
         moved_lines = [move_geometry_to_point(ln, anchor_point) for ln in all_lines]
-        rotated_lines = [rotate_geometry(ml, angle_eave) for ml in moved_lines]
-        rotated_lines = maybe_flip_in_first_quadrant(rotated_lines)
+        process_lines = moved_lines
+        if high == 0:
+            process_lines = [up_line(ml) for ml in process_lines]
+        if right == 0:
+            process_lines = [right_line(ml) for ml in process_lines]
+        if angle == 0:
+            rotated_lines = process_lines
+        else:
+            rotated_lines = [rotate_geometry(ml, angle) for ml in process_lines]
         idx = 0
-        for t in ('карниз', 'фронтон', 'ендова', 'конёк'):
+        min_x = 10**9
+        min_y = 10**9
+        for line in rotated_lines:
+            if line.coords[0][0] < min_x:
+                min_x = line.coords[0][0]
+            if line.coords[1][0] < min_x:
+                min_x = line.coords[1][0]
+            if line.coords[0][1] < min_y:
+                min_y = line.coords[0][1]
+            if line.coords[1][1] < min_y:
+                min_y = line.coords[1][1]
+        if min_x < 0:
+            min_point = ShapelyPoint(min_x, 0)
+            rotated_lines = [move_geometry_to_point(ln, min_point) for ln in rotated_lines]
+        if min_y < 0:
+            min_point = ShapelyPoint(0, min_y)
+            rotated_lines = [move_geometry_to_point(ln, min_point) for ln in rotated_lines]
+        for t in ('карниз', 'фронтон', 'ендова', 'конёк', 'примыкание'):
             n = len(lines_dict.get(t, []))
             result[t] = rotated_lines[idx: idx + n]
             idx += n
         return result
-    elif gables or valleys:
-        target_list = gables if gables else valleys
+    elif gables and valleys:
+        target_list = gables
         main_line = target_list[0]
-        intersection_point = None
-        for ln in (gables + valleys + ridges + eaves):
-            if ln is main_line:
-                continue
-            inter = find_intersection(main_line, ln)
-            if not inter.is_empty:
-                if inter.geom_type == 'Point':
-                    intersection_point = inter
-                    break
-                elif inter.geom_type == 'MultiPoint':
-                    intersection_point = list(inter)[0]
-                    break
-        if intersection_point is None:
-            intersection_point = ShapelyPoint(*main_line.coords[0])
-        moved_lines = [move_geometry_to_point(ln, intersection_point) for ln in all_lines]
-        angle_main = line_angle_with_x(move_geometry_to_point(main_line, intersection_point))
-        rotate_angle = 90 - angle_main
-        rotated_lines = [rotate_geometry(ml, rotate_angle) for ml in moved_lines]
-        rotated_lines = maybe_flip_in_first_quadrant(rotated_lines)
+        for line in valleys:
+            if line.coords[0][0] == main_line.coords[0][0] and line.coords[0][1] == main_line.coords[0][1]:
+                anchor_x, anchor_y = main_line.coords[0]
+            if line.coords[1][0] == main_line.coords[0][0] and line.coords[1][1] == main_line.coords[0][1]:
+                anchor_x, anchor_y = main_line.coords[0]
+            if line.coords[0][0] == main_line.coords[1][0] and line.coords[0][1] == main_line.coords[1][1]:
+                anchor_x, anchor_y = main_line.coords[1]
+            if line.coords[1][0] == main_line.coords[1][0] and line.coords[1][1] == main_line.coords[1][1]:
+                anchor_x, anchor_y = main_line.coords[1]
+        if main_line.coords[0][0] == main_line.coords[1][0]:
+                angle = 90
+        elif main_line.coords[0][1] == main_line.coords[1][1]:
+            angle = 0
+        high = 1
+        right = 1
+        for line in all_lines:
+            if anchor_x > line.coords[0][0] or anchor_x > line.coords[1][0]:
+                right = 0
+            if anchor_y > line.coords[0][1] or anchor_y > line.coords[1][1]:
+                high = 0
+        anchor_point = ShapelyPoint(anchor_x, anchor_y)
+        moved_lines = [move_geometry_to_point(ln, anchor_point) for ln in all_lines]
+        process_lines = moved_lines
+        if high == 0:
+            process_lines = [up_line(ml) for ml in process_lines]
+        if right == 0:
+            process_lines = [right_line(ml) for ml in process_lines]
+        if angle == 90:
+            rotated_lines = process_lines
+        else:
+            rotated_lines = [rotate_geometry(ml, 90) for ml in process_lines]
         idx = 0
-        for t in ('карниз','фронтон','ендова','конёк'):
-            n = len(lines_dict.get(t, []))
-            result[t] = rotated_lines[idx: idx + n]
-            idx += n
-        return result
-    elif ridges or valleys:
-        main_ridge = ridges[0] if ridges else valleys[0]
-        intersection_point = None
-        for ln in (valleys + ridges):
-            if ln is main_ridge:
-                continue
-            inter = find_intersection(main_ridge, ln)
-            if not inter.is_empty:
-                if inter.geom_type == 'Point':
-                    intersection_point = inter
-                    break
-                elif inter.geom_type == 'MultiPoint':
-                    intersection_point = list(inter)[0]
-                    break
-        if intersection_point is None:
-            intersection_point = ShapelyPoint(*main_ridge.coords[0])
-        moved_lines = [move_geometry_to_point(ln, intersection_point) for ln in all_lines]
-        angle_ridge = line_angle_with_x(move_geometry_to_point(main_ridge, intersection_point))
-        rotated_lines = [rotate_geometry(ml, angle_ridge) for ml in moved_lines]
-        rotated_lines = maybe_flip_in_first_quadrant(rotated_lines)
-        idx = 0
-        for t in ('карниз','фронтон','ендова','конёк'):
+        min_x = 10**9
+        min_y = 10**9
+        for line in rotated_lines:
+            if line.coords[0][0] < min_x:
+                min_x = line.coords[0][0]
+            if line.coords[1][0] < min_x:
+                min_x = line.coords[1][0]
+            if line.coords[0][1] < min_y:
+                min_y = line.coords[0][1]
+            if line.coords[1][1] < min_y:
+                min_y = line.coords[1][1]
+        if min_x < 0:
+            min_point = ShapelyPoint(min_x, 0)
+            rotated_lines = [move_geometry_to_point(ln, min_point) for ln in rotated_lines]
+        if min_y < 0:
+            min_point = ShapelyPoint(0, min_y)
+            rotated_lines = [move_geometry_to_point(ln, min_point) for ln in rotated_lines]
+        for t in ('карниз', 'фронтон', 'ендова', 'конёк', 'примыкание'):
             n = len(lines_dict.get(t, []))
             result[t] = rotated_lines[idx: idx + n]
             idx += n
         return result
     else:
-        return lines_dict
+        for ridge in ridges:
+            if ridge.coords[0][0] == ridge.coords[1][0]:
+                main_ridge = ridge
+                angle = 90
+            elif ridge.coords[0][1] == ridge.coords[1][1]:
+                main_ridge = ridge
+                angle = 0
+        if main_ridge.coords[0][0] == main_ridge.coords[1][0]:
+            if main_ridge.coords[0][1] < main_ridge.coords[1][1]:
+                anchor_x, anchor_y = main_ridge.coords[0]
+            else:
+                anchor_x, anchor_y = main_ridge.coords[1]
+        else:
+            if main_ridge.coords[0][0] > main_ridge.coords[1][0]:
+                anchor_x, anchor_y = main_ridge.coords[0]
+            else:
+                anchor_x, anchor_y = main_ridge.coords[1]
+        high = 0
+        right = 0
+        for line in all_lines:
+            if anchor_x < line.coords[0][0] or anchor_x < line.coords[1][0]:
+                right = 0
+            if anchor_y < line.coords[0][1] or anchor_y < line.coords[1][1]:
+                high = 0
+        anchor_point = ShapelyPoint(anchor_x, anchor_y)
+        moved_lines = [move_geometry_to_point(ln, anchor_point) for ln in all_lines]
+        process_lines = moved_lines
+        if high == 1:
+            process_lines = [up_line(ml) for ml in process_lines]
+        if right == 1:
+            process_lines = [right_line(ml) for ml in process_lines]
+        if angle == 0:
+            rotated_lines = process_lines
+        else:
+            rotated_lines = [rotate_geometry(ml, angle) for ml in process_lines]
+        idx = 0
+        min_x = 10**9
+        min_y = 10**9
+        for line in rotated_lines:
+            if line.coords[0][0] < min_x:
+                min_x = line.coords[0][0]
+            if line.coords[1][0] < min_x:
+                min_x = line.coords[1][0]
+            if line.coords[0][1] < min_y:
+                min_y = line.coords[0][1]
+            if line.coords[1][1] < min_y:
+                min_y = line.coords[1][1]
+        if min_x < 0:
+            min_point = ShapelyPoint(min_x, 0)
+            rotated_lines = [move_geometry_to_point(ln, min_point) for ln in rotated_lines]
+        if min_y < 0:
+            min_point = ShapelyPoint(0, min_y)
+            rotated_lines = [move_geometry_to_point(ln, min_point) for ln in rotated_lines]
+        for t in ('карниз', 'фронтон', 'ендова', 'конёк', 'примыкание'):
+            n = len(lines_dict.get(t, []))
+            result[t] = rotated_lines[idx: idx + n]
+            idx += n
+        return result
 
 
 def rotate_roof_lines_in_memory(lines_list):
-    lines_dict = {'карниз': [], 'фронтон': [], 'ендова': [], 'конёк': []}
-    lines_map = {'карниз': [], 'фронтон': [], 'ендова': [], 'конёк': []}
+    lines_dict = {'карниз': [], 'фронтон': [], 'ендова': [], 'конёк': [], 'примыкание': []}
+    lines_map = {'карниз': [], 'фронтон': [], 'ендова': [], 'конёк': [], 'примыкание': []}
     for l in lines_list:
         ls = LineString([(l.start.x, l.start.y), (l.end.x, l.end.y)])
         if l.type in lines_dict:
@@ -141,5 +256,6 @@ def rotate_roof_lines_in_memory(lines_list):
 
 
 def rotate_slope(lines):
+
     rotate_roof_lines_in_memory(lines)
     return lines

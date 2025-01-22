@@ -97,6 +97,12 @@ class CompanyNotFound(AutoException):
     detail = "Компания не найдена."
 
 
+class WrongSizes(AutoException):
+
+    status_code = status.HTTP_400_BAD_REQUEST
+    detail = "Заданы недопустимые размеры линий ската."
+
+
 class IncorrectEmailOrPasswordException(AutoException):
     status_code = status.HTTP_401_UNAUTHORIZED
     detail = "Неверный логин или пароль"
