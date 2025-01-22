@@ -6,7 +6,7 @@ from pydantic import UUID4
 from shapely.geometry import Polygon
 from shapely.prepared import prep
 
-from app.projects.models import  LinesSlope, Point
+from app.projects.models import  LinesSlope, Point, PointSlope
 
 
 async def create_sheets(figure, roof, del_x, del_y):
@@ -247,67 +247,40 @@ def create_figure(lines, cutouts):
     return figure
 
 
-def process_lines_and_generate_slopes(lines: List[LinesSlope]):
-    point_to_lines: Dict[Point, List[LinesSlope]] = {}
-    point_k = []
-    point_p = []
+def generate_slopes_length(lines: List[LinesSlope], points: List[PointSlope]):
+    dif_y = []
+    points_on_y: Dict[float, List[UUID4]] = {}
+    lines_on_y: Dict[float, List[UUID4]] = {}
     slope_lines = []
-    line_k: Dict[float, List[UUID4]] = defaultdict(list)
-    line_p: Dict[float, List[UUID4]] = defaultdict(list)
+    for point in points:
+        if point.y not in dif_y:
+            dif_y.append(point.y)
+            points_on_y[point.y] = []
+            lines_on_y[point.y] = []
+        points_on_y[point.y].append(point.id)
     for line in lines:
-        for point in [line.start, line.end]:
-            if point not in point_to_lines:
-                point_to_lines[point] = []
-            point_to_lines[point].append(line)
-    for point, connected_lines in point_to_lines.items():
-        if point.y == 0 or point.x == 0:
-            continue
-        if connected_lines[0].type == connected_lines[1].type and connected_lines[0].type=="конёк":
-            point_k.append(point)
+        if line.start.y == line.end.y:
+            lines_on_y[line.start.y].append(line.id)
+            points_on_y[line.start.y].remove(line.start_id)
+            points_on_y[line.start.y].remove(line.end_id)
+    if len(lines_on_y[0]) == 0:
+        point_o = points_on_y[0][0]
+        k = 0
+    else:
+        line_o = lines_on_y[0][0]
+        k = 1
+    dif_y.remove(0)
+    for y in dif_y:
+        if k == 1:
+            if len(points_on_y[y]) == 1:
+                slope_lines.append([1, line_o, points_on_y[y][0]])
+            else:
+                for line in lines_on_y[y]:
+                    slope_lines.append([0, line_o, line])
         else:
-            point_p.append(point)
-    for point in point_k:
-        f = 0
-        for line in lines:
-            if line.type == "конёк":
-                continue
-            if line.start.x == line.end.x:
-                length = abs(line.start.x - point.x)
-            elif line.start.y == line.end.y:
-                length = abs(line.start.y - point.y)
+            if len(points_on_y[y]) == 1:
+                slope_lines.append([2, point_o, points_on_y[y][0]])
             else:
-                continue
-            if f == 0 and length not in line_k[length]:
-                line_k[length].append(line.id)
-                slope_lines.append([point.id, line.id])
-                f = 1
-
-    for point in point_p:
-        f = 0
-        for line in lines:
-            if line.type != "конёк":
-                continue
-            if line.start.x == line.end.x:
-                length = abs(line.start.x - point.x)
-            elif line.start.y == line.end.y:
-                length = abs(line.start.y - point.y)
-            else:
-                continue
-            if f == 0 and length not in line_p[length]:
-                line_p[length].append(line.id)
-                slope_lines.append([point.id, line.id])
-                f = 1
-        # if f == 0:
-        #     for point_n in point_k:
-        #         if point.x == point_n.x:
-        #             length = abs(point.y - point_n.y)
-        #         elif point.y == point_n.y:
-        #             length = abs(point.x - point_n.x)
-        #         else:
-        #             continue
-        #         if f == 0 and length not in line_p[length]:
-        #             line_p[length].append(point_n.id)
-        #             slope_lines.append([point, point_n])
-        #             f = 1
-
+                for line in lines_on_y[y]:
+                    slope_lines.append([1, line, point_o])
     return slope_lines
