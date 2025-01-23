@@ -57,6 +57,7 @@ class LineSlopeResponse(BaseModel):
     id: UUID4
     parent_id: UUID4
     name: str
+    number: int
     start_id: UUID4
     end_id: UUID4
     start: PointData
