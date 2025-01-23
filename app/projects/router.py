@@ -96,6 +96,7 @@ async def get_project(
                     id=line_slope.id,
                     parent_id=line_slope.parent_id,
                     name=line_slope.name,
+                    number=line_slope.number,
                     start_id=line_slope.start_id,
                     start=PointData(
                         x=line_slope.start.x,
@@ -116,7 +117,11 @@ async def get_project(
                     line_1 = await LinesDAO.find_by_id(line_length.line_slope_1.parent_id)
                     line_2 = await LinesDAO.find_by_id(line_length.line_slope_2.parent_id)
                     if line_1.start.x == line_1.end.x:
-                        y_ar = line_1.start.y + abs(line_1.start.y - line_1.end.y)/2
+                        y_ar = abs(line_1.start.y - line_1.end.y)/2
+                        if line_1.start.y > line_1.end.y:
+                            y_ar = line_1.end.y + y_ar
+                        else:
+                             y_ar = line_1.start.y + y_ar
                         length_slope_response.append(
                             LengthSlopeResponse(
                                 id=line_length.id,
@@ -138,7 +143,11 @@ async def get_project(
                             )
                         )
                     else:
-                        x_ar = line_1.start.x + abs(line_1.start.x - line_1.end.x)/2
+                        x_ar = abs(line_1.start.x - line_1.end.x)/2
+                        if line_1.start.x > line_1.end.x:
+                            x_ar = line_1.end.x + x_ar
+                        else:
+                             x_ar = line_1.start.x + x_ar
                         length_slope_response.append(
                             LengthSlopeResponse(
                                 id=line_length.id,
@@ -1017,28 +1026,52 @@ async def delete_sheets(
         await SheetsDAO.delete_(sheet.id)
 
 
-# @router.post("/projects/{project_id}/slopes/{slope_id}/sheet", description="Add roof sheet for slope")
-# async def add_sheet(
-#     project_id: UUID4,
-#     slope_id: UUID4,
-#     sheet: NewSheetRequest,
-#     user: Users = Depends(get_current_user)
-# ) -> None:
-#     project = await ProjectsDAO.find_by_id(project_id)
-#     if not project or project.user_id != user.id:
-#         raise ProjectNotFound
-#     roof = await RoofsDAO.find_by_id(project.roof_id)
-#     slope = await SlopesDAO.find_by_id(slope_id)
-#     if not slope or slope.project_id != project_id:
-#         raise SlopeNotFound
-#     await SheetsDAO.add(
-#         x_start=sheet.sheet_x_start,
-#         y_start=sheet.sheet_y_start,
-#         length=sheet.sheet_length,
-#         area_overall=sheet.sheet_length*roof.overall_width,
-#         area_usefull=sheet.sheet_length*roof.useful_width,
-#         slope_id=slope_id
-#     )
+@router.patch("/projects/{project_id}/slopes/{slope_id}/sheet/{sheet_id}", description="Add roof sheet for slope")
+async def add_sheet(
+    project_id: UUID4,
+    slope_id: UUID4,
+    sheet_id: UUID4,
+    is_down: bool,
+    user: Users = Depends(get_current_user)
+) -> None:
+    project = await ProjectsDAO.find_by_id(project_id)
+    if not project or project.user_id != user.id:
+        raise ProjectNotFound
+    roof = await RoofsDAO.find_by_id(project.roof_id)
+    slope = await SlopesDAO.find_by_id(slope_id)
+    if not slope or slope.project_id != project_id:
+        raise SlopeNotFound
+    sheet = await SheetsDAO.find_by_id(sheet_id)
+    if sheet.length <= roof.max_length:
+        new_length_1 = roof.overlap + roof.overlap
+        new_length_2 = sheet.length - roof.overlap
+    if is_down:
+        await SheetsDAO.add(
+            x_start=sheet.sheet_x_start,
+            y_start=sheet.sheet_y_start,
+            length=new_length_1,
+            area_overall=new_length_1*roof.overall_width,
+            area_usefull=new_length_1*roof.useful_width,
+            slope_id=slope_id
+        )
+        await SheetsDAO.update_(
+            model_id=sheet.id,
+            y_start=sheet.length - new_length_2,
+            length=new_length_2,
+        )
+    else:
+        await SheetsDAO.add(
+            x_start=sheet.sheet_x_start,
+            y_start=sheet.length - new_length_1,
+            length=new_length_1,
+            area_overall=new_length_1*roof.overall_width,
+            area_usefull=new_length_1*roof.useful_width,
+            slope_id=slope_id
+        )
+        await SheetsDAO.update_(
+            model_id=sheet.id,
+            length=new_length_2,
+        )
 
 
 @router.post("/projects/{project_id}/slopes/{slope_id}/sheets", description="Calculate roof sheets for slope")
@@ -1099,12 +1132,13 @@ async def update_length_sheets(
     sheets = [await SheetsDAO.find_by_id(sheet_id) for sheet_id in sheets_id]
     for sheet in sheets:
         new_length = sheet.length + length
-        await SheetsDAO.update_(
-            model_id=sheet.id,
-            length=new_length,
-            area_overall=new_length*roof.overall_width,
-            area_usefull=new_length*roof.useful_width
-        )
+        if new_length <= roof.max_length:
+            await SheetsDAO.update_(
+                model_id=sheet.id,
+                length=new_length,
+                area_overall=new_length*roof.overall_width,
+                area_usefull=new_length*roof.useful_width
+            )
 
 
 @router.patch("/projects/{project_id}/slopes/{slope_id}/offset_sheets")

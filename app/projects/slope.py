@@ -21,6 +21,9 @@ async def create_sheets(figure, roof, del_x, del_y):
 
     x_positions = []
     x = x_min + del_x
+    if abs(x) >= overall_width:
+        m = x // abs(x)
+        x = m * abs(x) % overall_width
     while x < x_max:
         x_positions.append(x)
         x += overall_width
