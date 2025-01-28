@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 from pydantic import UUID4
-from app.base.dao import RoofsDAO, TariffsDAO
-from app.base.schemas import (RoofRequest, RoofResponse,
+from app.base.dao import Accessory_baseDAO, RoofsDAO, TariffsDAO
+from app.base.schemas import (AccessoryBDRequest, AccessoryBDResponse, RoofRequest, RoofResponse,
                               TariffRequest, TariffResponse)
 from app.exceptions import RoofNotFound, TariffNotFound
 from app.users.dependencies import get_current_user
@@ -50,6 +50,48 @@ async def delete_roof_base(
       roof_id: UUID4,
       user: Users = Depends(get_current_user)) -> None:
     await RoofsDAO.delete_(model_id=roof_id)
+
+
+@router.post("/accessories_base", description="Добавление доборного в библиотеку")
+async def add_accessories_base(
+      accessory: AccessoryBDRequest,
+      user: Users = Depends(get_current_user)
+      ) -> None:
+    accessory = await Accessory_baseDAO.add(
+        name=accessory.name,
+        type=accessory.type,
+        parent_type=accessory.parent_type,
+        price=accessory.price,
+        overlap=accessory.overlap,
+        length=accessory.length
+        )
+    return {"accessory_id": accessory.id}
+
+
+@router.get("/accessories_base", description="Получение доборных из библиотеки")
+async def get_accessories_base(
+      user: Users = Depends(get_current_user)
+      ) -> list[AccessoryBDResponse]:
+    results = await Accessory_baseDAO.find_all()
+    if not results:
+        raise RoofNotFound
+    return [
+        AccessoryBDResponse(
+            id=result.id,
+            name=result.name,
+            type=result.type,
+            parent_type=result.parent_type,
+            price=result.price,
+            overlap=result.overlap,
+            length=result.length
+            ) for result in results]
+
+
+@router.delete("/accessories_base", description="Удаление доборного из библиотеки")
+async def delete_accessories_base(
+      roof_id: UUID4,
+      user: Users = Depends(get_current_user)) -> None:
+    await Accessory_baseDAO.delete_(model_id=roof_id)
 
 
 @router.post("/tariff", description="Добавление тарифа в библиотеку")

@@ -186,17 +186,15 @@ class Accessories(Base):
     __tablename__ = 'accessory'
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
-    name: Mapped[str] = mapped_column(String, nullable=False)
-    type: Mapped[str] = mapped_column(String, nullable=False)
-    length: Mapped[float] = mapped_column(Float, nullable=False)
     lines_length: Mapped[float] = mapped_column(Float, nullable=False)
-    width: Mapped[float] = mapped_column(Float, nullable=True)
     quantity: Mapped[int] = mapped_column(Integer, nullable=False)
 
     project_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('project.id', ondelete='CASCADE'), nullable=False)
+    accessory_base_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('accessory_bd.id', ondelete='CASCADE'), nullable=False)
     lines_id: Mapped[list[uuid.UUID]] = mapped_column(ARRAY(UUID(as_uuid=True)), nullable=False)
 
     project = relationship("Projects", back_populates="accessories")
+    accessory_base = relationship("AccessoriesBD", back_populates="accessories")
 
 
 class Materials(Base):
