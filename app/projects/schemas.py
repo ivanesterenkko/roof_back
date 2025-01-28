@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Dict, List, Optional
 from pydantic import UUID4, BaseModel
 
-from app.base.schemas import RoofResponse
+from app.base.schemas import AccessoryBDResponse, RoofResponse
 
 # Response
 
@@ -112,13 +112,10 @@ class MaterialResponse(BaseModel):
 
 class AccessoriesResponse(BaseModel):
     id: UUID4
-    accessory_name: str
-    type: str
+    accessory_base: AccessoryBDResponse
     lines_id: list[UUID4]
     lines_length: float
-    length: float
-    width: Optional[float] = None
-    amount: int
+    quantity: int
 
 
 # Estimate
@@ -196,6 +193,7 @@ class EstimateResponse(BaseModel):
 class ProjectResponse(AboutResponse):
     lines: Optional[List[LineResponse]] = None
     slopes: Optional[List[SlopeResponse]] = None
+    accessories: Optional[List[AccessoriesResponse]] = None
 
 # Request
 
@@ -257,11 +255,8 @@ class NodeRequest(BaseModel):
 
 
 class AccessoriesRequest(BaseModel):
-    name: str
-    type: str
     lines_id: list[UUID4]
-    length: float
-    width: Optional[float] = None
+    accessory_id: UUID4
 
 
 class EstimateRequest(BaseModel):

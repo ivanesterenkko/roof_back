@@ -3,8 +3,8 @@ from typing import Dict, List
 from fastapi.responses import StreamingResponse
 from pydantic import UUID4
 from shapely.geometry import Polygon
-from app.base.dao import RoofsDAO
-from app.base.schemas import RoofResponse
+from app.base.dao import Accessory_baseDAO, RoofsDAO
+from app.base.schemas import AccessoryBDResponse, RoofResponse
 from app.exceptions import CutoutNotFound, ProjectAlreadyExists, ProjectNotFound, ProjectStepLimit, RoofNotFound, SlopeNotFound, WrongSizes
 from app.projects.draw import create_excel, draw_plan
 from app.projects.rotate import rotate_slope
@@ -283,6 +283,30 @@ async def get_project(
             ))
     else:
         slope_response = None
+    accessories = await AccessoriesDAO.find_all(project_id=project_id)
+    if accessories:
+        accessories_response = []
+        for accessory in accessories:
+            accessory_base = await Accessory_baseDAO.find_by_id(accessory.accessory_base_id)
+            accessories_response.append(
+                AccessoriesResponse(
+                    id=accessory.id,
+                    accessory_base=AccessoryBDResponse(
+                        id=accessory_base.id,
+                        name=accessory_base.name,
+                        type=accessory_base.type,
+                        parent_type=accessory_base.parent_type,
+                        price=accessory_base.price,
+                        overlap=accessory_base.overlap,
+                        length=accessory_base.length
+                    ),
+                    lines_id=accessory.lines_id,
+                    lines_length=accessory.lines_length,
+                    quantity=accessory.quantity
+                )
+            )
+    else:
+        accessories_response = None
     return ProjectResponse(
         id=project.id,
         name=project.name,
@@ -299,7 +323,8 @@ async def get_project(
             max_length=roof.max_length
         ),
         lines=lines_response,
-        slopes=slope_response
+        slopes=slope_response,
+        accessories=accessories_response
     )
 
 
@@ -1218,26 +1243,6 @@ async def update_sheets_overlay(
         else:
             previous_sheet = result
 
-@router.get("/projects/{project_id}/accessories", description="View accessories")
-async def get_accessories(
-    project_id: UUID4,
-    user: Users = Depends(get_current_user)
-) -> List[AccessoriesResponse]:
-    project = await ProjectsDAO.find_by_id(project_id)
-    if not project or project.user_id != user.id:
-        raise ProjectNotFound
-    accessories = await AccessoriesDAO.find_all(project_id=project_id)
-    return [AccessoriesResponse(
-        id=accessory.id,
-        type=accessory.type,
-        accessory_name=accessory.name,
-        lines_id=accessory.lines_id,
-        lines_length=accessory.lines_length,
-        length=accessory.length,
-        width=accessory.width if accessory.width is not None else None,
-        amount=accessory.quantity
-        ) for accessory in accessories]
-
 
 @router.delete("/projects/{project_id}/accessories/{accessory_id}", description="Delete accessory")
 async def delete_accessory(
@@ -1267,30 +1272,18 @@ async def add_accessory(
     lines_length = 0
     for line in lines:
         lines_length += line.length
-    if accessory.width is not None:
-        step1 = lines_length // accessory.width
-        amount = step1 // 5
-        await AccessoriesDAO.add(
-            name=accessory.name,
-            type=accessory.type,
-            lines_id=accessory.lines_id,
-            length=accessory.length,
-            lines_length=lines_length,
-            width=accessory.width,
-            quantity=amount,
-            project_id=project_id
-        )
-    else:
-        amount = lines_length // 1.9
-        await AccessoriesDAO.add(
-            name=accessory.name,
-            type=accessory.type,
-            lines_id=accessory.lines_id,
-            length=accessory.length,
-            lines_length=lines_length,
-            quantity=amount,
-            project_id=project_id
-        )
+    accessory_base = await Accessory_baseDAO.find_by_id(accessory.accessory_id)
+    quantity = lines_length // accessory_base.length
+    if lines_length % accessory_base.length > accessory_base.overlap:
+        quantity += 1
+    await AccessoriesDAO.add(
+        lines_id=accessory.lines_id,
+        lines_length=lines_length,
+        quantity=quantity,
+        accessory_base_id=accessory.accessory_id,
+        project_id=project_id
+    )
+
 
 
 @router.patch("/projects/{project_id}/accessories/{accessory_id}", description="Calculate roof sheets for slope")
@@ -1307,26 +1300,18 @@ async def update_accessory(
     lines_length = 0
     for line in lines:
         lines_length += line.length
-    if accessory.width is not None:
-        step1 = lines_length // accessory.width
-        amount = step1 // 5
-        await AccessoriesDAO.update_(
-            model_id=accessory_id,
-            lines_id=accessory.lines_id,
-            length=accessory.length,
-            lines_length=lines_length,
-            width=accessory.width,
-            quantity=amount
-        )
-    else:
-        amount = lines_length // 1.9
-        await AccessoriesDAO.update_(
-            model_id=accessory_id,
-            lines_id=accessory.lines_id,
-            length=accessory.length,
-            lines_length=lines_length,
-            quantity=amount
-        )
+    accessory_base = await Accessory_baseDAO.find_by_id(accessory.accessory_id)
+    quantity = lines_length // accessory_base.length
+    if lines_length % accessory_base.length > accessory_base.overlap:
+        quantity += 1
+    await AccessoriesDAO.update_(
+        model_id=accessory_id,
+        lines_id=accessory.lines_id,
+        lines_length=lines_length,
+        quantity=quantity,
+        accessory_base_id=accessory.accessory_id,
+        project_id=project_id
+    )
 
 
 @router.post("/projects/{project_id}/materials")

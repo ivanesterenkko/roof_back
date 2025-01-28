@@ -10,6 +10,25 @@ class RoofRequest(BaseModel):
     max_length: float
 
 
+class AccessoryBDRequest(BaseModel):
+    name: str
+    type: str
+    parent_type: str
+    price: int
+    length: float
+    overlap: float
+
+
+class AccessoryBDResponse(BaseModel):
+    id: UUID4
+    name: str
+    type: str
+    parent_type: str
+    price: int
+    length: float
+    overlap: float
+
+
 class RoofResponse(BaseModel):
     id: UUID4
     name: str

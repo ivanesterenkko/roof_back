@@ -8,11 +8,15 @@ from app.db import Base
 class AccessoriesBD(Base):
     __tablename__ = 'accessory_bd'
 
-    id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(nullable=False)
-    type: Mapped[str] = mapped_column(nullable=False)
-    description: Mapped[str] = mapped_column(nullable=True)
-    sale: Mapped[float] = mapped_column(nullable=False)
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    type: Mapped[str] = mapped_column(String, nullable=False)
+    parent_type: Mapped[str] = mapped_column(String, nullable=False)
+    length: Mapped[float] = mapped_column(Float, nullable=False)
+    overlap: Mapped[float] = mapped_column(Float, nullable=True)
+    price: Mapped[int] = mapped_column(Integer, nullable=False)
+
+    accessories = relationship("Accessories", back_populates="accessory_base", cascade="all, delete-orphan")
 
 
 class Roofs(Base):
