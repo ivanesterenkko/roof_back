@@ -1285,7 +1285,6 @@ async def add_accessory(
     )
 
 
-
 @router.patch("/projects/{project_id}/accessories/{accessory_id}", description="Calculate roof sheets for slope")
 async def update_accessory(
     project_id: UUID4,
@@ -1340,69 +1339,57 @@ async def get_estimate(
     if not project or project.user_id != user.id:
         raise ProjectNotFound
     slopes = await SlopesDAO.find_all(project_id=project_id)
-    materials = await MaterialsDAO.find_all(project_id=project_id)
     roof = await RoofsDAO.find_by_id(project.roof_id)
-    materials_estimate = [
-        MaterialEstimateResponse(
-            name=material.name,
-            material=material.material,
-            color=material.color
-        ) for material in materials
-    ]
-    slopes_estimate = []
     slopes_area = 0
     all_sheets = []
     overall = 0
-    plans_data = []
-    for slope in slopes:
-        lines = await LinesSlopeDAO.find_all(slope_id=slope.id)
-        area_overall = 0
-        area_usefull = 0
-        slopes_area += slope.area
-        sheets = await SheetsDAO.find_all(slope_id=slope.id)
-        plans_data.append(draw_plan(lines, sheets, roof.overall_width))
-        for sheet in sheets:
-            area_overall += sheet.area_overall
-            area_usefull += sheet.area_usefull
-            all_sheets.append(sheet.length)
-        overall += area_overall
-        slopes_estimate.append(
-            SlopeEstimateResponse(
-                slope_name=slope.name,
-                slope_length=slope.length,
-                slope_area=slope.area,
-                area_overall=area_overall,
-                area_usefull=area_usefull
+    if slopes:
+        slopes_estimate = []
+        for slope in slopes:
+            area_overall = 0
+            area_usefull = 0
+            slopes_area += slope.area
+            sheets = await SheetsDAO.find_all(slope_id=slope.id)
+            for sheet in sheets:
+                area_overall += sheet.area_overall
+                area_usefull += sheet.area_usefull
+                all_sheets.append(sheet.length)
+            overall += area_overall
+            slopes_estimate.append(
+                SlopeEstimateResponse(
+                    name=slope.name,
+                    area_full=slope.area,
+                    area_overall=area_overall,
+                    area_usefull=area_usefull
+                )
             )
-        )
+    else:
+        slopes_estimate = None
     length_counts = Counter(all_sheets)
     accessories = await AccessoriesDAO.find_all(project_id=project_id)
-    accessories_estimate = []
-    sofits_estimate = []
-    for accessory in accessories:
-        if 'Софит' in accessory.name or 'профиль' in accessory.name:
-            sofits_estimate.append(
-                SofitsEstimateResponce(
-                    id=accessory.id,
-                    type=accessory.type,
-                    name=accessory.name,
-                    length=accessory.length,
-                    width=accessory.width,
-                    overall_length=accessory.lines_length,
-                    amount=accessory.quantity,
-                    price=700
-                ))
-        else:
+    if accessories:
+        accessories_estimate = []
+        for accessory in accessories:
+            accessory_base = await Accessory_baseDAO.find_by_id(accessory.accessory_base_id)
             accessories_estimate.append(
-                AccessoriesEstimateResponse(
+                AccessoriesResponse(
                     id=accessory.id,
-                    type=accessory.type,
-                    name=accessory.name,
-                    length=accessory.length,
-                    overall_length=accessory.lines_length,
-                    amount=accessory.quantity,
-                    price=300
-                ))
+                    accessory_base=AccessoryBDResponse(
+                        id=accessory_base.id,
+                        name=accessory_base.name,
+                        type=accessory_base.type,
+                        parent_type=accessory_base.parent_type,
+                        price=accessory_base.price,
+                        overlap=accessory_base.overlap,
+                        length=accessory_base.length
+                    ),
+                    lines_id=accessory.lines_id,
+                    lines_length=accessory.lines_length,
+                    quantity=accessory.quantity
+                )
+            )
+        else:
+            accessories_estimate = None
     screws_estimate = [
         ScrewsEstimateResponse(
             name='Саморез 4,8х35',
@@ -1414,24 +1401,24 @@ async def get_estimate(
     sheets_amount_dict = dict(length_counts)
 
     return EstimateResponse(
-        project_name=project.name,
-        project_address=project.address,
-        materials=materials_estimate,
-        roof_base=RoofEstimateResponse(
-            roof_name=roof.name,
-            roof_type=roof.type,
-            price=650,
-            roof_overall_width=roof.overall_width,
-            roof_useful_width=roof.useful_width,
-            roof_overlap=roof.overlap,
-            roof_max_length=roof.max_length,
-            roof_max_length_standart=roof.max_length-roof.overlap),
+        id=project.id,
+        name=project.name,
+        address=project.address,
+        step=project.step,
+        datetime_created=project.datetime_created,
+        roof=RoofResponse(
+            id=roof.id,
+            name=roof.name,
+            type=roof.type,
+            overall_width=roof.overall_width,
+            useful_width=roof.useful_width,
+            overlap=roof.overlap,
+            max_length=roof.max_length
+        ),
         sheets_amount=sheets_amount_dict,
         slopes=slopes_estimate,
         accessories=accessories_estimate,
-        sofits=sofits_estimate,
         screws=screws_estimate,
-        sheets_extended=plans_data
     )
 
 

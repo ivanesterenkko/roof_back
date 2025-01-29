@@ -150,9 +150,8 @@ class ScrewsEstimateResponse(BaseModel):
 
 
 class SlopeEstimateResponse(BaseModel):
-    slope_name: str
-    slope_length: float
-    slope_area: float
+    name: str
+    area_full: float
     area_overall: float
     area_usefull: float
 
@@ -174,20 +173,14 @@ class MaterialEstimateResponse(BaseModel):
     color: str
 
 
-class EstimateResponse(BaseModel):
-    project_name: str
-    project_address: str
-    materials: list[MaterialEstimateResponse]
-    roof_base: RoofEstimateResponse
+class EstimateResponse(AboutResponse):
     PS: Optional[str] = None
     PZ: Optional[str] = None
     K: Optional[str] = None
-    slopes: list[SlopeEstimateResponse]
-    sheets_amount: Dict[float, int]
-    accessories: list[AccessoriesEstimateResponse]
-    sofits: list[SofitsEstimateResponce]
-    screws: list[ScrewsEstimateResponse]
-    sheets_extended: list[str]
+    slopes: Optional[list[SlopeEstimateResponse]] = None
+    sheets_amount: Optional[Dict[float, int]] = None
+    accessories: Optional[list[AccessoriesResponse]] = None
+    screws: Optional[list[ScrewsEstimateResponse]] = None
 
 
 class ProjectResponse(AboutResponse):
