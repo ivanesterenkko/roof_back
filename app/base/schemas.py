@@ -8,6 +8,7 @@ class RoofRequest(BaseModel):
     useful_width: float
     overlap: float
     max_length: float
+    min_length: float
 
 
 class AccessoryBDRequest(BaseModel):
@@ -37,6 +38,7 @@ class RoofResponse(BaseModel):
     useful_width: float
     overlap: float
     max_length: float
+    min_length: float
 
 
 class TariffRequest(BaseModel):

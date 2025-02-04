@@ -39,7 +39,8 @@ async def get_projects(user: Users = Depends(get_current_user)) -> List[AboutRes
                     overall_width=roof.overall_width,
                     useful_width=roof.useful_width,
                     overlap=roof.overlap,
-                    max_length=roof.max_length
+                    max_length=roof.max_length,
+                    min_length=roof.min_length
                 )
             )
         )
@@ -320,7 +321,8 @@ async def get_project(
             overall_width=roof.overall_width,
             useful_width=roof.useful_width,
             overlap=roof.overlap,
-            max_length=roof.max_length
+            max_length=roof.max_length,
+            min_length=roof.min_length
         ),
         lines=lines_response,
         slopes=slope_response,
@@ -1072,8 +1074,8 @@ async def add_sheet(
         new_length_2 = sheet.length - roof.overlap
     if is_down:
         await SheetsDAO.add(
-            x_start=sheet.sheet_x_start,
-            y_start=sheet.sheet_y_start,
+            x_start=sheet.x_start,
+            y_start=sheet.y_start,
             length=new_length_1,
             area_overall=new_length_1*roof.overall_width,
             area_usefull=new_length_1*roof.useful_width,
@@ -1086,7 +1088,7 @@ async def add_sheet(
         )
     else:
         await SheetsDAO.add(
-            x_start=sheet.sheet_x_start,
+            x_start=sheet.x_start,
             y_start=sheet.length - new_length_1,
             length=new_length_1,
             area_overall=new_length_1*roof.overall_width,
@@ -1413,7 +1415,8 @@ async def get_estimate(
             overall_width=roof.overall_width,
             useful_width=roof.useful_width,
             overlap=roof.overlap,
-            max_length=roof.max_length
+            max_length=roof.max_length,
+            min_length=roof.min_length
         ),
         sheets_amount=sheets_amount_dict,
         slopes=slopes_estimate,
