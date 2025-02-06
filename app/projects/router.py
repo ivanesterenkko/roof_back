@@ -582,11 +582,34 @@ async def add_sizes(
                         x=line.end.x+length
                     )
     lines_slope = await LinesSlopeDAO.find_all(slope_id=slope_id)
+    length_slopes = await LengthSlopeDAO.find_all(slope_id=slope_id)
     for line_slope in lines_slope:
         line = await LinesSlopeDAO.update_(
             model_id=line_slope.id,
             length=round(((line_slope.start.x - line_slope.end.x) ** 2 + (line_slope.start.y - line_slope.end.y) ** 2) ** 0.5, 2)
         )
+        if abs(line.length - lines_data_or[line.id]) > 1:
+            for line in lines_slope:
+                await LinesSlopeDAO.update_(
+                    model_id=line_slope.id,
+                    length=None
+                    )
+                await LinesDAO.update_(
+                    model_id=line.parent_id,
+                    length=None
+                )
+            for point in points_old:
+                await PointsSlopeDAO.update_(
+                    model_id=point.id,
+                    x=point.x,
+                    y=point.y
+                )
+            for length_slope in length_slopes:
+                await LengthSlopeDAO.update_(
+                    model_id=length_slope.id,
+                    length=None
+                )
+            raise WrongSizes
         await LinesDAO.update_(
             model_id=line.parent_id,
             length=line.length
