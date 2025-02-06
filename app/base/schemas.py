@@ -1,3 +1,4 @@
+from typing import List, Optional, Tuple
 from pydantic import UUID4, BaseModel
 
 
@@ -9,6 +10,7 @@ class RoofRequest(BaseModel):
     overlap: float
     max_length: float
     min_length: float
+    imp_sizes: Optional[List[Tuple[float, float]]] = None
 
 
 class AccessoryBDRequest(BaseModel):
@@ -39,6 +41,7 @@ class RoofResponse(BaseModel):
     overlap: float
     max_length: float
     min_length: float
+    imp_sizes: Optional[List[Tuple[float, float]]] = None
 
 
 class TariffRequest(BaseModel):

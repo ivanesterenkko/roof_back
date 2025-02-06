@@ -40,7 +40,8 @@ async def get_projects(user: Users = Depends(get_current_user)) -> List[AboutRes
                     useful_width=roof.useful_width,
                     overlap=roof.overlap,
                     max_length=roof.max_length,
-                    min_length=roof.min_length
+                    min_length=roof.min_length,
+                    imp_sizes=roof.imp_sizes
                 )
             )
         )
@@ -322,7 +323,8 @@ async def get_project(
             useful_width=roof.useful_width,
             overlap=roof.overlap,
             max_length=roof.max_length,
-            min_length=roof.min_length
+            min_length=roof.min_length,
+            imp_sizes=roof.imp_sizes
         ),
         lines=lines_response,
         slopes=slope_response,
@@ -528,10 +530,6 @@ async def add_sizes(
                 length = lines_data.pop(line_id, None)
             else:
                 continue
-            await LinesDAO.update_(
-                model_id=line.parent_id,
-                length=length
-            )
             point = await PointsSlopeDAO.find_by_id(point_id)
             if line.start.y == line.end.y:
                 if point.id == line.start_id:
@@ -568,23 +566,31 @@ async def add_sizes(
                         x=point.x+new_x
                     )
     lines_slope = await LinesSlopeDAO.find_all(slope_id=slope_id)
-    lines_slope_or = []
+    for line in lines_slope:
+        length = lines_data_or[line.id]
+        if line.start.y == line.end.y:
+            line_length = abs(line.start.x - line.end.x)
+            if abs(line_length - length) > 0.001:
+                if line.start.x < line.end.x:
+                    await PointsSlopeDAO.update_(
+                        model_id=line.end_id,
+                        x=line.start.x+length
+                    )
+                else:
+                    await PointsSlopeDAO.update_(
+                        model_id=line.start_id,
+                        x=line.end.x+length
+                    )
+    lines_slope = await LinesSlopeDAO.find_all(slope_id=slope_id)
     for line_slope in lines_slope:
         line = await LinesSlopeDAO.update_(
             model_id=line_slope.id,
             length=round(((line_slope.start.x - line_slope.end.x) ** 2 + (line_slope.start.y - line_slope.end.y) ** 2) ** 0.5, 2)
         )
-        lines_slope_or.append(line)
-    for line in lines_slope_or:
-        length = lines_data_or[line.id]
-        if abs(line.length - length) > 1:
-            raise WrongSizes
-    #         for point in points_old:
-    #             await PointsSlopeDAO.update_(
-    #                 model_id=point.id,
-    #                 x=point.x,
-    #                 y=point.y
-    #             )
+        await LinesDAO.update_(
+            model_id=line.parent_id,
+            length=line.length
+        )
 
 
 @router.delete("/projects/{project_id}/slopes", description="Delete roof slopes")
@@ -769,15 +775,15 @@ async def update_line_slope(
                 model_id=line.start_id,
                 x=point.x+new_x
             )
-    lines = await LinesSlopeDAO.find_all(slope_id=slope_id)
-    for line in lines:
-        await LinesSlopeDAO.update_(
-            model_id=line.id,
-            length=round(((line.start.x - line.end.x) ** 2 + (line.start.y - line.end.y) ** 2) ** 0.5, 2)
+    lines_slope = await LinesSlopeDAO.find_all(slope_id=slope_id)
+    for line_slope in lines_slope:
+        line = await LinesSlopeDAO.update_(
+            model_id=line_slope.id,
+            length=round(((line_slope.start.x - line_slope.end.x) ** 2 + (line_slope.start.y - line_slope.end.y) ** 2) ** 0.5, 2)
         )
         await LinesDAO.update_(
             model_id=line.parent_id,
-            length=round(((line.start.x - line.end.x) ** 2 + (line.start.y - line.end.y) ** 2) ** 0.5, 2)
+            length=line.length
         )
     length_lines = await LengthSlopeDAO.find_all(slope_id=slope_id)
     for length_slope in length_lines:
@@ -843,15 +849,15 @@ async def update_length_slope(
             model_id=length_slope.point_2_id,
             y=length
         )
-    lines = await LinesSlopeDAO.find_all(slope_id=slope_id)
-    for line in lines:
-        await LinesSlopeDAO.update_(
-            model_id=line.id,
-            length=round(((line.start.x - line.end.x) ** 2 + (line.start.y - line.end.y) ** 2) ** 0.5, 2)
+    lines_slope = await LinesSlopeDAO.find_all(slope_id=slope_id)
+    for line_slope in lines_slope:
+        line = await LinesSlopeDAO.update_(
+            model_id=line_slope.id,
+            length=round(((line_slope.start.x - line_slope.end.x) ** 2 + (line_slope.start.y - line_slope.end.y) ** 2) ** 0.5, 2)
         )
         await LinesDAO.update_(
             model_id=line.parent_id,
-            length=round(((line.start.x - line.end.x) ** 2 + (line.start.y - line.end.y) ** 2) ** 0.5, 2)
+            length=line.length
         )
     length_lines = await LengthSlopeDAO.find_all(slope_id=slope_id)
     for length_slope in length_lines:
@@ -897,15 +903,15 @@ async def update_point_slope(
         x=point.x,
         y=point.y
     )
-    lines = await LinesSlopeDAO.find_all(slope_id=slope_id)
-    for line in lines:
-        await LinesSlopeDAO.update_(
-            model_id=line.id,
-            length=round(((line.start.x - line.end.x) ** 2 + (line.start.y - line.end.y) ** 2) ** 0.5, 2)
+    lines_slope = await LinesSlopeDAO.find_all(slope_id=slope_id)
+    for line_slope in lines_slope:
+        line = await LinesSlopeDAO.update_(
+            model_id=line_slope.id,
+            length=round(((line_slope.start.x - line_slope.end.x) ** 2 + (line_slope.start.y - line_slope.end.y) ** 2) ** 0.5, 2)
         )
         await LinesDAO.update_(
             model_id=line.parent_id,
-            length=round(((line.start.x - line.end.x) ** 2 + (line.start.y - line.end.y) ** 2) ** 0.5, 2)
+            length=line.length
         )
     length_lines = await LengthSlopeDAO.find_all(slope_id=slope_id)
     for length_slope in length_lines:
@@ -1390,8 +1396,8 @@ async def get_estimate(
                     quantity=accessory.quantity
                 )
             )
-        else:
-            accessories_estimate = None
+    else:
+        accessories_estimate = None
     screws_estimate = [
         ScrewsEstimateResponse(
             name='Саморез 4,8х35',
@@ -1416,7 +1422,8 @@ async def get_estimate(
             useful_width=roof.useful_width,
             overlap=roof.overlap,
             max_length=roof.max_length,
-            min_length=roof.min_length
+            min_length=roof.min_length,
+            imp_sizes=roof.imp_sizes
         ),
         sheets_amount=sheets_amount_dict,
         slopes=slopes_estimate,

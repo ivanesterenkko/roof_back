@@ -57,6 +57,17 @@ def transform_roof(lines_dict: Dict[str, List[LineString]]) -> Dict[str, List[Li
     ridges = lines_dict.get('конёк', [])
     dop_lines = lines_dict.get('примыкание', [])
     all_lines = eaves + gables + valleys + ridges + dop_lines
+    x_max = 0
+    y_max = 0
+    for line in all_lines:
+        if line.coords[0][0] > x_max:
+            x_max = line.coords[0][0]
+        if line.coords[1][0] > x_max:
+            x_max = line.coords[1][0]
+        if line.coords[0][1] > y_max:
+            y_max = line.coords[0][1]
+        if line.coords[1][1] > y_max:
+            y_max = line.coords[1][1]
     result = {'карниз': [], 'фронтон': [], 'ендова': [], 'конёк': [], 'примыкание': []}
     if eaves:
         main_eave = None
@@ -68,33 +79,42 @@ def transform_roof(lines_dict: Dict[str, List[LineString]]) -> Dict[str, List[Li
                 main_eave = eave
                 angle = 0
         if main_eave.coords[0][0] == main_eave.coords[1][0]:
-            if main_eave.coords[0][1] > main_eave.coords[1][1]:
-                anchor_x, anchor_y = main_eave.coords[0]
+            if main_eave.coords[0][0] == x_max:
+                angle = -90
+                if main_eave.coords[0][1] > main_eave.coords[1][1]:
+                    anchor_x, anchor_y = main_eave.coords[0]
+                else:
+                    anchor_x, anchor_y = main_eave.coords[1]
             else:
-                anchor_x, anchor_y = main_eave.coords[1]
+                angle = 90
+                if main_eave.coords[0][1] > main_eave.coords[1][1]:
+                    anchor_x, anchor_y = main_eave.coords[1]
+                else:
+                    anchor_x, anchor_y = main_eave.coords[0]
         else:
-            if main_eave.coords[0][0] < main_eave.coords[1][0]:
-                anchor_x, anchor_y = main_eave.coords[0]
+            if main_eave.coords[0][1] == y_max:
+                if main_eave.coords[0][0] < main_eave.coords[1][0]:
+                    anchor_x, anchor_y = main_eave.coords[0]
+                else:
+                    anchor_x, anchor_y = main_eave.coords[1]
             else:
-                anchor_x, anchor_y = main_eave.coords[1]
+                if main_eave.coords[0][0] < main_eave.coords[1][0]:
+                    anchor_x, anchor_y = main_eave.coords[1]
+                else:
+                    anchor_x, anchor_y = main_eave.coords[0]
         high = 1
-        right = 1
-        for line in all_lines:
-            if anchor_x > line.coords[0][0] or anchor_x > line.coords[1][0]:
-                right = 0
-            if anchor_y > line.coords[0][1] or anchor_y > line.coords[1][1]:
-                high = 0
+        if angle == 0:
+            for line in all_lines:
+                if anchor_y > line.coords[0][1] or anchor_y > line.coords[1][1]:
+                    angle = 180
         anchor_point = ShapelyPoint(anchor_x, anchor_y)
         moved_lines = [move_geometry_to_point(ln, anchor_point) for ln in all_lines]
         process_lines = moved_lines
-        if high == 0:
-            process_lines = [up_line(ml) for ml in process_lines]
-        if right == 0:
-            process_lines = [right_line(ml) for ml in process_lines]
         if angle == 0:
             rotated_lines = process_lines
         else:
             rotated_lines = [rotate_geometry(ml, angle) for ml in process_lines]
+        rotated_lines = [right_line(ml) for ml in rotated_lines]
         idx = 0
         min_x = 10**9
         min_y = 10**9
@@ -107,12 +127,8 @@ def transform_roof(lines_dict: Dict[str, List[LineString]]) -> Dict[str, List[Li
                 min_y = line.coords[0][1]
             if line.coords[1][1] < min_y:
                 min_y = line.coords[1][1]
-        if min_x < 0:
-            min_point = ShapelyPoint(min_x, 0)
-            rotated_lines = [move_geometry_to_point(ln, min_point) for ln in rotated_lines]
-        if min_y < 0:
-            min_point = ShapelyPoint(0, min_y)
-            rotated_lines = [move_geometry_to_point(ln, min_point) for ln in rotated_lines]
+        min_point = ShapelyPoint(min_x, min_y)
+        rotated_lines = [move_geometry_to_point(ln, min_point) for ln in rotated_lines]
         for t in ('карниз', 'фронтон', 'ендова', 'конёк', 'примыкание'):
             n = len(lines_dict.get(t, []))
             result[t] = rotated_lines[idx: idx + n]
