@@ -6,7 +6,6 @@ stages:
 build-job:
   stage: build
   script:
-    - unset DOCKER_HOST
     - docker build -t roof_image .
   only:
     - main
