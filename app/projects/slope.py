@@ -65,7 +65,7 @@ async def create_sheets(figure, roof, del_x, del_y):
                 continue
             elif sheet_height < length_min:
                 coords[3] = coords[1] + length_min
-            else:
+            elif sizes:
                 for size in sizes:
                     if sheet_height > size[0] and sheet_height < size[1]:
                         coords[3] = coords[1] + size[1]
