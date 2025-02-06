@@ -3,15 +3,8 @@ stages:
   - test
   - deploy
 
-
-build-job:
+build:
   stage: build
-  image: docker
-  services:
-    - docker:dind
-  variables:
-    DOCKER_HOST: tcp://docker:2375
-    DOCKER_TLS_CERTDIR: ""
   script:
     - docker build -t roof_image .
   only:
