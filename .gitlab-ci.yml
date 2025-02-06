@@ -3,6 +3,11 @@ stages:
   - test
   - deploy
 
+variables:
+  DOCKER_HOST: tcp://docker:2375
+  DOCKER_TLS_CERTDIR: ""  # Disable TLS if not using it
+
+
 build-job:
   stage: build
   script:
