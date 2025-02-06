@@ -3,7 +3,11 @@ stages:
   - test
   - deploy
 
-build-job:
+build:
+  image: docker
+  services:
+    - name: docker:dind
+      alias: docker
   stage: build
   script:
     - docker build -t roof_image .
