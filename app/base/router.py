@@ -22,7 +22,8 @@ async def add_roof_base(
         useful_width=roof.useful_width,
         overlap=roof.overlap,
         max_length=roof.max_length,
-        min_length=roof.min_length
+        min_length=roof.min_length,
+        imp_sizes=roof.imp_sizes
         )
     return {"roof_id": roof.id}
 
@@ -43,7 +44,8 @@ async def get_roof_base(
             useful_width=result.useful_width,
             overlap=result.overlap,
             max_length=result.max_length,
-            min_length=result.min_length
+            min_length=result.min_length,
+            imp_sizes=result.imp_sizes
             ) for result in results]
 
 

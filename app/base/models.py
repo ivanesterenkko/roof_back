@@ -1,5 +1,6 @@
+from typing import List
 import uuid
-from sqlalchemy import UUID, Float, Integer, String
+from sqlalchemy import JSON, UUID, Float, Integer, String, Tuple
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -30,6 +31,7 @@ class Roofs(Base):
     overlap: Mapped[float] = mapped_column(Float, nullable=False)
     max_length: Mapped[float] = mapped_column(Float, nullable=False)
     min_length: Mapped[float] = mapped_column(Float, nullable=False)
+    imp_sizes: Mapped[List[List[float]]] = mapped_column(JSON, nullable=True, default=list)
 
     projects = relationship("Projects", back_populates="roof", cascade="all, delete-orphan")
 

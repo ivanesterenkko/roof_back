@@ -16,6 +16,7 @@ async def create_sheets(figure, roof, del_x, del_y):
     length_max = roof.max_length
     overlap = roof.overlap
     length_min = roof.min_length
+    sizes = roof.imp_sizes
 
     x_min, y_min, x_max, y_max = figure.bounds
     prepared_figure = prep(figure)
@@ -64,6 +65,11 @@ async def create_sheets(figure, roof, del_x, del_y):
                 continue
             elif sheet_height < length_min:
                 coords[3] = coords[1] + length_min
+            else:
+                for size in sizes:
+                    if sheet_height > size[0] and sheet_height < size[1]:
+                        coords[3] = coords[1] + size[1]
+                        break
             length = round(coords[3] - coords[1], 2)
             sheets.append([
                 round(x_start, 2),
