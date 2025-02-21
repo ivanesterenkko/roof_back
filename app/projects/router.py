@@ -511,18 +511,60 @@ async def add_sizes(
                 model_id=length_slope.point_2_id,
                 y=length
             )
+
     points = await PointsSlopeDAO.find_all(slope_id=slope_id)
     points = sorted(points, key=lambda point: point.x)
     points_id = [point.id for point in points]
+    lines_v = []
     lines = await LinesSlopeDAO.find_all(slope_id=slope_id)
     lines_on_point: Dict[UUID4, List[UUID4]] = {}
     for line in lines:
+        if line.start.x == line.end.x:
+            lines_v.append(line)
         if line.start_id not in lines_on_point:
             lines_on_point[line.start_id] = []
         if line.end_id not in lines_on_point:
             lines_on_point[line.end_id] = []
         lines_on_point[line.end_id].append(line.id)
         lines_on_point[line.start_id].append(line.id)
+    for line in lines_v:
+        if line.id in lines_data:
+            length = lines_data.pop(line.id, None)
+        else:
+            continue
+        if line.start.y < line.end.y:
+            point_id = line.end_id
+            for line_id in lines_on_point[point_id]:
+                if line_id == line.id:
+                    continue
+                else:
+                    l = await LinesSlopeDAO.find_by_id(line_id)
+                    if l.start.y == l.end.y:
+                        await PointsSlopeDAO.update_(
+                            model_id=l.end_id,
+                            y=length
+                        )
+                        await PointsSlopeDAO.update_(
+                            model_id=l.start_id,
+                            y=length
+                        )
+        else:
+            point_id = line.start_id
+            for line_id in lines_on_point[point_id]:
+                if line_id == line.id:
+                    continue
+                else:
+                    l = await LinesSlopeDAO.find_by_id(line_id)
+                    if l.start.y == l.end.y:
+                        await PointsSlopeDAO.update_(
+                            model_id=l.end_id,
+                            y=length
+                        )
+                        await PointsSlopeDAO.update_(
+                            model_id=l.start_id,
+                            y=length
+                        )
+
     for point_id in points_id:
         for line_id in lines_on_point[point_id]:
             line = await LinesSlopeDAO.find_by_id(line_id)
@@ -557,7 +599,7 @@ async def add_sizes(
                     )
                 if point.id == line.end_id:
                     if point.y > line.start.y:
-                        hight = point.y  - line.end.y
+                        hight = point.y  - line.start.y
                     else:
                         hight = line.start.y - point.y
                     new_x = round(((length)**2-(hight)**2)**0.5, 2)

@@ -293,4 +293,45 @@ def generate_slopes_length(lines: List[LinesSlope], points: List[PointSlope]):
             else:
                 for line in lines_on_y[y]:
                     slope_lines.append([1, line, point_o])
+    for line in lines:
+        if line.start.x == line.end.x:
+            for s_line in slope_lines:
+                c = 0
+                if s_line[0] == 2:
+                    if line.start_id == s_line[1] or line.start_id == s_line[2]:
+                        c += 1
+                    if line.end_id == s_line[1] or line.end_id == s_line[2]:
+                         c += 1
+                elif s_line[0] == 1:
+                    n_line = None
+                    for l in lines:
+                        if s_line[1] == l.id:
+                            n_line = l
+                    if line.start_id == s_line[2]:
+                        c += 1
+                        if line.end_id == n_line.start_id or line.end_id == n_line.end_id:
+                            c += 1
+                    elif line.end_id == s_line[2]:
+                        c += 1
+                        if line.start_id == n_line.start_id or line.start_id == n_line.end_id:
+                            c += 1
+                else:
+                    line_1 = None
+                    line_2 = None
+                    for l in lines:
+                        if s_line[1] == l.id:
+                            line_1 = l
+                        if s_line[2] == l.id:
+                            line_2 = l
+                    if line.end_id == line_1.start_id or line.end_id == line_1.end_id:
+                        c += 1
+                        if line.start_id == line_2.start_id or line.start_id == line_2.end_id:
+                            c += 1
+                    elif line.start_id == line_1.start_id or line.start_id == line_1.end_id:
+                        c += 1
+                        if line.end_id == line_2.start_id or line.end_id == line_2.end_id:
+                            c += 1
+                if c == 2:
+                    slope_lines.remove(s_line)
+                    break
     return slope_lines
