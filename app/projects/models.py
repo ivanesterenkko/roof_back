@@ -89,6 +89,7 @@ class LinesSlope(Base):
     type: Mapped[str] = mapped_column(String, nullable=True)
     number: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
     length: Mapped[float] = mapped_column(Float, nullable=True)
+    angle: Mapped[int] = mapped_column(Integer, nullable=True)
 
     start_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('point_slope.id', ondelete='CASCADE'), nullable=False)
     end_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('point_slope.id', ondelete='CASCADE'), nullable=False)
