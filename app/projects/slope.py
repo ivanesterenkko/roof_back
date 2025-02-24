@@ -271,8 +271,10 @@ def generate_slopes_length(lines: List[LinesSlope], points: List[PointSlope]):
     for line in lines:
         if line.start.y == line.end.y:
             lines_on_y[line.start.y].append(line.id)
-            points_on_y[line.start.y].remove(line.start_id)
-            points_on_y[line.start.y].remove(line.end_id)
+            if line.start_id in points_on_y[line.start.y]:
+                points_on_y[line.start.y].remove(line.start_id)
+            if line.end_id in points_on_y[line.start.y]:
+                points_on_y[line.start.y].remove(line.end_id)
     if len(lines_on_y[0]) == 0:
         point_o = points_on_y[0][0]
         k = 0
