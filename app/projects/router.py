@@ -686,30 +686,33 @@ async def add_sizes(
     lines_slope = await LinesSlopeDAO.find_all(slope_id=slope_id)
     for line in lines_slope:
         length = lines_data_or[line.id]
-        if line.start.y == line.end.y and line.start.y == 0:
+        if line.start.y == line.end.y:
             line_length = abs(line.start.x - line.end.x)
             if abs(line_length - length) > 0:
+                point_stack = []
                 div_x = round((line_length - length)/2, 3)
                 if line.start.x < line.end.x:
                     point_1 = await PointsSlopeDAO.update_(
                         model_id=line.end_id,
                         x=round(line.start.x+length, 3)
                     )
-                    or_x = point_1.x
                 else:
                     point_1 = await PointsSlopeDAO.update_(
                         model_id=line.start_id,
                         x=round(line.end.x+length, 3)
                     )
-                    or_x = point_1.x
+                point_stack.append(point_1.id)
                 for point_id in points_id:
+                    if point_id in point_stack:
+                        continue
                     point = await PointsSlopeDAO.find_by_id(point_id)
                     q = 1
                     for line_id in lines_on_point[point_id]:
                         line = await LinesSlopeDAO.find_by_id(line_id)
-                        if line.type == 'ендова' or line.type == 'карниз':
+                        if line.type == 'ендова' or line.type == 'карниз' or line.type == 'фронтон':
                             q = 0
                     if point.y == 0 or q == 0:
+                        point_stack.append(point.id)
                         continue
                     else:
                         await PointsSlopeDAO.update_(
