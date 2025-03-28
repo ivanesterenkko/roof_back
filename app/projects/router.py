@@ -1627,38 +1627,42 @@ async def get_estimate(
     else:
         slopes_estimate = None
     length_counts = Counter(all_sheets)
-    # accessories = await AccessoriesDAO.find_all(project_id=project_id)
-    # if accessories:
-    #     accessories_estimate = []
-    #     for accessory in accessories:
-    #         accessory_base = await Accessory_baseDAO.find_by_id(accessory.accessory_base_id)
-    #         accessories_estimate.append(
-    #             AccessoriesResponse(
-    #                 id=accessory.id,
-    #                 accessory_base=AccessoryBDResponse(
-    #                     id=accessory_base.id,
-    #                     name=accessory_base.name,
-    #                     type=accessory_base.type,
-    #                     parent_type=accessory_base.parent_type,
-    #                     price=accessory_base.price,
-    #                     overlap=accessory_base.overlap,
-    #                     length=accessory_base.length
-    #                 ),
-    #                 lines_id=accessory.lines_id,
-    #                 lines_length=accessory.lines_length,
-    #                 quantity=accessory.quantity
-    #             )
-    #         )
-    # else:
-    #     accessories_estimate = None
-    # screws_estimate = [
-    #     ScrewsEstimateResponse(
-    #         name='Саморез 4,8х35',
-    #         amount=int(overall*6),
-    #         packege_amount=250,
-    #         price=1500
-    #     )
-    # ]
+    accessories = await AccessoriesDAO.find_all(project_id=project_id)
+    if accessories:
+        accessories_estimate = []
+        for accessory in accessories:
+            accessory_base = await Accessory_baseDAO.find_by_id(accessory.accessory_base_id)
+            accessories_estimate.append(
+                AccessoriesResponse(
+                    id=accessory.id,
+                    accessory_base=AccessoryBDResponse(
+                        id=accessory_base.id,
+                        name=accessory_base.name,
+                        type=accessory_base.type,
+                        parent_type=accessory_base.parent_type,
+                        price=accessory_base.price,
+                        overlap=accessory_base.overlap,
+                        length=accessory_base.length
+                    ),
+                    lines_id=accessory.lines_id,
+                    lines_length=accessory.lines_length,
+                    quantity=accessory.quantity,
+                    ral=None,
+                    color=None
+                )
+            )
+    else:
+        accessories_estimate = None
+    screws_estimate = [
+        ScrewsEstimateResponse(
+            id="69ad6260-9310-4245-92bb-d0c8728954f2",
+            name='Саморез 4,8х35',
+            amount=int(overall*6),
+            packege_amount=250,
+            price=1500,
+            ral=None
+        )
+    ]
     sheets_amount_dict = dict(length_counts)
     return EstimateResponse(
         id=project.id,
@@ -1666,7 +1670,7 @@ async def get_estimate(
         address=project.address,
         step=project.step,
         datetime_created=project.datetime_created,
-        roof=RoofResponse(
+        roof=RoofEstimateResponse(
             id=roof.id,
             name=roof.name,
             type=roof.type,
@@ -1675,12 +1679,13 @@ async def get_estimate(
             overlap=roof.overlap,
             max_length=roof.max_length,
             min_length=roof.min_length,
-            imp_sizes=roof.imp_sizes
+            imp_sizes=roof.imp_sizes,
+            price=None
         ),
         sheets_amount=sheets_amount_dict,
         slopes=slopes_estimate,
-        accessories=None,
-        screws=None,
+        accessories=accessories_estimate,
+        screws=screws_estimate,
     )
 
 

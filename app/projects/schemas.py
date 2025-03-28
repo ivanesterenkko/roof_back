@@ -116,6 +116,8 @@ class AccessoriesResponse(BaseModel):
     lines_id: list[UUID4]
     lines_length: float
     quantity: int
+    ral: None
+    color: None
 
 
 # Estimate
@@ -143,10 +145,12 @@ class SofitsEstimateResponce(BaseModel):
 
 
 class ScrewsEstimateResponse(BaseModel):
+    id: UUID4
     name: str
     amount: Optional[int] = None
     packege_amount: Optional[int] = 250
     price: Optional[float] = None
+    ral: None
 
 
 class SlopeEstimateResponse(BaseModel):
@@ -156,15 +160,8 @@ class SlopeEstimateResponse(BaseModel):
     area_usefull: float
 
 
-class RoofEstimateResponse(BaseModel):
-    roof_name: str
-    roof_type: str
-    price: Optional[float] = None
-    roof_overall_width: float
-    roof_useful_width: float
-    roof_overlap: float
-    roof_max_length: float
-    roof_max_length_standart: float
+class RoofEstimateResponse(RoofResponse):
+    price: None
 
 
 class MaterialEstimateResponse(BaseModel):
