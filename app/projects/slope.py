@@ -3,13 +3,14 @@ from itertools import product
 from typing import Dict, List
 
 from pydantic import UUID4
+from shapely import Point
 from shapely.geometry import Polygon
 from shapely.prepared import prep
 
-from app.projects.models import  LinesSlope, Point, PointSlope
+from app.projects.models import  LinesSlope, PointSlope
 
 
-async def create_sheets(figure, roof, del_x, del_y):
+async def create_sheets(figure, roof):
     sheets = []
     overall_width = roof.overall_width
     delta_width = roof.overall_width - roof.useful_width
@@ -17,29 +18,38 @@ async def create_sheets(figure, roof, del_x, del_y):
     overlap = roof.overlap
     length_min = roof.min_length
     sizes = roof.imp_sizes
-
+    left = 1
     x_min, y_min, x_max, y_max = figure.bounds
     prepared_figure = prep(figure)
+    point = Point(x_max, 0)
+    if prepared_figure.covers(point):
+        left = 0
 
     x_positions = []
-    x = x_min + del_x
+    x = x_min
     if abs(x) >= overall_width:
         m = x // abs(x)
         x = m * abs(x) % overall_width
-    while x < x_max:
-        x_positions.append(x)
-        x += overall_width
-        x -= delta_width
+    if left == 1:
+        while x < x_max:
+            x_positions.append(x)
+            x += overall_width
+            x -= delta_width
+    else:
+        while x_max > x:
+            x_positions.append(x_max)
+            x_max -= overall_width
+            x_max += delta_width
 
     y_positions = []
-    y = y_min + del_y
+    y = y_min
     while y < y_max:
         y_positions.append(y)
         y += length_max
         y -= overlap
 
     for x_start in x_positions:
-        x_end = x_start + overall_width
+        x_end = x_start + roof.useful_width - delta_width
         for y_start in y_positions:
             y_end = y_start + length_max
 
