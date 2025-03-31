@@ -1388,7 +1388,9 @@ async def add_sheets(
     area = figure.area
     slope = await SlopesDAO.update_(model_id=slope_id, area=area)
     roof = await RoofsDAO.find_by_id(project.roof_id)
-    sheets = await create_sheets(figure, roof, 0, 0)
+    sheets = await create_sheets(
+        figure=figure,
+        roof=roof)
     for sheet in sheets:
         await SheetsDAO.add(
             x_start=sheet[0],
@@ -1431,7 +1433,6 @@ async def update_length_sheets(
 async def offset_sheets(
     project_id: UUID4,
     slope_id: UUID4,
-    data: PointData,
     user: Users = Depends(get_current_user)
 ) -> None:
     project = await ProjectsDAO.find_by_id(project_id)
@@ -1460,9 +1461,7 @@ async def offset_sheets(
     roof = await RoofsDAO.find_by_id(project.roof_id)
     sheets = await create_sheets(
         figure=figure,
-        roof=roof,
-        del_x=data.x,
-        del_y=data.y
+        roof=roof
         )
     for sheet in sheets:
         await SheetsDAO.add(
