@@ -1061,6 +1061,36 @@ async def update_line_slope(
                 model_id=line.id,
                 length=round(abs(point_1.y - point_2.y), 2)
             )
+    sheets_old = await SheetsDAO.find_all(slope_id=slope.id)
+    for sheet_old in sheets_old:
+        await SheetsDAO.delete_(sheet_old.id)
+    cutouts_slope = await CutoutsDAO.find_all(slope_id=slope_id)
+    lines = await LinesSlopeDAO.find_all(slope_id=slope_id)
+    lines = sorted(lines, key=lambda line: line.number)
+    cutouts = []
+    for cutout in cutouts_slope:
+        points_cutout_slope = await PointsCutoutsDAO.find_all(cutout_id=cutout.id)
+        points_cutout_slope = sorted(points_cutout_slope, key=lambda point: point.number)
+        points_cutout = [
+            (point.x, point.y) for point in points_cutout_slope
+        ]
+        cutouts.append(points_cutout)
+    figure = create_figure(lines, cutouts)
+    area = figure.area
+    slope = await SlopesDAO.update_(model_id=slope_id, area=area)
+    roof = await RoofsDAO.find_by_id(project.roof_id)
+    sheets = await create_sheets(
+        figure=figure,
+        roof=roof)
+    for sheet in sheets:
+        await SheetsDAO.add(
+            x_start=sheet[0],
+            y_start=sheet[1],
+            length=sheet[2],
+            area_overall=sheet[3],
+            area_usefull=sheet[4],
+            slope_id=slope_id
+        )
 
 
 @router.patch("/projects/{project_id}/slopes/{slope_id}/lengths_slope/{length_slope_id}", description="Update length of line for slope")
@@ -1135,6 +1165,36 @@ async def update_length_slope(
                 model_id=line.id,
                 length=round(abs(point_1.y - point_2.y), 2)
             )
+    sheets_old = await SheetsDAO.find_all(slope_id=slope.id)
+    for sheet_old in sheets_old:
+        await SheetsDAO.delete_(sheet_old.id)
+    cutouts_slope = await CutoutsDAO.find_all(slope_id=slope_id)
+    lines = await LinesSlopeDAO.find_all(slope_id=slope_id)
+    lines = sorted(lines, key=lambda line: line.number)
+    cutouts = []
+    for cutout in cutouts_slope:
+        points_cutout_slope = await PointsCutoutsDAO.find_all(cutout_id=cutout.id)
+        points_cutout_slope = sorted(points_cutout_slope, key=lambda point: point.number)
+        points_cutout = [
+            (point.x, point.y) for point in points_cutout_slope
+        ]
+        cutouts.append(points_cutout)
+    figure = create_figure(lines, cutouts)
+    area = figure.area
+    slope = await SlopesDAO.update_(model_id=slope_id, area=area)
+    roof = await RoofsDAO.find_by_id(project.roof_id)
+    sheets = await create_sheets(
+        figure=figure,
+        roof=roof)
+    for sheet in sheets:
+        await SheetsDAO.add(
+            x_start=sheet[0],
+            y_start=sheet[1],
+            length=sheet[2],
+            area_overall=sheet[3],
+            area_usefull=sheet[4],
+            slope_id=slope_id
+        )
 
 
 @router.patch("/projects/{project_id}/slopes/{slope_id}/points_slope/{point_slope_id}", description="Update coords point for slope")
@@ -1189,6 +1249,36 @@ async def update_point_slope(
                 model_id=line.id,
                 length=round(abs(point_1.y - point_2.y), 2)
             )
+    sheets_old = await SheetsDAO.find_all(slope_id=slope.id)
+    for sheet_old in sheets_old:
+        await SheetsDAO.delete_(sheet_old.id)
+    cutouts_slope = await CutoutsDAO.find_all(slope_id=slope_id)
+    lines = await LinesSlopeDAO.find_all(slope_id=slope_id)
+    lines = sorted(lines, key=lambda line: line.number)
+    cutouts = []
+    for cutout in cutouts_slope:
+        points_cutout_slope = await PointsCutoutsDAO.find_all(cutout_id=cutout.id)
+        points_cutout_slope = sorted(points_cutout_slope, key=lambda point: point.number)
+        points_cutout = [
+            (point.x, point.y) for point in points_cutout_slope
+        ]
+        cutouts.append(points_cutout)
+    figure = create_figure(lines, cutouts)
+    area = figure.area
+    slope = await SlopesDAO.update_(model_id=slope_id, area=area)
+    roof = await RoofsDAO.find_by_id(project.roof_id)
+    sheets = await create_sheets(
+        figure=figure,
+        roof=roof)
+    for sheet in sheets:
+        await SheetsDAO.add(
+            x_start=sheet[0],
+            y_start=sheet[1],
+            length=sheet[2],
+            area_overall=sheet[3],
+            area_usefull=sheet[4],
+            slope_id=slope_id
+        )
 
 
 @router.delete("/projects/{project_id}/add_line/slopes/{slope_id}/cutounts/{cutout_id}", description="Delete cutout")
@@ -1373,6 +1463,10 @@ async def add_sheets(
     slope = await SlopesDAO.find_by_id(slope_id)
     if not slope or slope.project_id != project_id:
         raise SlopeNotFound
+    sheets_old = await SheetsDAO.find_all(slope_id=slope.id)
+    if sheets_old:
+        for sheet_old in sheets_old:
+            await SheetsDAO.delete_(sheet_old.id)
     cutouts_slope = await CutoutsDAO.find_all(slope_id=slope_id)
     lines = await LinesSlopeDAO.find_all(slope_id=slope_id)
     lines = sorted(lines, key=lambda line: line.number)
