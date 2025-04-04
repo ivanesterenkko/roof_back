@@ -37,27 +37,33 @@ async def create_sheets(figure, roof):
             x -= delta_width
     else:
         while x_max > x:
-            x_positions.append(x_max)
             x_max -= overall_width
+            x_positions.append(x_max)
             x_max += delta_width
 
     y_positions = []
     y = y_min
+    y_levels = []
+    y_min_l = y_min
+    while y_min_l <= y_max:
+        y_levels.append(y_min_l)
+        y_min_l += overlap
     while y < y_max:
         y_positions.append(y)
         y += length_max
         y -= overlap
 
     for x_start in x_positions:
-        x_end = x_start + roof.useful_width - delta_width
+        x_start_use = x_start + delta_width
+        x_end = x_start + roof.useful_width
         for y_start in y_positions:
             y_end = y_start + length_max
 
             sheet_polygon = Polygon([
-                (x_start, y_start),
+                (x_start_use, y_start),
                 (x_end, y_start),
                 (x_end, y_end),
-                (x_start, y_end)
+                (x_start_use, y_end)
             ])
 
             if not prepared_figure.intersects(sheet_polygon):
@@ -68,6 +74,10 @@ async def create_sheets(figure, roof):
                 continue
 
             coords = list(intersection.bounds)
+            for y_level in y_levels:
+                if coords[1] >= y_level and coords[1] < y_level + overlap:
+                    coords[1] = y_level
+                    break
             sheet_height = coords[3] - coords[1]
             sheet_width = coords[2] - coords[0]
 
