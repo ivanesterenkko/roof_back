@@ -71,6 +71,7 @@ def transform_roof(lines_dict: Dict[str, List[LineString]]) -> Dict[str, List[Li
     result = {'карниз': [], 'фронтон': [], 'ендова': [], 'конёк': [], 'примыкание': []}
     if eaves:
         main_eave = eaves[0]
+        angle = 0
         for eave in eaves:
             if eave.coords[0][0] == eave.coords[1][0]:
                 main_eave = eave

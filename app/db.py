@@ -32,3 +32,14 @@ async def delete_tables():
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
+
+
+async def get_session() -> AsyncSession:
+    """
+    Зависимость для получения асинхронной сессии работы с базой данных.
+
+    :return: Объект AsyncSession.
+    """
+    async with async_session_maker() as session:
+        async with session.begin():
+            yield session
