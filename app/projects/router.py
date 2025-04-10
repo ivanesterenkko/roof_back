@@ -1,5 +1,5 @@
 import copy
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from typing import Dict, List
 from pydantic import UUID4
 from collections import Counter
@@ -714,79 +714,67 @@ async def update_line_slope(
         raise SlopeNotFound
 
     # Получаем линию склона и обновляем длину родительской линии
-    line = await LinesSlopeDAO.find_by_id(session, model_id=line_slope_id)
-    await LinesDAO.update_(session, model_id=line.parent_id, length=length)
+    line_slope = await LinesSlopeDAO.find_by_id(session, model_id=line_slope_id)
+    lines = await LinesSlopeDAO.find_all(session, slope_id=slope.id)
+    if not line_slope:
+        raise HTTPException(status_code=404, detail="Line slope not found.")
+    parent_line = await LinesDAO.find_by_id(session, model_id=line_slope.parent_id)
+    if parent_line:
+        parent_line.length = length
 
     # Выбираем точку для корректировки координат:
     # Если линия имеет возрастающие координаты (по x и y), берем точку начала, иначе - конца.
-    if line.start.x < line.end.x and line.start.y < line.end.y:
-        point_id = line.start_id
+    if line_slope.start.x < line_slope.end.x and line_slope.start.y < line_slope.end.y:
+        point = line_slope.start
+        other = line_slope.end
     else:
-        point_id = line.end_id
+        point = line_slope.end
+        other = line_slope.start
 
-    point = await PointsSlopeDAO.find_by_id(session, model_id=point_id)
-
-    # Корректировка координат в зависимости от ориентации линии:
-    if line.start.y == line.end.y:
-        # Горизонтальная линия: корректируем x.
-        if point.id == line.start_id:
-            await PointsSlopeDAO.update_(session, model_id=line.end_id, x=point.x + length)
+    if line_slope.start.y == line_slope.end.y:
+        # Горизонтальная линия
+        if point.id == line_slope.start_id:
+            other.x = point.x + length
         else:
-            await PointsSlopeDAO.update_(session, model_id=line.start_id, x=point.x + length)
-    elif line.start.x == line.end.x:
-        # Вертикальная линия: корректируем y.
-        if point.id == line.start_id:
-            await PointsSlopeDAO.update_(session, model_id=line.end_id, y=point.y + length)
+            point.x = other.x + length
+    elif line_slope.start.x == line_slope.end.x:
+        # Вертикальная линия
+        if point.id == line_slope.start_id:
+            other.y = point.y + length
         else:
-            await PointsSlopeDAO.update_(session, model_id=line.start_id, y=point.y + length)
+            point.y = other.y + length
     else:
-        # Наклонная линия: корректируем x с учётом вертикальной проекции (height).
-        if point.id == line.start_id:
-            height = abs(point.y - line.end.y)
+        # Наклонная линия
+        if point.id == line_slope.start_id:
+            height = abs(point.y - other.y)
             new_x = round(((length ** 2) - (height ** 2)) ** 0.5, 2)
-            await PointsSlopeDAO.update_(session, model_id=line.end_id, x=point.x + new_x)
-        elif point.id == line.end_id:
-            height = abs(point.y - line.start.y)
+            other.x = point.x + new_x
+        else:
+            height = abs(point.y - other.y)
             new_x = round(((length ** 2) - (height ** 2)) ** 0.5, 2)
-            await PointsSlopeDAO.update_(session, model_id=line.start_id, x=point.x + new_x)
+            other.x = point.x + new_x
 
-    # Обновляем длины всех линий склона
-    lines_slope = await LinesSlopeDAO.find_all(session, slope_id=slope_id)
-    for line_slope in lines_slope:
+    for line in lines:
         calc_length = round(
-            ((line_slope.start.x - line_slope.end.x) ** 2 +
-             (line_slope.start.y - line_slope.end.y) ** 2) ** 0.5, 2
+            ((line.start.x - line.end.x) ** 2 +
+             (line.start.y - line.end.y) ** 2) ** 0.5, 2
         )
-        updated_line = await LinesSlopeDAO.update_(session, model_id=line_slope.id, length=calc_length)
-        await LinesDAO.update_(session, model_id=updated_line.parent_id, length=updated_line.length)
-
+        line.length = calc_length
     # Обновляем длины измерительных линий (LengthSlope)
     length_lines = await LengthSlopeDAO.find_all(session, slope_id=slope_id)
     for length_slope in length_lines:
         if length_slope.type == 0:
-            line_1 = await LinesSlopeDAO.find_by_id(session, model_id=length_slope.line_slope_1_id)
-            line_2 = await LinesSlopeDAO.find_by_id(session, model_id=length_slope.line_slope_2_id)
-            await LengthSlopeDAO.update_(
-                session,
-                model_id=length_slope.id,
-                length=round(abs(line_1.start.y - line_2.start.y), 2)
-            )
+            line_1 = length_slope.line_slope_1
+            line_2 = length_slope.line_slope_2
+            length_slope.length = round(abs(line_2.start.y - line_1.start.y), 2)
         elif length_slope.type == 1:
-            pt = await PointsSlopeDAO.find_by_id(session, model_id=length_slope.point_1_id)
-            ln = await LinesSlopeDAO.find_by_id(session, model_id=length_slope.line_slope_1_id)
-            await LengthSlopeDAO.update_(
-                session,
-                model_id=length_slope.id,
-                length=round(abs(ln.start.y - pt.y), 2)
-            )
+            line = length_slope.line_slope_1
+            point = length_slope.point_1
+            length_slope.length = round(abs(line.start.y - point.y), 2)
         else:
-            pt1 = await PointsSlopeDAO.find_by_id(session, model_id=length_slope.point_1_id)
-            pt2 = await PointsSlopeDAO.find_by_id(session, model_id=length_slope.point_2_id)
-            await LengthSlopeDAO.update_(
-                session,
-                model_id=length_slope.id,
-                length=round(abs(pt1.y - pt2.y), 2)
-            )
+            point_1 = length_slope.point_1
+            point_2 = length_slope.point_2
+            length_slope.length = round(abs(point_1.y - point_2.y), 2)
 
     # Удаляем все старые листы (Sheets) для данного склона
     sheets_old = await SheetsDAO.find_all(session, slope_id=slope.id)
