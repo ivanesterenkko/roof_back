@@ -40,6 +40,7 @@ async def add_roof_base(
         overall_width=roof.overall_width,
         useful_width=roof.useful_width,
         overlap=roof.overlap,
+        len_wave=roof.len_wave,
         max_length=roof.max_length,
         min_length=roof.min_length,
         imp_sizes=roof.imp_sizes

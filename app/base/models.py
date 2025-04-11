@@ -30,6 +30,7 @@ class Roofs(Base):
     useful_width: Mapped[float] = mapped_column(Float, nullable=False)
     overlap: Mapped[float] = mapped_column(Float, nullable=False)
     max_length: Mapped[float] = mapped_column(Float, nullable=False)
+    len_wave: Mapped[float] = mapped_column(Float, nullable=False)
     min_length: Mapped[float] = mapped_column(Float, nullable=False)
     imp_sizes: Mapped[List[List[float]]] = mapped_column(JSON, nullable=True, default=list)
 

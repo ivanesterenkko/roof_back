@@ -8,6 +8,7 @@ class RoofRequest(BaseModel):
     overall_width: float
     useful_width: float
     overlap: float
+    len_wave: float
     max_length: float
     min_length: float
     imp_sizes: Optional[List[Tuple[float, float]]] = None
@@ -39,6 +40,7 @@ class RoofResponse(BaseModel):
     overall_width: float
     useful_width: float
     overlap: float
+    len_wave: float
     max_length: float
     min_length: float
     imp_sizes: Optional[List[Tuple[float, float]]] = None
