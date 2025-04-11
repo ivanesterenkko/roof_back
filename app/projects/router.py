@@ -724,7 +724,7 @@ async def update_line_slope(
 
     # Выбираем точку для корректировки координат:
     # Если линия имеет возрастающие координаты (по x и y), берем точку начала, иначе - конца.
-    if line_slope.start.x < line_slope.end.x and line_slope.start.y < line_slope.end.y:
+    if line_slope.start.x <= line_slope.end.x and line_slope.start.y <= line_slope.end.y:
         point = line_slope.start
         other = line_slope.end
     else:
@@ -733,26 +733,15 @@ async def update_line_slope(
 
     if line_slope.start.y == line_slope.end.y:
         # Горизонтальная линия
-        if point.id == line_slope.start_id:
-            other.x = point.x + length
-        else:
-            point.x = other.x + length
+        other.x = point.x + length
     elif line_slope.start.x == line_slope.end.x:
         # Вертикальная линия
-        if point.id == line_slope.start_id:
-            other.y = point.y + length
-        else:
-            point.y = other.y + length
+        other.y = point.y + length
     else:
         # Наклонная линия
-        if point.id == line_slope.start_id:
-            height = abs(point.y - other.y)
-            new_x = round(((length ** 2) - (height ** 2)) ** 0.5, 2)
-            other.x = point.x + new_x
-        else:
-            height = abs(point.y - other.y)
-            new_x = round(((length ** 2) - (height ** 2)) ** 0.5, 2)
-            other.x = point.x + new_x
+        height = abs(point.y - other.y)
+        new_x = round(((length ** 2) - (height ** 2)) ** 0.5, 2)
+        other.x = point.x + new_x
 
     for line in lines:
         calc_length = round(
