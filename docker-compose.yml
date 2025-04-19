@@ -46,20 +46,20 @@ services:
     command: ['/auto_app/docker/app.sh']
     ports:
       - 8000:8000
-  roof_app_dev:
-    build:
-      context: .
-      dockerfile: Dockerfile.dev
-    container_name: roof_app_dev
-    env_file:
-      - .env
-    volumes:
-      - .:/app # 💡 для live reload
-    ports:
-      - 8000:8000
-    depends_on:
-      - db
-      - redis
+  # roof_app_dev:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile.dev
+  #   container_name: roof_app_dev
+  #   env_file:
+  #     - .env
+  #   volumes:
+  #     - .:/app # 💡 для live reload
+  #   ports:
+  #     - 8000:8000
+  #   depends_on:
+  #     - db
+  #     - redis
 
   # prometheus:
   #   image: prom/prometheus:v2.43.0
