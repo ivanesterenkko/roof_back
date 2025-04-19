@@ -25,85 +25,83 @@ def roof():
     )
 
 
-@pytest.mark.asyncio
-@pytest.mark.parametrize("polygon, expected_sheet_count", [
-    (
-        Polygon([
-            (0, 4.95), 
-            (6.3, 4.95), 
-            (6.3, 0), 
-            (4.85, 0), 
-            (0, 4.95)
-        ]),
-        6
-    ),
-    (
-        Polygon([
-            (0, 0), 
-            (10.8, 0), 
-            (5.4, 6.15),
-        ]),
-        9  
-    ),
-    (
-        Polygon([
-            (0, 0), 
-            (0, 2.8), 
-            (2.3, 2.8),
-            (5.18, 6.2),
-            (7.48, 6.2),
-            (13.1, 0),
-        ]),
-        11
-    ),
-       (
-        Polygon([
-            (0, 0), 
-            (5.62, 6.2), 
-            (7.92, 6.2),
-            (10.55, 3.03),
-            (13.1, 3.03),
-            (13.1, 0),
-        ]),
-        11
-    ),
-    (
-        Polygon([
-            (0, 0), 
-            (0, 2.93), 
-            (2.55, 2.93),
-        ]),
-        3
-        # 3 - неверный результат, 2 - это правильный результат но тест падает.
-        # Хотя следующий тест такая же фигура и он работает корректно
-    ),
-     (
-        Polygon([
-            (0, 2.7), 
-            (2.3, 2.7), 
-            (2.3, 0),
-        ]),
-        2
-    ),
+# https://wiki.yandex.ru/k/tipovojj-proet/
+class TestDataset1: 
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("polygon, expected_sheets", [
         (
-        Polygon([
-            (0, 2.9), 
-            (3.42, 5.65), 
-            (6.55, 2.7),
-            (3.95, 0),
-            (2.95, 0),
-        ]),
-        6
-        # 6 - неверный результат, 7 - это правильный результат но тест падает.
-        # Есть проблемы с точностью координат
-    ),
- 
-])
-async def test_create_sheets(roof, polygon, expected_sheet_count):
-    sheets = await create_sheets(polygon, roof)
-    print(sheets)
-    assert isinstance(sheets, list)
-    if expected_sheet_count is not None:
-        assert len(sheets) == expected_sheet_count
+            Polygon([
+                (0, 0), 
+                (5.8, 6.15), 
+                (11.6, 0),
+            ]),
+            [1.710, 2.880, 4.040, 5.21, 6.15, 5.84, 4.670, 3.5, 2.34]
+        ),
+        ( 
+            Polygon([
+                (0, 0), 
+                (0, 2.8), 
+                (2.3, 2.8),
+                (5.18, 6.2),
+                (7.48, 6.2),
+                (13.1, 0),
+            ]),
+            [2.8, 2.8, 3.99, 5.29, 6.2, 6.2, 6.2, 5.86, 4.64, 3.43, 2.22]
+        ),
+        ( 
+            Polygon([
+                (0, 0), 
+                (5.62, 6.2), 
+                (7.92, 6.2),
+                (10.55, 3.03),
+                (13.1, 3.03),
+                (13.1, 0),
+            ]),
+            [2.22, 3.43, 4.64, 5.86, 6.2, 6.2, 6.2, 5.27, 3.94, 3.030, 3.030]
+        ),
+        (
+            Polygon([
+                (0, 0), 
+                (0, 2.93), 
+                (2.55, 2.93),
+            ]),
+            [2.930, 1.88]
+        ),
+        ( 
+            Polygon([
+                (0, 2.7), 
+                (2.3, 2.7), 
+                (2.3, 0),
+            ]),
+            [1.65, 2.7]
+        ),
+        ( 
+            Polygon([
+                (0, 2.9), 
+                (3.42, 5.65), 
+                (6.55, 2.7),
+                (3.95, 0),
+                (2.95, 0),
+            ]),
+            [1.37, 3.350, 5.330, 5.650, 4.970, 2.990, 1.020]
+        ),
+    ])
+    async def test_create_sheets(self, roof, polygon, expected_sheets):
+        sheets = await create_sheets(polygon, roof)
+        actual = [round(row[2], 2) for row in sheets]
 
+        expected_sorted = sorted(expected_sheets)
+        actual_sorted = sorted(actual)
 
+        tolerance = 0
+
+        diffs = [
+            (i, x, y) for i, (x, y) in enumerate(zip(expected_sorted, actual_sorted))
+            if abs(x - y) == 0
+        ]
+
+        assert not diffs, (
+            f"\n❌ Отличия в длинах листов {polygon}:" +
+            f"\nexpected: {expected_sorted}\nactual: {actual_sorted}\n"
+        )
