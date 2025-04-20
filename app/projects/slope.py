@@ -268,8 +268,9 @@ def create_figure(lines, cutouts):
     builder = GraphBuilder(lines, points)
     cycles = builder.find_all_cycles()
     figure = builder._build_polygon(cycles[0])
-    for cutout in cutouts:
-        figure = create_hole(figure, cutout)
+    if cutouts:
+        for cutout in cutouts:
+            figure = create_hole(figure, cutout)
     return figure
 
 
