@@ -694,7 +694,7 @@ async def add_slope(
         is_left = True
         if figure.covers(point):
             is_left = False
-        await SlopesDAO.update_(session, model_id==new_slope.id, is_left=is_left)
+        await SlopesDAO.update_(session, model_id=new_slope.id, is_left=is_left)
         lengths_slope = generate_slopes_length(lines=lines_slope, points=points_slope)
         existing_names_length = []
         for ls_tuple in lengths_slope:
