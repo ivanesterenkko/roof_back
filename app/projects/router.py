@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from typing import Dict, List
 from pydantic import UUID4
 from collections import Counter
+from shapely import Point
 from sqlalchemy.ext.asyncio import AsyncSession
 import asyncio
 
@@ -254,6 +255,7 @@ async def get_project(
                     id=slope_obj.id,
                     name=slope_obj.name,
                     area=slope_obj.area,
+                    is_left=slope_obj.is_left,
                     points=points_response,
                     lines=lines_slope_response,
                     length_line=length_slope_response,
@@ -357,6 +359,22 @@ async def next_step(
     if project.step + 1 > 8:
         raise ProjectStepLimit
     await ProjectsDAO.update_(session, model_id=project_id, step=project.step + 1)
+
+
+@router.patch("/projects/{project_id}/slopes/{slope_id}/direction", description="Change direction of sheets")
+async def change_direction(
+    project_id: UUID4,
+    slope_id: UUID4,
+    user: Users = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+) -> None:
+    project = await ProjectsDAO.find_by_id(session, model_id=project_id)
+    if not project or project.user_id != user.id:
+        raise ProjectNotFound
+    slope = await SlopesDAO.find_by_id(session, model_id=slope_id)
+    if not slope or slope.project_id != project_id:
+        raise SlopeNotFound
+    await SlopesDAO.update_(session, model_id=slope_id, is_left=not(slope.is_left))
 
 
 @router.post("/projects/{project_id}/add_lines", description="Add lines of sketch")
@@ -669,6 +687,14 @@ async def add_slope(
             count += 1
         lines_slope = await LinesSlopeDAO.find_all(session, slope_id=new_slope.id)
         points_slope = await PointsSlopeDAO.find_all(session, slope_id=new_slope.id)
+        lines = sorted(lines_slope, key=lambda line: line.number)
+        figure = create_figure(lines, [])
+        x_min, y_min, x_max, y_max = figure.bounds
+        point = Point(x_max, 0)
+        is_left = True
+        if figure.covers(point):
+            is_left = False
+        new_slope.is_left = is_left
         lengths_slope = generate_slopes_length(lines=lines_slope, points=points_slope)
         existing_names_length = []
         for ls_tuple in lengths_slope:
@@ -878,7 +904,7 @@ async def update_length_slope(
 
     # Получаем покрытие проекта и создаем листы покрытия на основе фигуры
     roof = await RoofsDAO.find_by_id(session, model_id=project.roof_id)
-    sheets = await create_sheets(figure=figure, roof=roof)
+    sheets = await create_sheets(figure=figure, roof=roof, is_left=slope.is_left)
     for sh in sheets:
         await SheetsDAO.add(
             session,
@@ -974,7 +1000,7 @@ async def update_point_slope(
     await SlopesDAO.update_(session, model_id=slope_id, area=area)
 
     roof = await RoofsDAO.find_by_id(session, model_id=project.roof_id)
-    sheets = await create_sheets(figure=figure, roof=roof)
+    sheets = await create_sheets(figure=figure, roof=roof, is_left=slope.is_left)
     for sh in sheets:
         await SheetsDAO.add(
             session,
@@ -1215,7 +1241,7 @@ async def add_sheets(
     area = figure.area
     await SlopesDAO.update_(session, model_id=slope_id, area=area)
     roof = await RoofsDAO.find_by_id(session, model_id=project.roof_id)
-    sheets = await create_sheets(figure=figure, roof=roof)
+    sheets = await create_sheets(figure=figure, roof=roof, is_left=slope.is_left)
     for sh in sheets:
         await SheetsDAO.add(
             session,
@@ -1237,6 +1263,7 @@ async def update_length_sheets(
     slope_id: UUID4,
     sheets_id: List[UUID4],
     length: float,
+    up: bool,
     user: Users = Depends(get_current_user),
     session: AsyncSession = Depends(get_session)
 ) -> None:
@@ -1253,15 +1280,15 @@ async def update_length_sheets(
         raise SlopeNotFound
     sheets = [await SheetsDAO.find_by_id(session, model_id=sheet_id) for sheet_id in sheets_id]
     for sheet in sheets:
-        new_length = sheet.length + length
-        if new_length <= roof.max_length:
-            await SheetsDAO.update_(
-                session,
-                model_id=sheet.id,
-                length=new_length,
-                area_overall=new_length * roof.overall_width,
-                area_usefull=new_length * roof.useful_width
-            )
+        if sheet.length + length > roof.max_length:
+            continue
+        if up:
+            sheet.length += length
+        else:
+            sheet.y_start -= length
+            sheet.length += length
+        sheet.area_overall = sheet.length * roof.overall_width,
+        sheet.area_usefull = sheet.length * roof.useful_width
 
 
 @router.patch("/projects/{project_id}/slopes/{slope_id}/offset_sheets")
@@ -1297,7 +1324,7 @@ async def offset_sheets(
     area = figure.area
     await SlopesDAO.update_(session, model_id=slope_id, area=area)
     roof = await RoofsDAO.find_by_id(session, model_id=project.roof_id)
-    sheets = await create_sheets(figure=figure, roof=roof)
+    sheets = await create_sheets(figure=figure, roof=roof, is_left=slope.is_left)
     for sh in sheets:
         await SheetsDAO.add(
             session,
