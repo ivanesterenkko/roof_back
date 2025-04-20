@@ -10,7 +10,7 @@ from shapely.prepared import prep
 from app.projects.models import  LinesSlope, PointSlope
 
 
-async def create_sheets(figure, roof):
+async def create_sheets(figure, roof, is_left):
     sheets = []
     overall_width = roof.overall_width
     delta_width = roof.overall_width - roof.useful_width
@@ -18,25 +18,21 @@ async def create_sheets(figure, roof):
     overlap = roof.overlap
     length_min = roof.min_length
     sizes = roof.imp_sizes
-    left = 1
+    left = is_left
     x_min, y_min, x_max, y_max = figure.bounds
     prepared_figure = prep(figure)
-    point = Point(x_max, 0)
-    if prepared_figure.covers(point):
-        left = 0
-
     x_positions = []
     x = x_min
     if abs(x) >= overall_width:
         m = x // abs(x)
         x = m * abs(x) % overall_width
-    if left == 1:
+    if left:
         while x < x_max:
             x_positions.append(x)
             x += overall_width
             x -= delta_width
     else:
-        while x_max > x:
+        while x_max >= x:
             x_max -= overall_width
             x_positions.append(x_max)
             x_max += delta_width

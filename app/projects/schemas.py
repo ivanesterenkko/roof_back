@@ -96,6 +96,7 @@ class SlopeResponse(BaseModel):
     id: UUID4
     name: str
     area: Optional[float] = None
+    is_left: bool
     points: Optional[list[PointSlopeResponse]] = None
     lines: Optional[list[LineSlopeResponse]] = None
     length_line: Optional[list[LengthSlopeResponse]] = None
