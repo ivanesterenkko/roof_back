@@ -44,7 +44,7 @@ app.include_router(account_router)
 app.include_router(payment_router)
 
 origins = [
-    "http://localhost:8000",
+    "http://localhost:8001",
     "http://localhost:5173",
     "https://roof-2d-editor.vercel.app"
 ]
