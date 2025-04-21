@@ -10,7 +10,7 @@ class MockRoof:
         self.max_length = kwargs.get("max_length", 8)
         self.min_length = kwargs.get("min_length", 0.5)
         self.overlap = kwargs.get("overlap", 0.35)
-        self.imp_sizes = kwargs.get("imp_sizes", [])  
+        self.imp_sizes = kwargs.get("imp_sizes", [])
 
 
 @pytest.fixture
@@ -26,22 +26,22 @@ def roof():
 
 
 # https://wiki.yandex.ru/k/tipovojj-proet/
-class TestDataset1: 
+class TestDataset1:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize("polygon, expected_sheets", [
         (
             Polygon([
-                (0, 0), 
-                (5.8, 6.15), 
+                (0, 0),
+                (5.8, 6.15),
                 (11.6, 0),
             ]),
             [1.710, 2.880, 4.040, 5.21, 6.15, 5.84, 4.670, 3.5, 2.34]
         ),
-        ( 
+        (
             Polygon([
-                (0, 0), 
-                (0, 2.8), 
+                (0, 0),
+                (0, 2.8),
                 (2.3, 2.8),
                 (5.18, 6.2),
                 (7.48, 6.2),
@@ -49,10 +49,10 @@ class TestDataset1:
             ]),
             [2.8, 2.8, 3.99, 5.29, 6.2, 6.2, 6.2, 5.86, 4.64, 3.43, 2.22]
         ),
-        ( 
+        (
             Polygon([
-                (0, 0), 
-                (5.62, 6.2), 
+                (0, 0),
+                (5.62, 6.2),
                 (7.92, 6.2),
                 (10.55, 3.03),
                 (13.1, 3.03),
@@ -62,24 +62,24 @@ class TestDataset1:
         ),
         (
             Polygon([
-                (0, 0), 
-                (0, 2.93), 
+                (0, 0),
+                (0, 2.93),
                 (2.55, 2.93),
             ]),
             [2.930, 1.88]
         ),
-        ( 
+        (
             Polygon([
-                (0, 2.7), 
-                (2.3, 2.7), 
+                (0, 2.7),
+                (2.3, 2.7),
                 (2.3, 0),
             ]),
             [1.65, 2.7]
         ),
-        ( 
+        (
             Polygon([
-                (0, 2.9), 
-                (3.42, 5.65), 
+                (0, 2.9),
+                (3.42, 5.65),
                 (6.55, 2.7),
                 (3.95, 0),
                 (2.95, 0),
@@ -88,7 +88,7 @@ class TestDataset1:
         ),
     ])
     async def test_create_sheets(self, roof, polygon, expected_sheets):
-        sheets = await create_sheets(polygon, roof)
+        sheets = create_sheets(polygon, roof)
         actual = [round(row[2], 2) for row in sheets]
 
         expected_sorted = sorted(expected_sheets)
