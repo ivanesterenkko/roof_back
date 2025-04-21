@@ -11,7 +11,7 @@ services:
     volumes:
       - postgresdata:/var/lib/postgresql/data
     ports:
-      - 5432:5432
+      - 5433:5433
 
   redis:
 
@@ -46,7 +46,7 @@ services:
       #   condition: service_started
     command: ["/auto_app/docker/app.sh"]
     ports:
-      - 8000:8000
+      - 8001:8001
 
   # prometheus:
   #   image: prom/prometheus:v2.43.0
