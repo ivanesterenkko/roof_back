@@ -36,7 +36,7 @@ from app.projects.dao import (
 )
 from app.projects.slope import (
     create_figure, create_sheets, find_slope, generate_slopes_length,
-    get_next_length_name, get_next_name
+    get_next_length_name, get_next_name, sheet_offset
 )
 from app.users.dependencies import get_current_user
 from app.users.models import Users
@@ -375,6 +375,33 @@ async def change_direction(
     if not slope or slope.project_id != project_id:
         raise SlopeNotFound
     await SlopesDAO.update_(session, model_id=slope_id, is_left=not(slope.is_left))
+    sheets_old = await SheetsDAO.find_all(session, slope_id=slope.id)
+    for sheet_old in sheets_old:
+        await SheetsDAO.delete_(session, model_id=sheet_old.id)
+    cutouts_slope = await CutoutsDAO.find_all(session, slope_id=slope_id)
+    lines = await LinesSlopeDAO.find_all(session, slope_id=slope_id)
+    lines = sorted(lines, key=lambda line: line.number)
+    cutouts = []
+    for cutout in cutouts_slope:
+        pts = await PointsCutoutsDAO.find_all(session, cutout_id=cutout.id)
+        pts = sorted(pts, key=lambda p: p.number)
+        cutout_coords = [(p.x, p.y) for p in pts]
+        cutouts.append(cutout_coords)
+    figure = create_figure(lines, cutouts)
+    area = figure.area
+    await SlopesDAO.update_(session, model_id=slope_id, area=area)
+    roof = await RoofsDAO.find_by_id(session, model_id=project.roof_id)
+    sheets = create_sheets(figure=figure, roof=roof, is_left=slope.is_left)
+    for sh in sheets:
+        await SheetsDAO.add(
+            session,
+            x_start=sh[0],
+            y_start=sh[1],
+            length=sh[2],
+            area_overall=sh[3],
+            area_usefull=sh[4],
+            slope_id=slope_id
+        )
 
 
 @router.post("/projects/{project_id}/add_lines", description="Add lines of sketch")
@@ -904,7 +931,7 @@ async def update_length_slope(
 
     # Получаем покрытие проекта и создаем листы покрытия на основе фигуры
     roof = await RoofsDAO.find_by_id(session, model_id=project.roof_id)
-    sheets = await create_sheets(figure=figure, roof=roof, is_left=slope.is_left)
+    sheets = create_sheets(figure=figure, roof=roof, is_left=slope.is_left)
     for sh in sheets:
         await SheetsDAO.add(
             session,
@@ -1000,7 +1027,7 @@ async def update_point_slope(
     await SlopesDAO.update_(session, model_id=slope_id, area=area)
 
     roof = await RoofsDAO.find_by_id(session, model_id=project.roof_id)
-    sheets = await create_sheets(figure=figure, roof=roof, is_left=slope.is_left)
+    sheets = create_sheets(figure=figure, roof=roof, is_left=slope.is_left)
     for sh in sheets:
         await SheetsDAO.add(
             session,
@@ -1241,7 +1268,7 @@ async def add_sheets(
     area = figure.area
     await SlopesDAO.update_(session, model_id=slope_id, area=area)
     roof = await RoofsDAO.find_by_id(session, model_id=project.roof_id)
-    sheets = await create_sheets(figure=figure, roof=roof, is_left=slope.is_left)
+    sheets = create_sheets(figure=figure, roof=roof, is_left=slope.is_left)
     for sh in sheets:
         await SheetsDAO.add(
             session,
@@ -1287,7 +1314,7 @@ async def update_length_sheets(
         else:
             sheet.y_start -= length
             sheet.length += length
-        sheet.area_overall = sheet.length * roof.overall_width,
+        sheet.area_overall = sheet.length * roof.overall_width
         sheet.area_usefull = sheet.length * roof.useful_width
 
 
@@ -1295,6 +1322,7 @@ async def update_length_sheets(
 async def offset_sheets(
     project_id: UUID4,
     slope_id: UUID4,
+    data: PointData,
     user: Users = Depends(get_current_user),
     session: AsyncSession = Depends(get_session)
 ) -> None:
@@ -1308,9 +1336,8 @@ async def offset_sheets(
     slope = await SlopesDAO.find_by_id(session, model_id=slope_id)
     if not slope or slope.project_id != project_id:
         raise SlopeNotFound
-    sheets_old = await SheetsDAO.find_all(session, slope_id=slope_id)
-    for sheet in sheets_old:
-        await SheetsDAO.delete_(session, model_id=sheet.id)
+    sheets = await SheetsDAO.find_all(session, slope_id=slope_id)
+    sheets = sorted(sheets, key=lambda sheet: sheet.x_start)
     cutouts_slope = await CutoutsDAO.find_all(session, slope_id=slope_id)
     lines = await LinesSlopeDAO.find_all(session, slope_id=slope_id)
     lines = sorted(lines, key=lambda line: line.number)
@@ -1324,17 +1351,63 @@ async def offset_sheets(
     area = figure.area
     await SlopesDAO.update_(session, model_id=slope_id, area=area)
     roof = await RoofsDAO.find_by_id(session, model_id=project.roof_id)
-    sheets = await create_sheets(figure=figure, roof=roof, is_left=slope.is_left)
-    for sh in sheets:
-        await SheetsDAO.add(
-            session,
-            x_start=sh[0],
-            y_start=sh[1],
-            length=sh[2],
-            area_overall=sh[3],
-            area_usefull=sh[4],
-            slope_id=slope_id
-        )
+    x_min, y_min, x_max, y_max = figure.bounds
+    x_left = sheets[0].x_start + data.x - x_min
+    x_right = x_max - sheets[-1].x_start - data.x
+    y_levels = []
+    y_min_l = y_min
+    while y_min_l <= y_max:
+        y_levels.append(y_min_l)
+        y_min_l += roof.overlap
+    for sheet in sheets:
+        y_start = sheet.y_start + data.y
+        x_start = sheet.x_start + data.x
+        length = sheet.length
+        new_sheet = sheet_offset(
+            x_start=x_start, y_start=y_start, length=length,
+            figure=figure, roof=roof, y_levels=y_levels)
+        if new_sheet[2] == 0:
+            await SheetsDAO.delete_(session, model_id=sheet.id)
+        else:
+            sheet.x_start = new_sheet[0]
+            sheet.y_start = new_sheet[1]
+            sheet.length = new_sheet[2]
+            sheet.area_overall = new_sheet[3]
+            sheet.area_usefull = new_sheet[4]
+    if x_left >= roof.overall_width - roof.useful_width:
+        y_start = y_min
+        x_start = sheets[0].x_start - roof.useful_width
+        length = 0
+        new_sheet = sheet_offset(
+            x_start=x_start, y_start=y_start, length=length,
+            figure=figure, roof=roof, y_levels=y_levels)
+        if new_sheet[2] > 0:
+            await SheetsDAO.add(
+                session,
+                x_start=new_sheet[0],
+                y_start=new_sheet[1],
+                length=new_sheet[2],
+                area_overall=new_sheet[3],
+                area_usefull=new_sheet[4],
+                slope_id=slope_id
+            )
+    if x_right >= roof.overall_width - roof.useful_width:
+        y_start = y_min
+        x_start = sheets[-1].x_start + roof.useful_width
+        length = 0
+        new_sheet = sheet_offset(
+            x_start=x_start, y_start=y_start, length=length,
+            figure=figure, roof=roof, y_levels=y_levels)
+        if new_sheet[2] > 0:
+            await SheetsDAO.add(
+                session,
+                x_start=new_sheet[0],
+                y_start=new_sheet[1],
+                length=new_sheet[2],
+                area_overall=new_sheet[3],
+                area_usefull=new_sheet[4],
+                slope_id=slope_id
+            )
 
 
 @router.patch("/projects/{project_id}/slopes/{slope_id}/overlay", description="Calculate roof sheets for slope")
@@ -1361,6 +1434,7 @@ async def update_sheets_overlay(
         result = None
         if previous_sheet is None:
             previous_sheet = sheet
+            continue
         elif previous_sheet.x_start == sheet.x_start and previous_sheet.y_start + previous_sheet.length > sheet.y_start:
             new_length = previous_sheet.length + sheet.length - roof.overlap
             if new_length <= roof.max_length:

@@ -10,7 +10,7 @@ from shapely.prepared import prep
 from app.projects.models import  LinesSlope, PointSlope
 
 
-async def create_sheets(figure, roof, is_left):
+def create_sheets(figure, roof, is_left):
     sheets = []
     overall_width = roof.overall_width
     delta_width = roof.overall_width - roof.useful_width
@@ -96,6 +96,57 @@ async def create_sheets(figure, roof, is_left):
             ])
 
     return sheets
+
+
+def sheet_offset(x_start, y_start, length, figure, roof, y_levels):
+    overall_width = roof.overall_width
+    delta_width = roof.overall_width - roof.useful_width
+    length_max = roof.max_length
+    overlap = roof.overlap
+    length_min = roof.min_length
+    sizes = roof.imp_sizes
+    prepared_figure = prep(figure)
+    x_start_use = x_start + delta_width
+    x_end = x_start + roof.useful_width
+    y_end = y_start + length_max
+    sheet_polygon = Polygon([
+        (x_start_use, y_start),
+        (x_end, y_start),
+        (x_end, y_end),
+        (x_start_use, y_end)
+    ])
+    if not prepared_figure.intersects(sheet_polygon):
+        length = -1
+    intersection = figure.intersection(sheet_polygon)
+    if intersection.is_empty:
+        length = -1
+    coords = list(intersection.bounds)
+    for y_level in y_levels:
+        if coords[1] >= y_level and coords[1] < y_level + overlap:
+            coords[1] = y_level
+            break
+    sheet_height = coords[3] - coords[1]
+    sheet_width = coords[2] - coords[0]
+    if sheet_height < overlap or sheet_width < delta_width:
+        length = -1
+    elif sheet_height < length_min:
+        coords[3] = coords[1] + length_min
+    elif sizes:
+        for size in sizes:
+            if sheet_height > size[0] and sheet_height < size[1]:
+                coords[3] = coords[1] + size[1]
+                break
+    if length == -1:
+        length = 0
+    else:
+        length = round(coords[3] - coords[1], 2)
+    return ([
+        round(x_start, 2),
+        round(coords[1], 2),
+        length,
+        round(overall_width*length, 2),
+        round(roof.useful_width*length, 2)
+            ])
 
 
 def get_next_name(existing_names: List[str]) -> str:
