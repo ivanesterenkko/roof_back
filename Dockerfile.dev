@@ -1,0 +1,16 @@
+FROM python:3.12
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+
+# Устанавливаем dev-зависимости (если есть)
+# RUN pip install -r requirements-dev.txt
+
+# Для автоматического перезапуска при изменениях
+RUN pip install "uvicorn[standard]" watchdog
+
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
