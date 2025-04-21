@@ -375,6 +375,33 @@ async def change_direction(
     if not slope or slope.project_id != project_id:
         raise SlopeNotFound
     await SlopesDAO.update_(session, model_id=slope_id, is_left=not(slope.is_left))
+    sheets_old = await SheetsDAO.find_all(session, slope_id=slope.id)
+    for sheet_old in sheets_old:
+        await SheetsDAO.delete_(session, model_id=sheet_old.id)
+    cutouts_slope = await CutoutsDAO.find_all(session, slope_id=slope_id)
+    lines = await LinesSlopeDAO.find_all(session, slope_id=slope_id)
+    lines = sorted(lines, key=lambda line: line.number)
+    cutouts = []
+    for cutout in cutouts_slope:
+        pts = await PointsCutoutsDAO.find_all(session, cutout_id=cutout.id)
+        pts = sorted(pts, key=lambda p: p.number)
+        cutout_coords = [(p.x, p.y) for p in pts]
+        cutouts.append(cutout_coords)
+    figure = create_figure(lines, cutouts)
+    area = figure.area
+    await SlopesDAO.update_(session, model_id=slope_id, area=area)
+    roof = await RoofsDAO.find_by_id(session, model_id=project.roof_id)
+    sheets = create_sheets(figure=figure, roof=roof, is_left=slope.is_left)
+    for sh in sheets:
+        await SheetsDAO.add(
+            session,
+            x_start=sh[0],
+            y_start=sh[1],
+            length=sh[2],
+            area_overall=sh[3],
+            area_usefull=sh[4],
+            slope_id=slope_id
+        )
 
 
 @router.post("/projects/{project_id}/add_lines", description="Add lines of sketch")
@@ -1287,7 +1314,7 @@ async def update_length_sheets(
         else:
             sheet.y_start -= length
             sheet.length += length
-        sheet.area_overall = sheet.length * roof.overall_width,
+        sheet.area_overall = sheet.length * roof.overall_width
         sheet.area_usefull = sheet.length * roof.useful_width
 
 

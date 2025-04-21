@@ -116,10 +116,10 @@ def sheet_offset(x_start, y_start, length, figure, roof, y_levels):
         (x_start_use, y_end)
     ])
     if not prepared_figure.intersects(sheet_polygon):
-        length = 0
+        length = -1
     intersection = figure.intersection(sheet_polygon)
     if intersection.is_empty:
-        length = 0
+        length = -1
     coords = list(intersection.bounds)
     for y_level in y_levels:
         if coords[1] >= y_level and coords[1] < y_level + overlap:
@@ -128,7 +128,7 @@ def sheet_offset(x_start, y_start, length, figure, roof, y_levels):
     sheet_height = coords[3] - coords[1]
     sheet_width = coords[2] - coords[0]
     if sheet_height < overlap or sheet_width < delta_width:
-        length = 0
+        length = -1
     elif sheet_height < length_min:
         coords[3] = coords[1] + length_min
     elif sizes:
@@ -136,7 +136,10 @@ def sheet_offset(x_start, y_start, length, figure, roof, y_levels):
             if sheet_height > size[0] and sheet_height < size[1]:
                 coords[3] = coords[1] + size[1]
                 break
-    length = round(coords[3] - coords[1], 2)
+    if length == -1:
+        length = 0
+    else:
+        length = round(coords[3] - coords[1], 2)
     return ([
         round(x_start, 2),
         round(coords[1], 2),
