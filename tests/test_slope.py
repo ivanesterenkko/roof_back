@@ -29,13 +29,14 @@ def roof():
 class TestDataset1:
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize("polygon, expected_sheets", [
+    @pytest.mark.parametrize("polygon, direction, expected_sheets", [
         (
             Polygon([
                 (0, 0),
                 (5.8, 6.15),
                 (11.6, 0),
             ]),
+            False,
             [1.710, 2.880, 4.040, 5.21, 6.15, 5.84, 4.670, 3.5, 2.34]
         ),
         (
@@ -47,6 +48,7 @@ class TestDataset1:
                 (7.48, 6.2),
                 (13.1, 0),
             ]),
+            False,
             [2.8, 2.8, 3.99, 5.29, 6.2, 6.2, 6.2, 5.86, 4.64, 3.43, 2.22]
         ),
         (
@@ -58,6 +60,7 @@ class TestDataset1:
                 (13.1, 3.03),
                 (13.1, 0),
             ]),
+            False,
             [2.22, 3.43, 4.64, 5.86, 6.2, 6.2, 6.2, 5.27, 3.94, 3.030, 3.030]
         ),
         (
@@ -66,6 +69,7 @@ class TestDataset1:
                 (0, 2.93),
                 (2.55, 2.93),
             ]),
+            False,
             [2.930, 1.88]
         ),
         (
@@ -74,6 +78,7 @@ class TestDataset1:
                 (2.3, 2.7),
                 (2.3, 0),
             ]),
+            False,
             [1.65, 2.7]
         ),
         (
@@ -84,21 +89,22 @@ class TestDataset1:
                 (3.95, 0),
                 (2.95, 0),
             ]),
+            False,
             [1.37, 3.350, 5.330, 5.650, 4.970, 2.990, 1.020]
         ),
     ])
-    async def test_create_sheets(self, roof, polygon, expected_sheets):
-        sheets = create_sheets(polygon, roof)
+    async def test_create_sheets(self, roof, polygon, direction, expected_sheets):
+        sheets = create_sheets(polygon, roof, direction)
         actual = [round(row[2], 2) for row in sheets]
 
         expected_sorted = sorted(expected_sheets)
         actual_sorted = sorted(actual)
 
-        tolerance = 0
+        tolerance = 1e-9
 
         diffs = [
             (i, x, y) for i, (x, y) in enumerate(zip(expected_sorted, actual_sorted))
-            if abs(x - y) == 0
+            if abs(x - y) > tolerance
         ]
 
         assert not diffs, (
