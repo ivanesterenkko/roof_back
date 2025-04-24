@@ -88,7 +88,7 @@ class TestDataset1:
         ),
     ])
     async def test_create_sheets(self, roof, polygon, expected_sheets):
-        sheets = create_sheets(polygon, roof)
+        sheets = create_sheets(polygon, roof, True)
         actual = [round(row[2], 2) for row in sheets]
 
         expected_sorted = sorted(expected_sheets)
@@ -98,7 +98,7 @@ class TestDataset1:
 
         diffs = [
             (i, x, y) for i, (x, y) in enumerate(zip(expected_sorted, actual_sorted))
-            if abs(x - y) == 0
+            if abs(x - y) > tolerance
         ]
 
         assert not diffs, (

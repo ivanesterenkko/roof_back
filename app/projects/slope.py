@@ -10,7 +10,7 @@ from shapely.prepared import prep
 from app.projects.models import  LinesSlope, PointSlope
 
 
-def create_sheets(figure, roof, is_left):
+def create_sheets(figure, roof, is_left, overhang):
     sheets = []
     overall_width = roof.overall_width
     delta_width = roof.overall_width - roof.useful_width
@@ -36,11 +36,12 @@ def create_sheets(figure, roof, is_left):
             x_max -= overall_width
             x_positions.append(x_max)
             x_max += delta_width
-
+    if not overhang:
+        overhang = 0
     y_positions = []
-    y = y_min
+    y = y_min - overhang
     y_levels = []
-    y_min_l = y_min
+    y_min_l = y_min - overhang
     while y_min_l <= y_max:
         y_levels.append(y_min_l)
         y_min_l += overlap
@@ -70,6 +71,8 @@ def create_sheets(figure, roof, is_left):
                 continue
 
             coords = list(intersection.bounds)
+            if coords[1] == 0:
+                coords[1] -= overhang
             for y_level in y_levels:
                 if coords[1] >= y_level and coords[1] < y_level + overlap:
                     coords[1] = y_level

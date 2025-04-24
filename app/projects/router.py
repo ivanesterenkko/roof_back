@@ -15,7 +15,7 @@ from app.base.schemas import (
 )
 from app.exceptions import (
     CutoutNotFound, ProjectAlreadyExists, ProjectNotFound, ProjectStepLimit,
-    RoofNotFound, SlopeNotFound
+    RoofNotFound, SheetNotFound, SlopeNotFound
 )
 from app.projects.draw import create_excel
 from app.projects.rotate import rotate_slope
@@ -63,6 +63,7 @@ async def get_projects(
                 name=project.name,
                 address=project.address,
                 step=project.step,
+                overhang=project.overhang,
                 datetime_created=project.datetime_created,
                 roof=RoofResponse(
                     id=roof.id,
@@ -294,6 +295,7 @@ async def get_project(
         name=project.name,
         address=project.address,
         step=project.step,
+        overhang=project.overhang,
         datetime_created=project.datetime_created,
         roof=RoofResponse(
             id=roof.id,
@@ -361,6 +363,49 @@ async def next_step(
     await ProjectsDAO.update_(session, model_id=project_id, step=project.step + 1)
 
 
+@router.patch("/projects/{project_id}/overhang", description="Overhang")
+async def create_overhang(
+    project_id: UUID4,
+    overhang: float,
+    user: Users = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+) -> None:
+    project = await ProjectsDAO.find_by_id(session, model_id=project_id)
+    if not project or project.user_id != user.id:
+        raise ProjectNotFound
+    await ProjectsDAO.update_(session, model_id=project_id, overhang=overhang)
+    slopes = await SlopesDAO.find_all(session, project_id=project.id)
+    roof = await RoofsDAO.find_by_id(session, model_id=project.roof_id)
+    if slopes:
+        for slope in slopes:
+            sheets = await SheetsDAO.find_all(session, slope_id=slope.id)
+            if sheets:
+                for sheet in sheets:
+                    await SheetsDAO.delete_(session, model_id=sheet.id)
+            cutouts_slope = await CutoutsDAO.find_all(session, slope_id=slope.id)
+            lines = await LinesSlopeDAO.find_all(session, slope_id=slope.id)
+            lines = sorted(lines, key=lambda line: line.number)
+            cutouts = []
+            for cutout in cutouts_slope:
+                pts = await PointsCutoutsDAO.find_all(session, cutout_id=cutout.id)
+                pts = sorted(pts, key=lambda p: p.number)
+                cutout_coords = [(p.x, p.y) for p in pts]
+                cutouts.append(cutout_coords)
+            figure = create_figure(lines, cutouts)
+            sheets = create_sheets(figure=figure, roof=roof, is_left=slope.is_left, overhang=project.overhang)
+            for sh in sheets:
+                await SheetsDAO.add(
+                    session,
+                    x_start=sh[0],
+                    y_start=sh[1],
+                    length=sh[2],
+                    area_overall=sh[3],
+                    area_usefull=sh[4],
+                    slope_id=slope.id
+                )
+
+
+
 @router.patch("/projects/{project_id}/slopes/{slope_id}/direction", description="Change direction of sheets")
 async def change_direction(
     project_id: UUID4,
@@ -391,7 +436,7 @@ async def change_direction(
     area = figure.area
     await SlopesDAO.update_(session, model_id=slope_id, area=area)
     roof = await RoofsDAO.find_by_id(session, model_id=project.roof_id)
-    sheets = create_sheets(figure=figure, roof=roof, is_left=slope.is_left)
+    sheets = create_sheets(figure=figure, roof=roof, is_left=slope.is_left, overhang=project.overhang)
     for sh in sheets:
         await SheetsDAO.add(
             session,
@@ -931,7 +976,7 @@ async def update_length_slope(
 
     # Получаем покрытие проекта и создаем листы покрытия на основе фигуры
     roof = await RoofsDAO.find_by_id(session, model_id=project.roof_id)
-    sheets = create_sheets(figure=figure, roof=roof, is_left=slope.is_left)
+    sheets = create_sheets(figure=figure, roof=roof, is_left=slope.is_left, overhang=project.overhang)
     for sh in sheets:
         await SheetsDAO.add(
             session,
@@ -1027,7 +1072,7 @@ async def update_point_slope(
     await SlopesDAO.update_(session, model_id=slope_id, area=area)
 
     roof = await RoofsDAO.find_by_id(session, model_id=project.roof_id)
-    sheets = create_sheets(figure=figure, roof=roof, is_left=slope.is_left)
+    sheets = create_sheets(figure=figure, roof=roof, is_left=slope.is_left, overhang=project.overhang)
     for sh in sheets:
         await SheetsDAO.add(
             session,
@@ -1268,7 +1313,7 @@ async def add_sheets(
     area = figure.area
     await SlopesDAO.update_(session, model_id=slope_id, area=area)
     roof = await RoofsDAO.find_by_id(session, model_id=project.roof_id)
-    sheets = create_sheets(figure=figure, roof=roof, is_left=slope.is_left)
+    sheets = create_sheets(figure=figure, roof=roof, is_left=slope.is_left, overhang=project.overhang)
     for sh in sheets:
         await SheetsDAO.add(
             session,
