@@ -101,7 +101,7 @@ def create_sheets(figure, roof, is_left, overhang):
     return sheets
 
 
-def sheet_offset(x_start, y_start, length, figure, roof, x, overhang):
+def sheet_offset(x_start, y_start, length, figure, roof, y_levels, overhang):
     overall_width = roof.overall_width
     delta_width = roof.overall_width - roof.useful_width
     length_max = roof.max_length
