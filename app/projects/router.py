@@ -1399,8 +1399,12 @@ async def offset_sheets(
     x_min, y_min, x_max, y_max = figure.bounds
     x_left = sheets[0].x_start + data.x - x_min
     x_right = x_max - sheets[-1].x_start - data.x
+    if not project.overhang:
+        overhang = 0
+    else:
+        overhang = project.overhang
     y_levels = []
-    y_min_l = y_min
+    y_min_l = y_min - overhang
     while y_min_l <= y_max:
         y_levels.append(y_min_l)
         y_min_l += roof.overlap
@@ -1410,7 +1414,7 @@ async def offset_sheets(
         length = sheet.length
         new_sheet = sheet_offset(
             x_start=x_start, y_start=y_start, length=length,
-            figure=figure, roof=roof, y_levels=y_levels)
+            figure=figure, roof=roof, y_levels=y_levels, overhang=overhang)
         if new_sheet[2] == 0:
             await SheetsDAO.delete_(session, model_id=sheet.id)
         else:
@@ -1425,7 +1429,7 @@ async def offset_sheets(
         length = 0
         new_sheet = sheet_offset(
             x_start=x_start, y_start=y_start, length=length,
-            figure=figure, roof=roof, y_levels=y_levels)
+            figure=figure, roof=roof, y_levels=y_levels, overhang=overhang)
         if new_sheet[2] > 0:
             await SheetsDAO.add(
                 session,
@@ -1442,7 +1446,7 @@ async def offset_sheets(
         length = 0
         new_sheet = sheet_offset(
             x_start=x_start, y_start=y_start, length=length,
-            figure=figure, roof=roof, y_levels=y_levels)
+            figure=figure, roof=roof, y_levels=y_levels, overhang=overhang)
         if new_sheet[2] > 0:
             await SheetsDAO.add(
                 session,

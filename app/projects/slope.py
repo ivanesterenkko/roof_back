@@ -101,7 +101,7 @@ def create_sheets(figure, roof, is_left, overhang):
     return sheets
 
 
-def sheet_offset(x_start, y_start, length, figure, roof, y_levels):
+def sheet_offset(x_start, y_start, length, figure, roof, x, overhang):
     overall_width = roof.overall_width
     delta_width = roof.overall_width - roof.useful_width
     length_max = roof.max_length
@@ -118,12 +118,16 @@ def sheet_offset(x_start, y_start, length, figure, roof, y_levels):
         (x_end, y_end),
         (x_start_use, y_end)
     ])
+    if not overhang:
+        overhang = 0
     if not prepared_figure.intersects(sheet_polygon):
         length = -1
     intersection = figure.intersection(sheet_polygon)
     if intersection.is_empty:
         length = -1
     coords = list(intersection.bounds)
+    if coords[1] == 0:
+        coords[1] -= overhang
     for y_level in y_levels:
         if coords[1] >= y_level and coords[1] < y_level + overlap:
             coords[1] = y_level
