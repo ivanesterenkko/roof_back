@@ -14,6 +14,7 @@ class Projects(Base):
     name: Mapped[str] = mapped_column(String, nullable=False)
     address: Mapped[str] = mapped_column(String, nullable=False)
     step: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    overhang: Mapped[float] = mapped_column(Float, nullable=True)
     datetime_created: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
 
     user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
