@@ -29,7 +29,7 @@ class AboutResponse(BaseModel):
     name: str
     address: str
     step: int
-    ovarhang: Optional[float] = None
+    overhang: Optional[float] = None
     datetime_created: datetime
     roof: RoofResponse
 
