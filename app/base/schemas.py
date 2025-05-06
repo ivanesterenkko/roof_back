@@ -18,9 +18,6 @@ class AccessoryBDRequest(BaseModel):
     name: str
     type: str
     parent_type: str
-    price: int
-    length: float
-    overlap: float
 
 
 class AccessoryBDResponse(BaseModel):
@@ -28,9 +25,6 @@ class AccessoryBDResponse(BaseModel):
     name: str
     type: str
     parent_type: str
-    price: int
-    length: float
-    overlap: float
 
 
 class RoofResponse(BaseModel):

@@ -1538,14 +1538,14 @@ async def add_accessory(
     lines = await asyncio.gather(*[LinesDAO.find_by_id(session, model_id=line_id) for line_id in accessory.lines_id])
     lines_length = sum(line.length for line in lines)
     accessory_base = await Accessory_baseDAO.find_by_id(session, model_id=accessory.accessory_id)
-    quantity = lines_length // accessory_base.length
-    if lines_length % accessory_base.length > accessory_base.overlap:
-        quantity += 1
+    # quantity = lines_length // accessory_base.length
+    # if lines_length % accessory_base.length > accessory_base.overlap:
+    #     quantity += 1
     await AccessoriesDAO.add(
         session,
         lines_id=accessory.lines_id,
         lines_length=lines_length,
-        quantity=quantity,
+        quantity=1,
         accessory_base_id=accessory.accessory_id,
         project_id=project_id
     )
@@ -1571,15 +1571,15 @@ async def update_accessory(
     lines = await asyncio.gather(*[LinesDAO.find_by_id(session, model_id=line_id) for line_id in accessory.lines_id])
     lines_length = sum(line.length for line in lines)
     accessory_base = await Accessory_baseDAO.find_by_id(session, model_id=accessory.accessory_id)
-    quantity = lines_length // accessory_base.length
-    if lines_length % accessory_base.length > accessory_base.overlap:
-        quantity += 1
+    # quantity = lines_length // accessory_base.length
+    # if lines_length % accessory_base.length > accessory_base.overlap:
+    #     quantity += 1
     await AccessoriesDAO.update_(
         session,
         model_id=accessory_id,
         lines_id=accessory.lines_id,
         lines_length=lines_length,
-        quantity=quantity,
+        quantity=1,
         accessory_base_id=accessory.accessory_id,
         project_id=project_id
     )

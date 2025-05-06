@@ -115,10 +115,7 @@ async def add_accessories_base(
         session,
         name=accessory.name,
         type=accessory.type,
-        parent_type=accessory.parent_type,
-        price=accessory.price,
-        overlap=accessory.overlap,
-        length=accessory.length
+        parent_type=accessory.parent_type
     )
     return {"accessory_id": new_accessory.id}
 
@@ -145,9 +142,6 @@ async def get_accessories_base(
             name=acc.name,
             type=acc.type,
             parent_type=acc.parent_type,
-            price=acc.price,
-            overlap=acc.overlap,
-            length=acc.length
         )
         for acc in accessories
     ]

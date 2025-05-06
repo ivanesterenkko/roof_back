@@ -13,9 +13,9 @@ class AccessoriesBD(Base):
     name: Mapped[str] = mapped_column(String, nullable=False)
     type: Mapped[str] = mapped_column(String, nullable=False)
     parent_type: Mapped[str] = mapped_column(String, nullable=False)
-    length: Mapped[float] = mapped_column(Float, nullable=False)
+    length: Mapped[float] = mapped_column(Float, nullable=True)
     overlap: Mapped[float] = mapped_column(Float, nullable=True)
-    price: Mapped[int] = mapped_column(Integer, nullable=False)
+    price: Mapped[int] = mapped_column(Integer, nullable=True)
 
     accessories = relationship("Accessories", back_populates="accessory_base", cascade="all, delete-orphan")
 
