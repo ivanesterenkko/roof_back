@@ -1408,8 +1408,11 @@ async def offset_sheets(
     while y_min_l <= y_max:
         y_levels.append(y_min_l)
         y_min_l += roof.overlap
+    prev_position = 0
     for sheet in sheets:
-        y_start = sheet.y_start + data.y
+        if prev_position >= y_max:
+            prev_position = 0
+        y_start = prev_position + data.y
         x_start = sheet.x_start + data.x
         length = sheet.length
         new_sheet = sheet_offset(
@@ -1423,6 +1426,7 @@ async def offset_sheets(
             sheet.length = new_sheet[2]
             sheet.area_overall = new_sheet[3]
             sheet.area_usefull = new_sheet[4]
+            prev_position = new_sheet[1] + next[2]
     if x_left >= roof.overall_width - roof.useful_width:
         y_start = y_min
         x_start = sheets[0].x_start - roof.useful_width
