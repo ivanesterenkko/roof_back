@@ -1426,7 +1426,7 @@ async def offset_sheets(
             sheet.length = new_sheet[2]
             sheet.area_overall = new_sheet[3]
             sheet.area_usefull = new_sheet[4]
-            prev_position = new_sheet[1] + next[2]
+            prev_position = new_sheet[1] + new_sheet[2]
     if x_left >= roof.overall_width - roof.useful_width:
         y_start = y_min
         x_start = sheets[0].x_start - roof.useful_width
