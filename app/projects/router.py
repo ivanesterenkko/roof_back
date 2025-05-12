@@ -1276,9 +1276,11 @@ async def add_sheet(
     if not slope or slope.project_id != project_id:
         raise SlopeNotFound
     sheet = await SheetsDAO.find_by_id(session, model_id=sheet_id)
-    if sheet.length <= roof.max_length:
+    if sheet.length <= roof.max_length or sheet.length >= roof.min_length:
         new_length_1 = roof.overlap + roof.overlap
         new_length_2 = sheet.length - roof.overlap
+        if new_length_2 < roof.min_length:
+            new_length_2 = roof.min_length
     if is_down:
         await SheetsDAO.add(
             session,
@@ -1292,14 +1294,14 @@ async def add_sheet(
         await SheetsDAO.update_(
             session,
             model_id=sheet.id,
-            y_start=sheet.length - new_length_2,
+            y_start=sheet.y_start + sheet.length - new_length_2,
             length=new_length_2
         )
     else:
         await SheetsDAO.add(
             session,
             x_start=sheet.x_start,
-            y_start=sheet.length - new_length_1,
+            y_start=sheet.y_start + sheet.length - new_length_1,
             length=new_length_1,
             area_overall=new_length_1 * roof.overall_width,
             area_usefull=new_length_1 * roof.useful_width,
@@ -1391,7 +1393,7 @@ async def update_length_sheets(
         raise SlopeNotFound
     sheets = [await SheetsDAO.find_by_id(session, model_id=sheet_id) for sheet_id in sheets_id]
     for sheet in sheets:
-        if sheet.length + length > roof.max_length:
+        if sheet.length + length > roof.max_length or sheet.length + length < roof.min_length:
             continue
         if up:
             sheet.length += length
@@ -1421,7 +1423,10 @@ async def offset_sheets(
     if not slope or slope.project_id != project_id:
         raise SlopeNotFound
     sheets = await SheetsDAO.find_all(session, slope_id=slope_id)
-    sheets = sorted(sheets, key=lambda sheet: sheet.x_start)
+    sheets = sorted(
+        sheets,
+        key=lambda s: (s.x_start, s.y_start)
+    )
     cutouts_slope = await CutoutsDAO.find_all(session, slope_id=slope_id)
     lines = await LinesSlopeDAO.find_all(session, slope_id=slope_id)
     lines = sorted(lines, key=lambda line: line.number)
@@ -1483,6 +1488,11 @@ async def offset_sheets(
                 area_usefull=new_sheet[4],
                 slope_id=slope_id
             )
+    sheets = await SheetsDAO.find_all(session, slope_id=slope_id)
+    sheets = sorted(
+        sheets,
+        key=lambda s: (s.x_start, s.y_start)
+    )
     if x_right >= roof.overall_width - roof.useful_width:
         y_start = y_min
         x_start = sheets[-1].x_start + roof.useful_width
@@ -1521,21 +1531,34 @@ async def update_sheets_overlay(
         raise SlopeNotFound
     roof = await RoofsDAO.find_by_id(session, model_id=project.roof_id)
     sheets = await SheetsDAO.find_all(session, slope_id=slope_id)
+    sheets = sorted(
+        sheets,
+        key=lambda s: (s.x_start, s.y_start)
+    )
     previous_sheet = None
     for sheet in sheets:
-        result = None
         if previous_sheet is None:
             previous_sheet = sheet
             continue
-        elif previous_sheet.x_start == sheet.x_start and previous_sheet.y_start + previous_sheet.length > sheet.y_start:
-            new_length = previous_sheet.length + sheet.length - roof.overlap
+        # оба листа начинаются в одной точке по X
+        if previous_sheet.x_start == sheet.x_start:
+            # пересекаются ли они по Y?
+            overlap_amount = max(
+                0,
+                (previous_sheet.y_start + previous_sheet.length) - sheet.y_start
+            )
+            # если есть перекрытие, объединяем длины, убирая зону overlap
+            new_length = previous_sheet.length + sheet.length - overlap_amount
+            # не превышаем лимит по длине листа
             if new_length <= roof.max_length:
-                result = await SheetsDAO.update_(session, model_id=previous_sheet.id, length=new_length)
+                # обновляем предыдущий лист, удаляем текущий
+                await SheetsDAO.update_(session, model_id=previous_sheet.id, length=new_length)
                 await SheetsDAO.delete_(session, model_id=sheet.id)
-        if result is None:
-            previous_sheet = sheet
-        else:
-            previous_sheet = result
+                # previous_sheet остаётся тем же — но с удлинённой длиной
+                continue
+
+        # если не объединили, двигаем previous_sheet на текущий
+        previous_sheet = sheet
 
 
 # -------------------- Accessories, Materials and Estimate --------------------
