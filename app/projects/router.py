@@ -15,7 +15,7 @@ from app.base.schemas import (
 )
 from app.exceptions import (
     CutoutNotFound, ProjectAlreadyExists, ProjectNotFound, ProjectStepLimit,
-    RoofNotFound, SheetNotFound, SlopeNotFound
+    RoofNotFound, SheetNotFound, SheetTooShortNotFound, SlopeNotFound
 )
 from app.projects.draw import create_excel
 from app.projects.rotate import rotate_slope
@@ -1276,11 +1276,11 @@ async def add_sheet(
     if not slope or slope.project_id != project_id:
         raise SlopeNotFound
     sheet = await SheetsDAO.find_by_id(session, model_id=sheet_id)
+    if sheet.length - roof.overlap < roof.min_length:
+        raise SheetTooShortNotFound
     if sheet.length <= roof.max_length or sheet.length >= roof.min_length:
         new_length_1 = roof.overlap + roof.overlap
         new_length_2 = sheet.length - roof.overlap
-        if new_length_2 < roof.min_length:
-            new_length_2 = roof.min_length
     if is_down:
         await SheetsDAO.add(
             session,

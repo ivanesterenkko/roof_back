@@ -23,6 +23,12 @@ class SheetNotFound(AutoException):
     detail = "Лист кровли не найден."
 
 
+class SheetTooShortNotFound(AutoException):
+
+    status_code = status.HTTP_400_BAD_REQUEST
+    detail = "Лист не может быть короче минимальной длины."
+
+
 class LinesNotFound(AutoException):
 
     status_code = status.HTTP_400_BAD_REQUEST
