@@ -1452,25 +1452,37 @@ async def offset_sheets(
     while y_min_l <= y_max:
         y_levels.append(y_min_l)
         y_min_l += roof.overlap
-    prev_position = 0
+    prev_position = None
     for sheet in sheets:
-        if prev_position >= y_max:
-            prev_position = 0
-        y_start = prev_position + data.y
-        x_start = sheet.x_start + data.x
+        if prev_position is None:
+            prev_position = [sheet.x_start + data.x, sheet.y_start + data.y]
+        elif prev_position[0] != round(sheet.x_start + data.y, 3):
+            prev_position[0] = round(sheet.x_start + data.x, 3)
+            prev_position[1] = round(sheet.y_start + data.y, 3)
+        print(prev_position)
+        print(sheet.x_start, sheet.y_start)
+        y_start = round(prev_position[1] - roof.overlap, 3)
+        x_start = prev_position[0]
         length = sheet.length
         new_sheet = sheet_offset(
             x_start=x_start, y_start=y_start, length=length,
             figure=figure, roof=roof, y_levels=y_levels, overhang=overhang)
+        print(y_start, x_start, length, new_sheet[2])
         if new_sheet[2] == 0:
             await SheetsDAO.delete_(session, model_id=sheet.id)
         else:
-            sheet.x_start = new_sheet[0]
-            sheet.y_start = new_sheet[1]
-            sheet.length = new_sheet[2]
-            sheet.area_overall = new_sheet[3]
-            sheet.area_usefull = new_sheet[4]
-            prev_position = new_sheet[1] + new_sheet[2]
+            sheet.x_start = round(new_sheet[0], 3)
+            sheet.y_start = round(new_sheet[1], 3)
+            sheet.length = round(new_sheet[2], 3)
+            sheet.area_overall = round(new_sheet[3], 3)
+            sheet.area_usefull = round(new_sheet[4], 3)
+            prev_position[1] = round(new_sheet[1] + new_sheet[2] - roof.overlap, 3)
+            prev_position[0] = round(new_sheet[0], 3)
+    sheets = await SheetsDAO.find_all(session, slope_id=slope_id)
+    sheets = sorted(
+        sheets,
+        key=lambda s: (s.x_start, s.y_start)
+    )
     if x_left >= roof.overall_width - roof.useful_width:
         y_start = y_min
         x_start = sheets[0].x_start - roof.useful_width
@@ -1481,18 +1493,13 @@ async def offset_sheets(
         if new_sheet[2] > 0:
             await SheetsDAO.add(
                 session,
-                x_start=new_sheet[0],
-                y_start=new_sheet[1],
-                length=new_sheet[2],
-                area_overall=new_sheet[3],
-                area_usefull=new_sheet[4],
+                x_start=round(new_sheet[0], 3),
+                y_start=round(new_sheet[1], 3),
+                length=round(new_sheet[2], 3),
+                area_overall=round(new_sheet[3], 3),
+                area_usefull=round(new_sheet[4], 3),
                 slope_id=slope_id
             )
-    sheets = await SheetsDAO.find_all(session, slope_id=slope_id)
-    sheets = sorted(
-        sheets,
-        key=lambda s: (s.x_start, s.y_start)
-    )
     if x_right >= roof.overall_width - roof.useful_width:
         y_start = y_min
         x_start = sheets[-1].x_start + roof.useful_width
@@ -1503,11 +1510,11 @@ async def offset_sheets(
         if new_sheet[2] > 0:
             await SheetsDAO.add(
                 session,
-                x_start=new_sheet[0],
-                y_start=new_sheet[1],
-                length=new_sheet[2],
-                area_overall=new_sheet[3],
-                area_usefull=new_sheet[4],
+                x_start=round(new_sheet[0], 3),
+                y_start=round(new_sheet[1], 3),
+                length=round(new_sheet[2], 3),
+                area_overall=round(new_sheet[3], 3),
+                area_usefull=round(new_sheet[4], 3),
                 slope_id=slope_id
             )
 
