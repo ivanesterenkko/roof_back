@@ -143,14 +143,14 @@ async def get_project(
                     line_1 = await LinesDAO.find_by_id(session, model_id=length_line.line_slope_1.parent_id)
                     line_2 = await LinesDAO.find_by_id(session, model_id=length_line.line_slope_2.parent_id)
                     if line_1.start.x == line_1.end.x:
-                        y_ar = abs(line_1.start.y - line_1.end.y) / 2
-                        y_ar = line_1.end.y + y_ar if line_1.start.y > line_1.end.y else line_1.start.y + y_ar
+                        y_ar = abs(line_2.start.y - line_2.end.y) / 2
+                        y_ar = line_2.end.y + y_ar if line_2.start.y > line_2.end.y else line_2.start.y + y_ar
                         length_slope_response.append(
                             LengthSlopeResponse(
                                 id=length_line.id,
                                 name=length_line.name,
-                                start=PointData(x=line_1.start.x, y=y_ar),
-                                end=PointData(x=line_2.start.x, y=y_ar),
+                                start=PointData(x=line_2.start.x, y=y_ar),
+                                end=PointData(x=line_1.start.x, y=y_ar),
                                 type=length_line.type,
                                 point_1_id=length_line.point_1_id,
                                 point_2_id=length_line.point_2_id,
@@ -160,14 +160,14 @@ async def get_project(
                             )
                         )
                     else:
-                        x_ar = abs(line_1.start.x - line_1.end.x) / 2
-                        x_ar = line_1.end.x + x_ar if line_1.start.x > line_1.end.x else line_1.start.x + x_ar
+                        x_ar = abs(line_2.start.x - line_2.end.x) / 2
+                        x_ar = line_2.end.x + x_ar if line_2.start.x > line_2.end.x else line_2.start.x + x_ar
                         length_slope_response.append(
                             LengthSlopeResponse(
                                 id=length_line.id,
                                 name=length_line.name,
-                                start=PointData(x=x_ar, y=line_1.start.y),
-                                end=PointData(x=x_ar, y=line_2.start.y),
+                                start=PointData(x=x_ar, y=line_2.start.y),
+                                end=PointData(x=x_ar, y=line_1.start.y),
                                 type=length_line.type,
                                 point_1_id=length_line.point_1_id,
                                 point_2_id=length_line.point_2_id,
