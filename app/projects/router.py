@@ -529,177 +529,216 @@ async def add_sizes(
     user: Users = Depends(get_current_user),
     session: AsyncSession = Depends(get_session)
 ) -> None:
+    print(f"▶▶▶ add_sizes called: project={project_id}, slope={slope_id}")
+
+    # Проверка прав
     project = await ProjectsDAO.find_by_id(session, model_id=project_id)
     if not project or project.user_id != user.id:
         raise ProjectNotFound
     slope = await SlopesDAO.find_by_id(session, model_id=slope_id)
     if not slope or slope.project_id != project_id:
         raise SlopeNotFound
-    lines_data = {}
-    lines_data_or = {}
-    for line_d in data.lines:
-        lines_data[line_d.id] = line_d.length
-        lines_data_or[line_d.id] = line_d.length
+    print("▶▶▶ Permissions validated")
+
+    # 1) Сбор входных длин
+    lines_data = {ln.id: ln.length for ln in data.lines}
+    lines_data_or = lines_data.copy()
+    print(f"▶▶▶ Initial lines_data: {lines_data}")
+
+    # 2) Обновление LengthSlope и начальные Y-сдвиги
     for length_line_d in data.length_line:
-        id = length_line_d.id
+        length_id = length_line_d.id
         length = length_line_d.length
-        await LengthSlopeDAO.update_(session, model_id=id, length=length)
-        length_slope = await LengthSlopeDAO.find_by_id(session, model_id=id)
-        if length_slope.type == 0:
-            line = await LinesSlopeDAO.find_by_id(session, model_id=length_slope.line_slope_2_id)
-            await PointsSlopeDAO.update_(session, model_id=line.start_id, y=length)
-            await PointsSlopeDAO.update_(session, model_id=line.end_id, y=length)
-        elif length_slope.type == 1:
-            await PointsSlopeDAO.update_(session, model_id=length_slope.point_1_id, y=length)
+        print(f"▶ Updating LengthSlope {length_id} -> {length}")
+        await LengthSlopeDAO.update_(session, model_id=length_id, length=length)
+        ls = await LengthSlopeDAO.find_by_id(session, model_id=length_id)
+        print(f"   type={ls.type}")
+        if ls.type == 0:
+            print(f"   vertical shift for line {ls.line_slope_2_id}")
+            line = await LinesSlopeDAO.find_by_id(session, model_id=ls.line_slope_2_id)
+            for pid in (line.start_id, line.end_id):
+                await PointsSlopeDAO.update_(session, model_id=pid, y=length)
+                p = await PointsSlopeDAO.find_by_id(session, model_id=pid)
+                print(f"   {p.id}: {p.x} {p.y}")
+        elif ls.type == 1:
+            print(f"   diagonal shift for pt {ls.point_1_id}")
+            await PointsSlopeDAO.update_(session, model_id=ls.point_1_id, y=length)
+            p = await PointsSlopeDAO.find_by_id(session, model_id=ls.point_1_id)
+            print(f"   {p.id}: {p.x} {p.y}")
         else:
-            await PointsSlopeDAO.update_(session, model_id=length_slope.point_2_id, y=length)
+            print(f"   horizontal shift for pt {ls.point_2_id}")
+            await PointsSlopeDAO.update_(session, model_id=ls.point_2_id, y=length)
+            p = await PointsSlopeDAO.find_by_id(session, model_id=ls.point_2_id)
+            print(f"   {p.id}: {p.x} {p.y}")
+
+    # 3) Загрузка текущих точек и линий
     points = await PointsSlopeDAO.find_all(session, slope_id=slope_id)
-    points_y = sorted(points, key=lambda point: point.y)
-    points_x = sorted(points, key=lambda point: point.x)
-    points_id = [point.id for point in points_x]
-    points_y_id = [point.id for point in points_y]
-    lines_v, lines_g, lines_n = [], [], []
+    print("▶ Loaded points:")
+    for pt in points:
+        print(f"   {pt.id}: {pt.x} {pt.y}")
+    points_y = sorted(points, key=lambda p: p.y)
+    points_x = sorted(points, key=lambda p: p.x)
+    points_id = [p.id for p in points_x]
+    points_y_id = [p.id for p in points_y]
+
     lines = await LinesSlopeDAO.find_all(session, slope_id=slope_id)
-    lines_on_point: Dict[UUID4, List[UUID4]] = {}
-    lines_v_on_point: Dict[UUID4, List[UUID4]] = {}
-    lines_g_on_point: Dict[UUID4, List[UUID4]] = {}
-    lines_n_on_point: Dict[UUID4, List[UUID4]] = {}
-    for line in lines:
-        if line.start.x == line.end.x:
-            lines_v.append(line)
-            lines_v_on_point.setdefault(line.start_id, []).append(line.id)
-            lines_v_on_point.setdefault(line.end_id, []).append(line.id)
-        elif line.start.y == line.end.y:
-            lines_g.append(line)
-            lines_g_on_point.setdefault(line.start_id, []).append(line.id)
-            lines_g_on_point.setdefault(line.end_id, []).append(line.id)
+    print(f"▶ Loaded lines: {[l.id for l in lines]}")
+    lines_on_point = {}
+    lines_v_on_point = {}
+    lines_g_on_point = {}
+    lines_n_on_point = {}
+    lines_n = 0
+    for ln in lines:
+        if ln.start.x == ln.end.x:
+            lines_v_on_point.setdefault(ln.start_id, []).append(ln.id)
+            lines_v_on_point.setdefault(ln.end_id, []).append(ln.id)
+        elif ln.start.y == ln.end.y:
+            lines_g_on_point.setdefault(ln.start_id, []).append(ln.id)
+            lines_g_on_point.setdefault(ln.end_id, []).append(ln.id)
         else:
-            lines_n.append(line)
-            lines_n_on_point.setdefault(line.start_id, []).append(line.id)
-            lines_n_on_point.setdefault(line.end_id, []).append(line.id)
-        lines_on_point.setdefault(line.start_id, []).append(line.id)
-        lines_on_point.setdefault(line.end_id, []).append(line.id)
-    for point_id in points_y_id:
-        if point_id in lines_v_on_point:
-            for line_id in lines_v_on_point[point_id]:
-                if line_id in lines_data:
-                    length = lines_data.pop(line_id, None)
-                else:
-                    continue
-                line = await LinesSlopeDAO.find_by_id(session, model_id=line_id)
-                if line.start.y < line.end.y:
-                    point_n_id = line.end_id
-                    if point_n_id in lines_g_on_point:
-                        line_g = await LinesSlopeDAO.find_by_id(session, model_id=lines_g_on_point[point_n_id][0])
-                        await PointsSlopeDAO.update_(session, model_id=line_g.end_id, y=round(line.start.y + length, 3))
-                        await PointsSlopeDAO.update_(session, model_id=line_g.start_id, y=round(line.start.y + length, 3))
-                    if point_n_id in lines_n_on_point:
-                        line_n = await LinesSlopeDAO.find_by_id(session, model_id=lines_n_on_point[point_n_id][0])
-                        if line_n.end_id < line_n.start_id:
-                            await PointsSlopeDAO.update_(session, model_id=line_n.end_id, y=round(line.start.y + length, 3))
-                        else:
-                            await PointsSlopeDAO.update_(session, model_id=line_n.start_id, y=round(line.start.y + length, 3))
-                else:
-                    point_n_id = line.start_id
-                    if point_n_id in lines_g_on_point:
-                        line_g = await LinesSlopeDAO.find_by_id(session, model_id=lines_g_on_point[point_n_id][0])
-                        await PointsSlopeDAO.update_(session, model_id=line_g.end_id, y=round(line.end.y + length, 3))
-                        await PointsSlopeDAO.update_(session, model_id=line_g.start_id, y=round(line.end.y + length, 3))
-                    if point_n_id in lines_n_on_point:
-                        line_n = await LinesSlopeDAO.find_by_id(session, model_id=lines_n_on_point[point_n_id][0])
-                        if line_n.end_id < line_n.start_id:
-                            await PointsSlopeDAO.update_(session, model_id=line_n.end_id, y=round(line.end.y + length, 3))
-                        else:
-                            await PointsSlopeDAO.update_(session, model_id=line_n.start_id, y=round(line.end.y + length, 3))
-    for point_id in points_id:
-        for line_id in lines_on_point[point_id]:
+            lines_n_on_point.setdefault(ln.start_id, []).append(ln.id)
+            lines_n_on_point.setdefault(ln.end_id, []).append(ln.id)
+        lines_on_point.setdefault(ln.start_id, []).append(ln.id)
+        lines_on_point.setdefault(ln.end_id, []).append(ln.id)
+    print(f"▶ Classification: V={list(lines_v_on_point.keys())}, G={list(lines_g_on_point.keys())}, N={list(lines_n_on_point.keys())}")
+
+    # 4) Вертикальные сдвиги
+    for pt_id in points_y_id:
+        print(f"▶ Vertical shift at point {pt_id}")
+        for line_id in lines_v_on_point.get(pt_id, []):
+            if line_id not in lines_data:
+                continue
+            length = lines_data.pop(line_id)
             line = await LinesSlopeDAO.find_by_id(session, model_id=line_id)
-            if len(lines_data) == 0:
-                point_max = point_id
-            if line_id in lines_data:
-                length = lines_data.pop(line_id, None)
-            else:
+            base_y = min(line.start.y, line.end.y)
+            point_n_id = line.end_id if line.start.y < line.end.y else line.start_id
+            # Горизонтальные смежные
+            if point_n_id in lines_g_on_point:
+                line_g = await LinesSlopeDAO.find_by_id(session, model_id=lines_g_on_point[point_n_id][0])
+                for pid in (line_g.start_id, line_g.end_id):
+                    await PointsSlopeDAO.update_(session, model_id=pid, y=round(base_y + length, 3))
+                    p = await PointsSlopeDAO.find_by_id(session, model_id=pid)
+                    print(f"   G {p.id}: {p.x} {p.y}")
+            # Диагональные смежные
+            if point_n_id in lines_n_on_point:
+                line_n = await LinesSlopeDAO.find_by_id(session, model_id=lines_n_on_point[point_n_id][0])
+                target = line_n.end_id if line_n.end_id < line_n.start_id else line_n.start_id
+                await PointsSlopeDAO.update_(session, model_id=target, y=round(base_y + length, 3))
+                p = await PointsSlopeDAO.find_by_id(session, model_id=target)
+                print(f"   N {p.id}: {p.x} {p.y}")
+
+    # 5) Горизонтальные и диагональные сдвиги по X
+    point_max = None
+    for pt_id in points_id:
+        print(f"▶ X-shift at point {pt_id}")
+        for line_id in lines_on_point.get(pt_id, []):
+            if line_id not in lines_data:
                 continue
-            point = await PointsSlopeDAO.find_by_id(session, model_id=point_id)
-            if line.angle == 2:
-                if point.id == line.start_id:
-                    await PointsSlopeDAO.update_(session, model_id=line.end_id, x=round(point.x + length, 3))
-                else:
-                    await PointsSlopeDAO.update_(session, model_id=line.start_id, x=round(point.x + length, 3))
-            elif line.angle == 1:
+            length = lines_data.pop(line_id)
+            ln = await LinesSlopeDAO.find_by_id(session, model_id=line_id)
+            pt = await PointsSlopeDAO.find_by_id(session, model_id=pt_id)
+            print(f"   Recalc {ln.id} angle={ln.angle} pivot {pt.id}: {pt.x} {pt.y}")
+            if ln.angle == 2:
+                # Горизонталь
+                target_id = ln.end_id if pt.id == ln.start_id else ln.start_id
+                await PointsSlopeDAO.update_(session, model_id=target_id, x=round(pt.x + length, 3))
+                p = await PointsSlopeDAO.find_by_id(session, model_id=target_id)
+                print(f"   H {p.id}: {p.x} {p.y}")
+            elif ln.angle == 1:
+                print(f"   Skip diagonal angle=1 for {ln.id}")
                 continue
             else:
-                if point.id == line.start_id:
-                    hight = abs(point.y - line.end.y)
-                    new_x = round(((length)**2 - (hight)**2)**0.5, 3)
-                    await PointsSlopeDAO.update_(session, model_id=line.end_id, x=round(point.x + new_x, 3))
-                if point.id == line.end_id:
-                    hight = abs(point.y - line.start.y)
-                    new_x = round(((length)**2 - (hight)**2)**0.5, 3)
-                    await PointsSlopeDAO.update_(session, model_id=line.start_id, x=round(point.x + new_x, 3))
-    for line_id in lines_on_point[point_max]:
-        length = lines_data_or[line_id]
-        line = await LinesSlopeDAO.find_by_id(session, model_id=line_id)
-        if line.angle == 2:
-            line_length = abs(line.start.x - line.end.x)
-            if abs(line_length - length) > 0:
-                point_stack = []
-                if not lines_n:
-                    break
-                div_x = round((line_length - length) / len(lines_n), 3)
-                if line.start.x < line.end.x:
-                    point_1_id = line.end_id
-                    for lid in lines_on_point[point_1_id]:
-                        if lid == line.id:
-                            continue
-                        l = await LinesSlopeDAO.find_by_id(session, model_id=lid)
-                        if l.angle == 1:
-                            point_1 = await PointsSlopeDAO.update_(session, model_id=l.end_id, x=round(line.start.x + length, 3))
-                            point_2 = await PointsSlopeDAO.update_(session, model_id=l.start_id, x=round(line.start.x + length, 3))
-                            point_stack.extend([point_1.id, point_2.id])
-                        else:
-                            point_1 = await PointsSlopeDAO.update_(session, model_id=point_1_id, x=round(line.start.x + length, 3))
-                            point_stack.extend([point_1.id, line.start_id])
-                else:
-                    point_1_id = line.start_id
-                    for lid in lines_on_point[point_1_id]:
-                        if lid == line.id:
-                            continue
-                        l = await LinesSlopeDAO.find_by_id(session, model_id=lid)
-                        if l.angle == 1:
-                            point_1 = await PointsSlopeDAO.update_(session, model_id=l.end_id, x=round(line.end.x + length, 3))
-                            point_2 = await PointsSlopeDAO.update_(session, model_id=l.start_id, x=round(line.end.x + length, 3))
-                            point_stack.extend([point_1.id, point_2.id])
-                        else:
-                            point_1 = await PointsSlopeDAO.update_(session, model_id=point_1_id, x=round(line.end.x + length, 3))
-                            point_stack.extend([point_1.id, line.end_id])
-                x_max = point_1.x
-                for pid in points_id:
-                    if pid in point_stack:
-                        continue
-                    point = await PointsSlopeDAO.find_by_id(session, model_id=pid)
-                    q = 0
-                    for lid in lines_on_point[pid]:
-                        l = await LinesSlopeDAO.find_by_id(session, model_id=lid)
-                        if l.type == 'ендова':
-                            q += 1
-                        if l.type == 'карниз':
-                            q += 1
-                    if point.y == 0 or q == 2 or point.x == x_max:
-                        point_stack.append(point.id)
-                        continue
+                # Диагональ
+                lines_n += 1
+                if pt.id == ln.start_id:
+                    h = abs(pt.y - ln.end.y)
+                    dx = (length**2 - h**2)**0.5
+                    await PointsSlopeDAO.update_(session, model_id=ln.end_id, x=round(pt.x + dx, 3))
+                    p = await PointsSlopeDAO.find_by_id(session, model_id=ln.end_id)
+                if pt.id == ln.end_id:
+                    h = abs(pt.y - ln.start.y)
+                    dx = (length**2 - h**2)**0.5
+                    await PointsSlopeDAO.update_(session, model_id=ln.start_id, x=round(pt.x + dx, 3))
+                    p = await PointsSlopeDAO.find_by_id(session, model_id=ln.start_id)
+                print(f"   D {p.id}: {p.x} {p.y}")
+            if len(lines_v_on_point.get(p.id, [])) > 0:
+                    line_v = await LinesSlopeDAO.find_by_id(session, model_id=lines_v_on_point[p.id][0])
+                    if p.id == line_v.start_id:
+                        await PointsSlopeDAO.update_(session, model_id=line_v.end_id, x=p.x)
+                        p = await PointsSlopeDAO.find_by_id(session, model_id=line_v.end_id)
                     else:
-                        await PointsSlopeDAO.update_(session, model_id=point.id, x=round(point.x - div_x, 3))
+                        await PointsSlopeDAO.update_(session, model_id=line_v.start_id, x=p.x)
+                        p = await PointsSlopeDAO.find_by_id(session, model_id=line_v.start_id)
+                    print(f"   V {p.id}: {p.x} {p.y}")
+            if p is not None:
+                point_max = p.id
+
+    # 6) Логика конька (ridge)
+    if point_max is not None:
+        print(f"▶ Ridge logic at point_max={point_max}")
+        for line_id in lines_on_point.get(point_max, []):
+            orig_len = lines_data_or.get(line_id)
+            line = await LinesSlopeDAO.find_by_id(session, model_id=line_id)
+            if line.angle != 2 or orig_len is None:
+                continue
+            line_length = abs(line.start.x - line.end.x)
+            if abs(line_length - orig_len) < 1e-6:
+                continue
+            point_stack = []
+            if lines_n == 0:
                 break
-    lines_slope = await LinesSlopeDAO.find_all(session, slope_id=slope_id)
-    for ls in lines_slope:
-        line = await LinesSlopeDAO.update_(session, model_id=ls.id,
-            length=round(((ls.start.x - ls.end.x) ** 2 + (ls.start.y - ls.end.y) ** 2) ** 0.5, 3)
-        )
-        await LinesDAO.update_(session, model_id=line.parent_id, length=line.length)
-    sheets_old = await SheetsDAO.find_all(session, slope_id=slope.id)
-    for sheet_old in sheets_old:
-        await SheetsDAO.delete_(session, model_id=sheet_old.id)
+            div_x = round((line_length - orig_len) / lines_n, 3)
+            print(f"   div_x={div_x}, actual={line_length}, target={orig_len}")
+            # Определяем базовую точку конька
+            if line.start.x < line.end.x:
+                ridge_pt = line.end_id
+                base_x = line.start.x
+            else:
+                ridge_pt = line.start_id
+                base_x = line.end.x
+            # Перебираем смежные линии
+            for lid in lines_on_point.get(ridge_pt, []):
+                if lid == line_id:
+                    continue
+                l = await LinesSlopeDAO.find_by_id(session, model_id=lid)
+                if l.angle == 1:
+                    p1 = await PointsSlopeDAO.update_(session, model_id=l.start_id, x=round(base_x + orig_len, 3))
+                    print(f"   N1 {p1.id}: {p1.x} {p1.y}")
+                    p2 = await PointsSlopeDAO.update_(session, model_id=l.end_id, x=round(base_x + orig_len, 3))
+                    print(f"   N2 {p2.id}: {p2.x} {p2.y}")
+                    point_stack.extend([p1.id, p2.id])
+                else:
+                    p = await PointsSlopeDAO.update_(session, model_id=ridge_pt, x=round(base_x + orig_len, 3))
+                    print(f"   H1 {p.id}: {p.x} {p.y}")
+                    point_stack.append(p.id)
+            # Смещаем остальные точки
+            # x_max = p1.x
+            for pid in points_id:
+                if pid in point_stack:
+                    continue
+                pt = await PointsSlopeDAO.find_by_id(session, model_id=pid)
+                q = 0
+                for lid in lines_on_point[pid]:
+                    l = await LinesSlopeDAO.find_by_id(session, model_id=lid)
+                    if l.type == 'ендова':
+                        q += 1
+                    if l.type == 'карниз':
+                        q += 1
+                if pt.y == 0 or q == 2:
+                    point_stack.append(pid)
+                    continue
+                p = await PointsSlopeDAO.update_(session, model_id=pid, x=round(pt.x - div_x, 3))
+                print(f"   R {p.id}: {p.x} {p.y}")
+            break
+
+    # 7) Финальное обновление длин линий и удаление листов
+    for ls in await LinesSlopeDAO.find_all(session, slope_id=slope_id):
+        new_len = round(((ls.start.x - ls.end.x)**2 + (ls.start.y - ls.end.y)**2)**0.5, 3)
+        updated = await LinesSlopeDAO.update_(session, model_id=ls.id, length=new_len)
+        await LinesDAO.update_(session, model_id=updated.parent_id, length=updated.length)
+    for sheet in await SheetsDAO.find_all(session, slope_id=slope.id):
+        await SheetsDAO.delete_(session, model_id=sheet.id)
+    print("▶▶▶ add_sizes completed")
 
 
 @router.delete("/projects/{project_id}/slopes", description="Delete roof slopes")

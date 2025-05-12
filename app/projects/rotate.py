@@ -56,6 +56,11 @@ def transform_roof(lines_dict: Dict[str, List[LineString]]) -> Dict[str, List[Li
     valleys = lines_dict.get('ендова', [])
     ridges = lines_dict.get('конёк', [])
     dop_lines = lines_dict.get('примыкание', [])
+    print('eaves', eaves)
+    print('gables', gables)    
+    print('valleys', valleys)
+    print('ridges', ridges)
+    print('dop_lines', dop_lines)
     all_lines = eaves + gables + valleys + ridges + dop_lines
     x_max = 0
     y_max = 0
