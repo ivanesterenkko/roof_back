@@ -724,7 +724,7 @@ async def add_sizes(
                         q += 1
                     if l.type == 'карниз':
                         q += 1
-                if pt.y == 0 or q == 2:
+                if pt.y == 0 or q == 2 or pt.x == 0:
                     point_stack.append(pid)
                     continue
                 p = await PointsSlopeDAO.update_(session, model_id=pid, x=round(pt.x - div_x, 3))
