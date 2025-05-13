@@ -118,7 +118,7 @@ class AccessoriesResponse(BaseModel):
     lines_id: list[UUID4]
     lines_length: float
     quantity: int
-    color: str
+    color: Optional[str] = None
 
 
 # Estimate
