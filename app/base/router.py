@@ -81,7 +81,7 @@ async def get_roof_base(
     ]
 
 
-@router.delete("/roofs_base", description="Удаление покрытия из библиотеки")
+@router.delete("/roofs_base/{roof_id}", description="Удаление покрытия из библиотеки")
 async def delete_roof_base(
     roof_id: UUID4,
     user: Users = Depends(get_current_user),
@@ -115,7 +115,13 @@ async def add_accessories_base(
         session,
         name=accessory.name,
         type=accessory.type,
-        parent_type=accessory.parent_type
+        parent_type=accessory.parent_type,
+        overall_width=accessory.overall_width,
+        useful_width=accessory.useful_width,
+        overlap=accessory.overlap,
+        price=accessory.price,
+        modulo=accessory.modulo,
+        material=accessory.material
     )
     return {"accessory_id": new_accessory.id}
 
@@ -142,14 +148,20 @@ async def get_accessories_base(
             name=acc.name,
             type=acc.type,
             parent_type=acc.parent_type,
+            overall_width=acc.overall_width,
+            useful_width=acc.useful_width,
+            overlap=acc.overlap,
+            price=acc.price,
+            modulo=acc.modulo,
+            material=acc.material
         )
         for acc in accessories
     ]
 
 
-@router.delete("/accessories_base", description="Удаление доборного из библиотеки")
+@router.delete("/accessories_base/{accessory_bd_id}", description="Удаление доборного из библиотеки")
 async def delete_accessories_base(
-    accessory_id: UUID4,
+    accessory_bd_id: UUID4,
     user: Users = Depends(get_current_user),
     session: AsyncSession = Depends(get_session)
 ) -> None:
@@ -160,7 +172,7 @@ async def delete_accessories_base(
     :param user: Текущий пользователь.
     :param session: Асинхронная сессия для работы с базой данных.
     """
-    await Accessory_baseDAO.delete_(session, model_id=accessory_id)
+    await Accessory_baseDAO.delete_(session, model_id=accessory_bd_id)
 
 
 @router.post("/tariff", description="Добавление тарифа в библиотеку")

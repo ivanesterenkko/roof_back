@@ -1,5 +1,6 @@
 from collections import defaultdict
 from itertools import product
+import math
 from typing import Dict, List
 
 from pydantic import UUID4
@@ -7,6 +8,7 @@ from shapely import Point
 from shapely.geometry import Polygon
 from shapely.prepared import prep
 
+from app.base.models import AccessoriesBD
 from app.projects.models import  LinesSlope, PointSlope
 
 
@@ -412,3 +414,15 @@ def generate_slopes_length(lines: List[LinesSlope], points: List[PointSlope]):
                     slope_lines.remove(s_line)
                     break
     return slope_lines
+
+
+def calculate_count_accessory(length: float, accessory: AccessoriesBD) -> int:
+    overall_width = accessory.overall_width
+    modulo = accessory.modulo
+    count = length / overall_width
+    rounded_count = math.ceil(count)
+    if modulo:
+        if count - int(count) > modulo:
+            rounded_count += 1
+
+    return rounded_count

@@ -20,7 +20,7 @@ from app.exceptions import (
 from app.projects.draw import create_excel
 from app.projects.rotate import rotate_slope
 from app.projects.schemas import (
-    AboutResponse, AccessoriesRequest, AccessoriesResponse,
+    AboutResponse, AccessoriesRequest, AccessoriesResponse, AccessoriesUpdateRequest,
     CutoutResponse, EstimateRequest, EstimateResponse, LengthSlopeResponse,
     LineRequest, LineResponse, LineSlopeResponse, MaterialRequest,
     NodeRequest, PointCutoutResponse, PointData, PointSlopeResponse,
@@ -35,7 +35,7 @@ from app.projects.dao import (
     ProjectsDAO, SheetsDAO, SlopesDAO
 )
 from app.projects.slope import (
-    create_figure, create_sheets, find_slope, generate_slopes_length,
+    calculate_count_accessory, create_figure, create_sheets, find_slope, generate_slopes_length,
     get_next_length_name, get_next_name, sheet_offset
 )
 from app.users.dependencies import get_current_user
@@ -279,13 +279,17 @@ async def get_project(
                         name=accessory_base.name,
                         type=accessory_base.type,
                         parent_type=accessory_base.parent_type,
-                        price=accessory_base.price,
+                        material=accessory_base.material,
+                        overall_width=accessory_base.overall_width,
+                        useful_width=accessory_base.useful_width,
                         overlap=accessory_base.overlap,
-                        length=accessory_base.length
+                        price=accessory_base.price,
+                        modulo=accessory_base.modulo
                     ),
                     lines_id=accessory.lines_id,
                     lines_length=accessory.lines_length,
-                    quantity=accessory.quantity
+                    quantity=accessory.quantity,
+                    color=accessory.color
                 )
             )
     else:
@@ -1610,17 +1614,15 @@ async def add_accessory(
         raise ProjectNotFound
     lines = await asyncio.gather(*[LinesDAO.find_by_id(session, model_id=line_id) for line_id in accessory.lines_id])
     lines_length = sum(line.length for line in lines)
-    accessory_base = await Accessory_baseDAO.find_by_id(session, model_id=accessory.accessory_id)
-    # quantity = lines_length // accessory_base.length
-    # if lines_length % accessory_base.length > accessory_base.overlap:
-    #     quantity += 1
+    accessory_base = await Accessory_baseDAO.find_by_id(session, model_id=accessory.accessory_bd_id)
+    quantity = calculate_count_accessory(lines_length, accessory_base)
     await AccessoriesDAO.add(
         session,
         lines_id=accessory.lines_id,
         lines_length=lines_length,
-        quantity=1,
-        accessory_base_id=accessory.accessory_id,
-        project_id=project_id
+        quantity=quantity,
+        accessory_base_id=accessory_base.id,
+        project_id=project_id,
     )
 
 
@@ -1630,8 +1632,7 @@ async def add_accessory(
 )
 async def update_accessory(
     project_id: UUID4,
-    accessory_id: UUID4,
-    accessory: AccessoriesRequest,
+    accessory_data: AccessoriesUpdateRequest,
     user: Users = Depends(get_current_user),
     session: AsyncSession = Depends(get_session)
 ) -> None:
@@ -1641,20 +1642,41 @@ async def update_accessory(
     project = await ProjectsDAO.find_by_id(session, model_id=project_id)
     if not project or project.user_id != user.id:
         raise ProjectNotFound
-    lines = await asyncio.gather(*[LinesDAO.find_by_id(session, model_id=line_id) for line_id in accessory.lines_id])
+    lines = await asyncio.gather(*[LinesDAO.find_by_id(session, model_id=line_id) for line_id in accessory_data.lines_id])
     lines_length = sum(line.length for line in lines)
-    accessory_base = await Accessory_baseDAO.find_by_id(session, model_id=accessory.accessory_id)
-    # quantity = lines_length // accessory_base.length
-    # if lines_length % accessory_base.length > accessory_base.overlap:
-    #     quantity += 1
+    accessory = await AccessoriesDAO.find_by_id(session, model_id=accessory_data.accessory_id)
+    accessory_base = await Accessory_baseDAO.find_by_id(session, model_id=accessory.accessory_base_id)
+    quantity = calculate_count_accessory(lines_length, accessory_base)
     await AccessoriesDAO.update_(
         session,
-        model_id=accessory_id,
-        lines_id=accessory.lines_id,
+        model_id=accessory.id,
+        lines_id=accessory_data.lines_id,
         lines_length=lines_length,
-        quantity=1,
-        accessory_base_id=accessory.accessory_id,
-        project_id=project_id
+        quantity=quantity
+    )
+
+
+@router.patch("/projects/{project_id}/accessories/{accessory_id}/color")
+async def add_color_accessory(
+    project_id: UUID4,
+    accessory_id: UUID4,
+    color: str,
+    user: Users = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+) -> None:
+    """
+    Добавляет материал в проект.
+    """
+    project = await ProjectsDAO.find_by_id(session, model_id=project_id)
+    if not project or project.user_id != user.id:
+        raise ProjectNotFound
+    accessory = await AccessoriesDAO.find_by_id(session, model_id=accessory_id)
+    if not accessory or accessory.project_id != project_id:
+        raise ProjectNotFound
+    await AccessoriesDAO.update_(
+        session,
+        model_id=accessory.id,
+        color=color
     )
 
 
@@ -1736,15 +1758,17 @@ async def get_estimate(
                         name=accessory_base.name,
                         type=accessory_base.type,
                         parent_type=accessory_base.parent_type,
-                        price=accessory_base.price,
+                        material=accessory_base.material,
+                        overall_width=accessory_base.overall_width,
+                        useful_width=accessory_base.useful_width,
                         overlap=accessory_base.overlap,
-                        length=accessory_base.length
+                        price=accessory_base.price,
+                        modulo=accessory_base.modulo
                     ),
                     lines_id=accessory.lines_id,
                     lines_length=accessory.lines_length,
                     quantity=accessory.quantity,
-                    ral=None,
-                    color=None
+                    color=accessory.color
                 )
             )
     else:

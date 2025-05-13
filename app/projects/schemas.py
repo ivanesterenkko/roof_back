@@ -118,8 +118,7 @@ class AccessoriesResponse(BaseModel):
     lines_id: list[UUID4]
     lines_length: float
     quantity: int
-    ral: None
-    color: None
+    color: str
 
 
 # Estimate
@@ -247,6 +246,11 @@ class NodeRequest(BaseModel):
 
 
 class AccessoriesRequest(BaseModel):
+    lines_id: list[UUID4]
+    accessory_bd_id: UUID4
+
+
+class AccessoriesUpdateRequest(BaseModel):
     lines_id: list[UUID4]
     accessory_id: UUID4
 
