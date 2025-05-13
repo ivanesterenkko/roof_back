@@ -417,9 +417,11 @@ def generate_slopes_length(lines: List[LinesSlope], points: List[PointSlope]):
 
 
 def calculate_count_accessory(length: float, accessory: AccessoriesBD) -> int:
-    overall_width = accessory.overall_width
+    length_acc = accessory.length
+    overlap = accessory.overlap
+    delit = length_acc - overlap
     modulo = accessory.modulo
-    count = length / overall_width
+    count = length / delit
     rounded_count = math.ceil(count)
     if modulo:
         if count - int(count) > modulo:

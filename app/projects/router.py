@@ -280,8 +280,7 @@ async def get_project(
                         type=accessory_base.type,
                         parent_type=accessory_base.parent_type,
                         material=accessory_base.material,
-                        overall_width=accessory_base.overall_width,
-                        useful_width=accessory_base.useful_width,
+                        length=accessory_base.length,
                         overlap=accessory_base.overlap,
                         price=accessory_base.price,
                         modulo=accessory_base.modulo
@@ -1660,7 +1659,7 @@ async def update_accessory(
 async def add_color_accessory(
     project_id: UUID4,
     accessory_id: UUID4,
-    color: str,
+    color: str | None,
     user: Users = Depends(get_current_user),
     session: AsyncSession = Depends(get_session)
 ) -> None:
@@ -1759,8 +1758,7 @@ async def get_estimate(
                         type=accessory_base.type,
                         parent_type=accessory_base.parent_type,
                         material=accessory_base.material,
-                        overall_width=accessory_base.overall_width,
-                        useful_width=accessory_base.useful_width,
+                        length=accessory_base.length,
                         overlap=accessory_base.overlap,
                         price=accessory_base.price,
                         modulo=accessory_base.modulo

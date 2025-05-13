@@ -18,10 +18,9 @@ class AccessoryBDRequest(BaseModel):
     name: str
     type: str
     parent_type: str
-    overall_width: float
-    useful_width: float
+    length: float
     material: str
-    overlap: Optional[float] = None
+    overlap: float
     price: Optional[int] = None
     modulo: Optional[float] = None
 
@@ -31,10 +30,9 @@ class AccessoryBDResponse(BaseModel):
     name: str
     type: str
     parent_type: str
-    overall_width: float
-    useful_width: float
+    length: float
     material: str
-    overlap: Optional[float] = None
+    overlap: float
     price: Optional[int] = None
     modulo: Optional[float] = None
 
