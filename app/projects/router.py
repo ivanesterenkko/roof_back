@@ -1816,7 +1816,7 @@ async def update_material(
     material = await MaterialsDAO.find_one_or_none(session, project_id=project.id)
     if not material:
         raise MaterialNotFound
-    await MaterialsDAO.update(
+    await MaterialsDAO.update_(
         session,
         model_id=material.id,
         name=materials.name,
