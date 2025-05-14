@@ -180,7 +180,7 @@ class MaterialEstimateResponse(BaseModel):
 
 
 class EstimateResponse(AboutResponse):
-    materials: Optional[MaterialEstimateResponse]] = None
+    materials: Optional[MaterialEstimateResponse] = None
     PS: Optional[str] = None
     PZ: Optional[str] = None
     K: Optional[str] = None
