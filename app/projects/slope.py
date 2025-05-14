@@ -173,6 +173,19 @@ def get_next_name(existing_names: List[str]) -> str:
             return name
 
 
+def get_next_slope_name(existing_names: List[str]) -> str:
+
+    def generate_names():
+        for i in range(1, 101):
+            yield str(i)
+
+    name_generator = generate_names()
+
+    for name in name_generator:
+        if name not in existing_names:
+            return name
+        
+
 def get_next_length_name(existing_names: List[str]) -> str:
 
     def generate_names():

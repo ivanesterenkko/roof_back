@@ -37,7 +37,7 @@ from app.projects.dao import (
 )
 from app.projects.slope import (
     calculate_count_accessory, create_figure, create_sheets, find_slope, generate_slopes_length,
-    get_next_length_name, get_next_name, get_next_sheet_name, sheet_offset
+    get_next_length_name, get_next_name, get_next_sheet_name, get_next_slope_name, sheet_offset
 )
 from app.users.dependencies import get_current_user
 from app.users.models import Users
@@ -789,7 +789,7 @@ async def add_slope(
         line_objs = [await LinesDAO.find_by_id(session, model_id=lid) for lid in slope_ids]
         line_objs_copy = copy.deepcopy(line_objs)
         existing_points = {}
-        slope_name = get_next_name(existing_names)
+        slope_name = get_next_slope_name(existing_names)
         existing_names.append(slope_name)
         new_slope = await SlopesDAO.add(session, name=slope_name, project_id=project.id)
         new_lines = rotate_slope(line_objs_copy)
