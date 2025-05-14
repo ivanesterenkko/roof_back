@@ -86,6 +86,13 @@ class SheetResponse(BaseModel):
     length: float
     area_overall: float
     area_usefull: float
+    is_deleted: bool
+
+
+class DeletedSheetResponse(SheetResponse):
+    id: UUID4
+    deleted_sheet_id: UUID4
+    change_sheet_id: UUID4
 
 
 class CutoutResponse(BaseModel):
@@ -185,6 +192,7 @@ class ProjectResponse(AboutResponse):
     lines: Optional[List[LineResponse]] = None
     slopes: Optional[List[SlopeResponse]] = None
     accessories: Optional[List[AccessoriesResponse]] = None
+    deleted_sheets: Optional[list[DeletedSheetResponse]] = None
 
 # Request
 

@@ -1,5 +1,5 @@
 from app.dao.base import BaseDAO
-from app.projects.models import (Accessories, Cutouts, LengthSlope, Lines, LinesSlope,
+from app.projects.models import (Accessories, Cutouts, DeletedSheets, LengthSlope, Lines, LinesSlope,
                                  Materials, Point, PointSlope, PointsCutout, Projects, Sheets, Slopes)
 
 
@@ -51,3 +51,6 @@ class MaterialsDAO(BaseDAO):
 
 class PointsCutoutsDAO(BaseDAO):
     model = PointsCutout
+
+class DeletedSheetsDAO(BaseDAO):
+    model = DeletedSheets

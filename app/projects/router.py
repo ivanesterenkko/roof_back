@@ -18,10 +18,11 @@ from app.exceptions import (
     RoofNotFound, SheetNotFound, SheetTooShortNotFound, SlopeNotFound
 )
 from app.projects.draw import create_excel
+from app.projects.models import DeletedSheets
 from app.projects.rotate import rotate_slope
 from app.projects.schemas import (
     AboutResponse, AccessoriesRequest, AccessoriesResponse, AccessoriesUpdateRequest,
-    CutoutResponse, EstimateRequest, EstimateResponse, LengthSlopeResponse,
+    CutoutResponse, DeletedSheetResponse, EstimateRequest, EstimateResponse, LengthSlopeResponse,
     LineRequest, LineResponse, LineSlopeResponse, MaterialRequest,
     NodeRequest, PointCutoutResponse, PointData, PointSlopeResponse,
     ProjectRequest, ProjectResponse, RoofEstimateResponse,
@@ -30,13 +31,13 @@ from app.projects.schemas import (
     SlopeSizesRequest
 )
 from app.projects.dao import (
-    AccessoriesDAO, CutoutsDAO, LengthSlopeDAO, LinesDAO, LinesSlopeDAO,
+    AccessoriesDAO, CutoutsDAO, DeletedSheetsDAO, LengthSlopeDAO, LinesDAO, LinesSlopeDAO,
     MaterialsDAO, PointsCutoutsDAO, PointsDAO, PointsSlopeDAO,
     ProjectsDAO, SheetsDAO, SlopesDAO
 )
 from app.projects.slope import (
     calculate_count_accessory, create_figure, create_sheets, find_slope, generate_slopes_length,
-    get_next_length_name, get_next_name, sheet_offset
+    get_next_length_name, get_next_name, get_next_sheet_name, sheet_offset
 )
 from app.users.dependencies import get_current_user
 from app.users.models import Users
@@ -248,7 +249,8 @@ async def get_project(
                     y_start=sheet.y_start,
                     length=sheet.length,
                     area_overall=sheet.area_overall,
-                    area_usefull=sheet.area_usefull
+                    area_usefull=sheet.area_usefull,
+                    is_deleted=sheet.is_deleted
                 ) for sheet in sheets
             ] if sheets else None
             slope_response.append(
@@ -293,6 +295,17 @@ async def get_project(
             )
     else:
         accessories_response = None
+    delete_sheets = await DeletedSheetsDAO.find_all(session, project_id=project_id)
+    if delete_sheets:
+        deleted_sheets_response = [
+            DeletedSheetResponse(
+                id=sheet.id,
+                deleted_sheet_id=sheet.deleted_sheet_id,
+                change_sheet_id=sheet.change_sheet_id
+            ) for sheet in delete_sheets
+        ]
+    else:
+        deleted_sheets_response = None
     return ProjectResponse(
         id=project.id,
         name=project.name,
@@ -314,7 +327,8 @@ async def get_project(
         ),
         lines=lines_response,
         slopes=slope_response,
-        accessories=accessories_response
+        accessories=accessories_response,
+        deleted_sheets=deleted_sheets_response
     )
 
 
@@ -1208,8 +1222,8 @@ async def update_cutout(
 
 # -------------------- Sheets Endpoints --------------------
 
-@router.delete(
-    "/projects/{project_id}/add_line/slopes/{slope_id}/sheets/{sheet_id}",
+@router.patch(
+    "/projects/{project_id}/slopes/{slope_id}/sheets/{sheet_id}/delete_sheet",
     description="Delete sheet"
 )
 async def delete_sheet(
@@ -1228,7 +1242,88 @@ async def delete_sheet(
     slope = await SlopesDAO.find_by_id(session, model_id=slope_id)
     if not slope or slope.project_id != project_id:
         raise SlopeNotFound
-    await SheetsDAO.delete_(session, model_id=sheet_id)
+    sheet = await SheetsDAO.find_by_id(session, model_id=sheet_id)
+    if sheet is None or sheet.slope_id != slope_id:
+        raise SheetNotFound
+    if sheet.is_deleted is True:
+        raise HTTPException(status_code=400, detail="Sheet is already deleted.")
+    if sheet.change_sheets:
+        raise HTTPException(status_code=400, detail="Sheet is already changed.")
+    await SheetsDAO.update_(session, model_id=sheet_id, is_deleted=True)
+    sheets = await DeletedSheetsDAO.find_all(session, project_id=project_id)
+    existing_names = [sheet.number for sheet in sheets]
+    number = get_next_sheet_name(existing_names)
+    await DeletedSheetsDAO.add(
+        session, 
+        deleted_sheet_id=sheet_id,
+        project_id=project.id,
+        number=number,
+        )
+
+
+@router.patch(
+    "/projects/{project_id}/slopes/{slope_id}/sheets/{sheet_id}/return_sheet",
+    description="Return sheet"
+)
+async def return_sheet(
+    project_id: UUID4,
+    slope_id: UUID4,
+    sheet_id: UUID4,
+    user: Users = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+) -> None:
+    """
+    Восстанавливает лист покрытия (sheet) с заданным идентификатором.
+    """
+    project = await ProjectsDAO.find_by_id(session, model_id=project_id)
+    if not project or project.user_id != user.id:
+        raise ProjectNotFound
+    slope = await SlopesDAO.find_by_id(session, model_id=slope_id)
+    if not slope or slope.project_id != project_id:
+        raise SlopeNotFound
+    sheet = await SheetsDAO.find_by_id(session, model_id=sheet_id)
+    if not sheet or sheet.slope_id != slope_id:
+        raise SheetNotFound
+    if sheet.is_deleted is False or not sheet.deleted_sheets:
+        raise HTTPException(status_code=400, detail="Sheet is not deleted.")
+    await SheetsDAO.update_(session, model_id=sheet_id, is_deleted=False)
+    await DeletedSheetsDAO.delete_(session, model_id=sheet.deleted_sheets.id)
+
+
+@router.patch(
+    "/projects/{project_id}/slopes/sheets/{change_sheet_id}/change_sheet",
+    description="Change deleted sheet"
+)
+async def return_sheet(
+    project_id: UUID4,
+    change_sheet_id: UUID4,
+    delete_sheet_id: UUID4,
+    user: Users = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+) -> None:
+    project = await ProjectsDAO.find_by_id(session, model_id=project_id)
+    if not project or project.user_id != user.id:
+        raise ProjectNotFound
+    del_sheet = await SheetsDAO.find_by_id(session, model_id=delete_sheet_id)
+    change_sheet = await SheetsDAO.find_by_id(session, model_id=change_sheet_id)
+    if change_sheet_id == delete_sheet_id:
+        raise HTTPException(status_code=400, detail="Sheet is deleted.")
+    if not del_sheet or not change_sheet:
+        raise SheetNotFound
+    if del_sheet.is_deleted is False or not del_sheet.deleted_sheets:
+        raise HTTPException(status_code=400, detail="Sheet is not deleted.")
+    if change_sheet.is_deleted is True:
+        raise HTTPException(status_code=400, detail="Sheet is deleted.")
+    if change_sheet.change_sheets:
+        raise HTTPException(status_code=400, detail="Sheet is already changed.")
+    delete_sheet = await DeletedSheetsDAO.find_one_or_none(session, deleted_sheet_id=del_sheet.id)
+    if delete_sheet.change_sheet_id:
+        raise HTTPException(status_code=400, detail="Sheet is already changed.")
+    await DeletedSheetsDAO.update_(
+        session, 
+        model_id=delete_sheet.id,
+        change_sheet_id=change_sheet.id,
+        )
 
 
 @router.delete(

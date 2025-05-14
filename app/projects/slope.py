@@ -186,6 +186,18 @@ def get_next_length_name(existing_names: List[str]) -> str:
             return name
 
 
+def get_next_sheet_name(existing_names: List[str]) -> str:
+
+    def generate_names():
+        for i in range(1, 101):
+            yield i
+
+    name_generator = generate_names()
+
+    for name in name_generator:
+        if name not in existing_names:
+            return name
+
 class GraphBuilder:
     def __init__(self, lines, point_coords):
         self.lines = lines
@@ -421,6 +433,8 @@ def calculate_count_accessory(length: float, accessory: AccessoriesBD) -> int:
     overlap = accessory.overlap
     delit = length_acc - overlap
     modulo = accessory.modulo
+    if delit <= 0:
+        raise ValueError("Длина аксессуара должна быть больше нахлеста")
     count = length / delit
     rounded_count = math.ceil(count)
     if modulo:

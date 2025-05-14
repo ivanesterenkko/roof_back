@@ -27,6 +27,7 @@ class Projects(Base):
     user = relationship("Users", back_populates="projects")
     roof = relationship("Roofs", back_populates="projects")
     points = relationship("Point", back_populates="project", cascade="all, delete-orphan")
+    deleted_sheets = relationship("DeletedSheets", back_populates="project", cascade="all, delete-orphan")
 
 
 class Point(Base):
@@ -179,10 +180,28 @@ class Sheets(Base):
     length: Mapped[float] = mapped_column(Float, nullable=False)
     area_overall: Mapped[float] = mapped_column(Float, nullable=False)
     area_usefull: Mapped[float] = mapped_column(Float, nullable=False)
+    is_deleted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     slope_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('slope.id', ondelete='CASCADE'), nullable=False)
 
     slope = relationship("Slopes", back_populates="sheets")
+    deleted_sheets = relationship("DeletedSheets", back_populates="deleted_sheet", foreign_keys='DeletedSheets.deleted_sheet_id', uselist=False, cascade="all, delete-orphan", lazy='joined')
+    change_sheets = relationship("DeletedSheets", back_populates="change_sheet", foreign_keys='DeletedSheets.change_sheet_id', uselist=False, cascade="all, delete-orphan", lazy='joined')
+
+
+class DeletedSheets(Base):
+    __tablename__ = 'deleted_sheet'
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
+    number: Mapped[int] = mapped_column(Integer, nullable=False)
+    deleted_sheet_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('sheet.id', ondelete='CASCADE'), nullable=False)
+    change_sheet_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('sheet.id', ondelete='CASCADE'), nullable=True)
+    project_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('project.id', ondelete='CASCADE'), nullable=False)
+
+
+    deleted_sheet: Mapped['Sheets'] = relationship("Sheets", foreign_keys=[deleted_sheet_id], back_populates='deleted_sheets', lazy='joined')
+    change_sheet: Mapped['Sheets'] = relationship("Sheets", foreign_keys=[change_sheet_id], back_populates='change_sheets', lazy='joined')
+    project = relationship("Projects", back_populates="deleted_sheets")
 
 
 class Accessories(Base):
