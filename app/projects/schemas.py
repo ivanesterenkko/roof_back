@@ -89,7 +89,7 @@ class SheetResponse(BaseModel):
     is_deleted: bool
 
 
-class DeletedSheetResponse(SheetResponse):
+class DeletedSheetResponse(BaseModel):
     id: UUID4
     deleted_sheet_id: UUID4
     change_sheet_id: UUID4
