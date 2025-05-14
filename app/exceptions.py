@@ -136,3 +136,12 @@ class UserIsNotPresentException(AutoException):
 class PermissionDeniedException(AutoException):
     status_code = status.HTTP_403_FORBIDDEN
     detail = "У вас нет прав для выполнения этого действия."
+
+class MaterialNotFound(AutoException):
+    status_code = status.HTTP_400_BAD_REQUEST
+    detail = "Материал не найден."
+
+
+class MaterialAlreadyExist(AutoException):
+    status_code = status.HTTP_400_BAD_REQUEST
+    detail = "Материал уже задан."

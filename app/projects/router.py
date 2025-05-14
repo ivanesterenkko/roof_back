@@ -14,7 +14,7 @@ from app.base.schemas import (
     AccessoryBDResponse, RoofResponse
 )
 from app.exceptions import (
-    CutoutNotFound, ProjectAlreadyExists, ProjectNotFound, ProjectStepLimit,
+    CutoutNotFound, MaterialAlreadyExist, MaterialNotFound, ProjectAlreadyExists, ProjectNotFound, ProjectStepLimit,
     RoofNotFound, SheetNotFound, SheetTooShortNotFound, SlopeNotFound
 )
 from app.projects.draw import create_excel
@@ -23,7 +23,7 @@ from app.projects.rotate import rotate_slope
 from app.projects.schemas import (
     AboutResponse, AccessoriesRequest, AccessoriesResponse, AccessoriesUpdateRequest,
     CutoutResponse, DeletedSheetResponse, EstimateRequest, EstimateResponse, LengthSlopeResponse,
-    LineRequest, LineResponse, LineSlopeResponse, MaterialRequest,
+    LineRequest, LineResponse, LineSlopeResponse, MaterialEstimateResponse, MaterialRequest,
     NodeRequest, PointCutoutResponse, PointData, PointSlopeResponse,
     ProjectRequest, ProjectResponse, RoofEstimateResponse,
     ScrewsEstimateResponse, SheetResponse,
@@ -1788,9 +1788,37 @@ async def add_material(
     project = await ProjectsDAO.find_by_id(session, model_id=project_id)
     if not project or project.user_id != user.id:
         raise ProjectNotFound
+    material = await MaterialsDAO.find_one_or_none(session, project_id=project.id)
+    if material:
+        raise MaterialAlreadyExist
     await MaterialsDAO.add(
         session,
         project_id=project_id,
+        name=materials.name,
+        material=materials.material,
+        color=materials.color
+    )
+
+
+@router.patch("/projects/{project_id}/materials")
+async def update_material(
+    project_id: UUID4,
+    materials: MaterialRequest,
+    user: Users = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+) -> None:
+    """
+    Изменить материал в проект.
+    """
+    project = await ProjectsDAO.find_by_id(session, model_id=project_id)
+    if not project or project.user_id != user.id:
+        raise ProjectNotFound
+    material = await MaterialsDAO.find_one_or_none(session, project_id=project.id)
+    if not material:
+        raise MaterialNotFound
+    await MaterialsDAO.update(
+        session,
+        model_id=material.id,
         name=materials.name,
         material=materials.material,
         color=materials.color
@@ -1877,6 +1905,15 @@ async def get_estimate(
             ral=None
         )
     ]
+    material = await MaterialsDAO.find_one_or_none(session, project_id=project.id)
+    if material:
+        material_estimate = MaterialEstimateResponse(
+            name=material.name,
+            material=material.material,
+            color=material.color
+        )
+    else:
+        material_estimate = None
     return EstimateResponse(
         id=project.id,
         name=project.name,
@@ -1900,6 +1937,7 @@ async def get_estimate(
         slopes=slopes_estimate,
         accessories=accessories_estimate,
         screws=screws_estimate,
+        materials=material_estimate
     )
 
 
