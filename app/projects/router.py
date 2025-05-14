@@ -300,6 +300,7 @@ async def get_project(
         deleted_sheets_response = [
             DeletedSheetResponse(
                 id=sheet.id,
+                number=sheet.number,
                 deleted_sheet_id=sheet.deleted_sheet_id,
                 change_sheet_id=sheet.change_sheet_id
             ) for sheet in delete_sheets

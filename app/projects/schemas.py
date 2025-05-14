@@ -91,8 +91,9 @@ class SheetResponse(BaseModel):
 
 class DeletedSheetResponse(BaseModel):
     id: UUID4
+    number: int
     deleted_sheet_id: UUID4
-    change_sheet_id: UUID4
+    change_sheet_id: Optional[UUID4] = None
 
 
 class CutoutResponse(BaseModel):

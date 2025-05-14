@@ -22,18 +22,25 @@ from app.config import settings
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-
-    await delete_tables()
     await create_tables()
-    redis = aioredis.from_url(
-        settings.redis_url,
-        encoding="utf8",
-        decode_responses=True
+
+    try:
+        redis = aioredis.from_url(
+            settings.redis_url,
+            encoding="utf8",
+            decode_responses=True
         )
-    app.state.redis = redis
-    FastAPICache.init(RedisBackend(redis), prefix="cache")
+        app.state.redis = redis
+        FastAPICache.init(RedisBackend(redis), prefix="cache")
+    except Exception as e:
+        print(f"Error initializing Redis: {e}")
+        app.state.redis = None
 
     yield
+
+    # Закрываем Redis соединение
+    if app.state.redis:
+        await app.state.redis.close()
 
 app = FastAPI(lifespan=lifespan)
 
