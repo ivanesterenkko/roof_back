@@ -736,13 +736,24 @@ async def add_sizes(
                     continue
                 pt = await PointsSlopeDAO.find_by_id(session, model_id=pid)
                 q = 0
+                f = False
                 for lid in lines_on_point[pid]:
                     l = await LinesSlopeDAO.find_by_id(session, model_id=lid)
                     if l.type == 'ендова':
                         q += 1
                     if l.type == 'карниз':
                         q += 1
-                if pt.y == 0 or q == 2 or pt.x == 0:
+                    if l.angle == 2:
+                        line_length = abs(l.start.x - l.end.x)
+                        orig_len = lines_data_or.get(l.id)
+                        print(f"  actual={line_length}, target={orig_len}")
+                        if abs(line_length - orig_len) > 1e-6:
+                            f = True
+                if f:
+                    p = await PointsSlopeDAO.update_(session, model_id=pid, x=round(pt.x - div_x, 3))
+                    print(f"   R {p.id}: {p.x} {p.y}")
+                    continue
+                elif pt.y == 0 or q == 2 or pt.x == 0:
                     point_stack.append(pid)
                     continue
                 p = await PointsSlopeDAO.update_(session, model_id=pid, x=round(pt.x - div_x, 3))
