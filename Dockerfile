@@ -14,4 +14,4 @@ COPY . .
 
 RUN chmod a+x /auto_app/docker/*.sh
 
-CMD ["gunicorn", "main:app", "--workers", "1", "--worker-class", "uvicorn.workers.UvicornWorker", "--bind=0.0.0.0:8001"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8001", "--workers", "4"]
