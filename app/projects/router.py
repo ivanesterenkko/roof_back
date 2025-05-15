@@ -1840,6 +1840,28 @@ async def update_material(
     )
 
 
+@router.delete("/projects/{project_id}/materials")
+async def delete_material(
+    project_id: UUID4,
+    materials: MaterialRequest,
+    user: Users = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+) -> None:
+    """
+    Удаляет материал из проекта.
+    """
+    project = await ProjectsDAO.find_by_id(session, model_id=project_id)
+    if not project or project.user_id != user.id:
+        raise ProjectNotFound
+    material = await MaterialsDAO.find_one_or_none(session, project_id=project.id)
+    if not material:
+        raise MaterialNotFound
+    await MaterialsDAO.delete_(
+        session,
+        model_id=material.id,
+    )
+
+
 @router.get(
     "/projects/{project_id}/estimate",
     description="View accessories"
