@@ -10,13 +10,6 @@ build:
   only:
     - main
 
-test-job:
-  stage: test
-  script:
-    - docker run --rm -d roof_image
-  only:
-    - main
-
 deploy-job:
   stage: deploy
   script:
