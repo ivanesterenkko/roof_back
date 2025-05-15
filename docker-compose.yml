@@ -32,6 +32,8 @@ services:
       db:
         condition: service_healthy
     command: ['/auto_app/docker/migrate.sh']
+    volumes:
+      - ./alembic/versions:/auto_app/alembic/versions
 
   roof_app:
     build:
