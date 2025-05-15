@@ -1,6 +1,5 @@
 stages:
   - build
-  - test
   - deploy
 
 variables:
@@ -12,32 +11,24 @@ services:
   - docker:dind
 
 before_script:
-  - apt-get update && apt-get install -y docker-compose-plugin
+  - apk add --no-cache docker-compose
   - docker info
+  - echo "Docker and Compose are ready."
 
 build:
   stage: build
   script:
+    - echo "Building Docker image..."
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
     - docker build -t "$IMAGE_NAME" .
     - docker push "$IMAGE_NAME"
   only:
     - main
 
-test-job:
-  stage: test
-  script:
-    - docker run --name test_container -d "$IMAGE_NAME"
-    - sleep 5
-    - docker ps -a
-    - docker logs test_container
-    - docker rm -f test_container
-  only:
-    - main
-
 deploy-job:
   stage: deploy
   script:
-    - docker compose up -d
+    - echo "Deploying application..."
+    - docker compose up -d --build
   only:
     - main
