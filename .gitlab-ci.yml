@@ -6,14 +6,15 @@ variables:
   IMAGE_NAME: "$CI_REGISTRY/namespace/project/roof_image:latest"
   DOCKER_HOST: tcp://docker:2375
   DOCKER_TLS_CERTDIR: ""
+  DOCKER_DRIVER: overlay2
 
 services:
-  - docker:dind
+  - name: docker:dind
+    command: ["--privileged", "--storage-driver=overlay2"]
 
 before_script:
   - apk add --no-cache docker-compose
   - docker info
-  - echo "Docker and Compose are ready."
 
 build:
   stage: build
