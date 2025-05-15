@@ -145,3 +145,13 @@ class MaterialNotFound(AutoException):
 class MaterialAlreadyExist(AutoException):
     status_code = status.HTTP_400_BAD_REQUEST
     detail = "Материал уже задан."
+
+
+class AccessoryBaseNotFound(AutoException):
+    status_code = status.HTTP_400_BAD_REQUEST
+    detail = "Доборный элемент не найден в библиотеке."
+
+
+class AccessoryNotFound(AutoException):
+    status_code = status.HTTP_400_BAD_REQUEST
+    detail = "Доборный элемент не найден в проекте."

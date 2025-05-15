@@ -14,7 +14,7 @@ from app.base.schemas import (
     AccessoryBDResponse, RoofResponse
 )
 from app.exceptions import (
-    CutoutNotFound, MaterialAlreadyExist, MaterialNotFound, ProjectAlreadyExists, ProjectNotFound, ProjectStepLimit,
+    AccessoryBaseNotFound, AccessoryNotFound, CutoutNotFound, MaterialAlreadyExist, MaterialNotFound, ProjectAlreadyExists, ProjectNotFound, ProjectStepLimit,
     RoofNotFound, SheetNotFound, SheetTooShortNotFound, SlopeNotFound
 )
 from app.projects.draw import create_excel
@@ -1751,7 +1751,11 @@ async def update_accessory(
     lines = await asyncio.gather(*[LinesDAO.find_by_id(session, model_id=line_id) for line_id in accessory_data.lines_id])
     lines_length = sum(line.length for line in lines)
     accessory = await AccessoriesDAO.find_by_id(session, model_id=accessory_data.accessory_id)
+    if not accessory or accessory.project_id != project.id:
+        raise AccessoryNotFound
     accessory_base = await Accessory_baseDAO.find_by_id(session, model_id=accessory.accessory_base_id)
+    if not accessory_base:
+        raise AccessoryBaseNotFound
     quantity = calculate_count_accessory(lines_length, accessory_base)
     await AccessoriesDAO.update_(
         session,
