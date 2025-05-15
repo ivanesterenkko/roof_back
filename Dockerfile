@@ -10,8 +10,10 @@ COPY requirements.txt .
 
 RUN pip install -r requirements.txt
 
+RUN apt-get update && apt-get install -y netcat-openbsd
+
 COPY . .
 
 RUN chmod a+x /auto_app/docker/*.sh
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8001", "--workers", "4"]
+CMD ["bash", "/auto_app/docker/app.sh"]

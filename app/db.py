@@ -21,6 +21,9 @@ class Base(DeclarativeBase):
 
         return {c.name: getattr(self, c.name) for c in self.__table__.columns}
 
+from app.projects.models import *
+from app.base.models import *
+from app.users.models import *
 
 async def create_tables():
 
