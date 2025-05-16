@@ -12,6 +12,6 @@ build:
 deploy-job:
   stage: deploy
   script:
-    - docker compose up -d
+    - docker compose up -d --build
   only:
     - main
