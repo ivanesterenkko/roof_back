@@ -1840,7 +1840,7 @@ async def update_material(
     )
 
 
-@router.delete("/projects/{project_id}/materials")
+@router.delete("/projects/{project_id}/materials/delete_material")
 async def delete_material(
     project_id: UUID4,
     materials: MaterialRequest,

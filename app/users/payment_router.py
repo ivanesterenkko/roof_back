@@ -1,16 +1,17 @@
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends
 from pydantic import UUID4
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.base.dao import TariffsDAO
 from app.exceptions import OrderNotFound
 # from app.users.payment import TochkaBankService, get_cart_order_tochka
 from ..projects.dao import ProjectsDAO
-from .auth import (get_password_hash)
+from .auth import get_password_hash
 from .dao import CompanyDAO, OrdersDAO, SubscriptionDAO, UsersDAO
-from .dependencies import get_current_user
+from .dependencies import get_current_user, get_session
 from .models import Users
-from .schemas import CompanyProjectResponse, OrderRequest, OrderResponse, SUserRegister, SubscriptionResponse, UserResponse
+from .schemas import OrderRequest, OrderResponse, SubscriptionResponse
 
 
 router = APIRouter(prefix="/payment", tags=["Payment"])
@@ -19,14 +20,16 @@ router = APIRouter(prefix="/payment", tags=["Payment"])
 @router.post("/order", description="Получение ссылки на оплату")
 async def create_order(
       order_data: OrderRequest,
-      user: Users = Depends(get_current_user)
-      ) -> OrderResponse:
-    tariff = await TariffsDAO.find_by_id(order_data.tariff_id)
+      user: Users = Depends(get_current_user),
+      session: AsyncSession = Depends(get_session)
+) -> OrderResponse:
+    tariff = await TariffsDAO.find_by_id(session, order_data.tariff_id)
     subscription = await SubscriptionDAO.add(
+        session,
         tariff_id=tariff.id,
         company_id=user.company_id
     )
-    # cart_order = get_cart_order_tochka(
+        # cart_order = get_cart_order_tochka(
     #     tariff=tariff,
     #     duration=order_data.duration,
     #     login=user.login,
@@ -38,12 +41,13 @@ async def create_order(
     #     session=HttpClient.get_session()
     # )
     # print(data_payment)
-
     new_order = await OrdersDAO.add(
+        session,
         subscription_id=subscription.id,
         is_paid=False,
-        duration=order_data.duration,
+        duration=order_data.duration
     )
+    
     return OrderResponse(
         id=new_order.id,
         subscription_id=new_order.subscription_id,
@@ -54,20 +58,27 @@ async def create_order(
 
 @router.post("/successful_payment_card")
 async def successful_payment(
-        order_id: UUID4
-        ) -> SubscriptionResponse:
-    order = await OrdersDAO.find_by_id(order_id)
+        order_id: UUID4,
+        session: AsyncSession = Depends(get_session)
+) -> SubscriptionResponse:
+    order = await OrdersDAO.find_by_id(session, order_id)
     if not order:
         raise OrderNotFound
+
     order = await OrdersDAO.update_(
+        session,
         model_id=order_id,
         is_paid=True
-        )
-    expired_at = datetime.utcnow() + timedelta(days=30*order.duration)
+    )
+
+    expired_at = datetime.utcnow() + timedelta(days=30 * order.duration)
+
     subscription = await SubscriptionDAO.update_(
+        session,
         model_id=order.subscription_id,
         expired_at=expired_at
-        )
+    )
+
     return SubscriptionResponse(
         id=subscription.id,
         expired_at=subscription.expired_at,
