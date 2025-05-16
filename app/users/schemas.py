@@ -41,6 +41,12 @@ class CompanyProjectResponse(BaseModel):
     datetime_created: datetime
 
 
+class UserSessionsRespnse(BaseModel):
+    id: UUID4
+    device: str
+    created_at: datetime
+
+
 class OrderRequest(BaseModel):
     tariff_id: UUID4
     duration: int

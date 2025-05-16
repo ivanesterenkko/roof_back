@@ -7,10 +7,10 @@ from ..exceptions import (CompanyNotFound, PermissionDeniedException,
                           UserAlreadyExistsException, UserNotFound)
 from ..projects.dao import ProjectsDAO
 from .auth import get_password_hash
-from .dao import CompanyDAO, UsersDAO
+from .dao import CompanyDAO, SessionsDAO, UsersDAO
 from .dependencies import get_current_user, get_session
 from .models import Users
-from .schemas import CompanyProjectResponse, SUserRegister, UserResponse
+from .schemas import CompanyProjectResponse, SUserRegister, UserResponse, UserSessionsRespnse
 from app.db import async_session_maker
 
 router = APIRouter(prefix="/account", tags=["Account"])
@@ -102,3 +102,43 @@ async def get_company_projects(
                 datetime_created=project.datetime_created
             ))
     return projects_data
+
+
+@router.get("/users/sessions", description="Get list of projects")
+async def get_sessions(
+      user: Users = Depends(get_current_user),
+      session: AsyncSession = Depends(get_session)
+) -> List[UserSessionsRespnse]:
+    # company = await CompanyDAO.find_by_id(session, user.company_id)
+    # if not company:
+    #     raise CompanyNotFound
+    user_sessions = await SessionsDAO.find_all(session, user_id=user.id)
+    if not user_sessions:
+        raise UserNotFound
+    sessions_data = []
+    for user_session in user_sessions:
+        sessions_data.append(UserSessionsRespnse(
+            id=user_session.id,
+            device=user_session.device,
+            created_at=user_session.created_at
+        ))
+    return sessions_data
+
+@router.delete("/users/sessions/{session_id}", description="Get list of projects")
+async def get_sessions(
+      session_id: UUID4,
+      user: Users = Depends(get_current_user),
+      session: AsyncSession = Depends(get_session)
+) -> None:
+    # company = await CompanyDAO.find_by_id(session, user.company_id)
+    # if not company:
+    #     raise CompanyNotFound
+    user_session = await SessionsDAO.find_by_id(session, model_id=session_id)
+    if not user_session:
+        raise UserNotFound
+    if user_session.user_id != user.id:
+        raise PermissionDeniedException
+    if not user_session:
+        raise UserNotFound
+    sessions_data = []
+    await SessionsDAO.delete_(session, model_id=user_session.id)
