@@ -96,6 +96,9 @@ class DeletedSheetResponse(BaseModel):
     change_sheet_id: Optional[UUID4] = None
 
 
+class ChangeSheetRequest(BaseModel):
+    change_sheet_id: Optional[UUID4] = None
+
 class CutoutResponse(BaseModel):
     id: UUID4
     points: list[PointCutoutResponse]
