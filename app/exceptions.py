@@ -113,6 +113,14 @@ class IncorrectEmailOrPasswordException(AutoException):
     status_code = status.HTTP_401_UNAUTHORIZED
     detail = "Неверный логин или пароль"
 
+class IncorrectCurrentPasswordException(AutoException):
+    status_code = status.HTTP_401_UNAUTHORIZED
+    detail = "Неверный текущий пароль"
+
+class ChangePasswordException(AutoException):
+    status_code = status.HTTP_401_UNAUTHORIZED
+    detail = "Пароли совпадают"
+
 
 class TokenExpiredException(AutoException):
     status_code = status.HTTP_401_UNAUTHORIZED

@@ -3,14 +3,14 @@ from fastapi import APIRouter, Depends, Request, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import UUID4
 
-from ..exceptions import (CompanyNotFound, PermissionDeniedException,
+from ..exceptions import (ChangePasswordException, CompanyNotFound, IncorrectCurrentPasswordException, PermissionDeniedException,
                           UserAlreadyExistsException, UserNotFound)
 from ..projects.dao import ProjectsDAO
-from .auth import get_password_hash
+from .auth import get_password_hash, verify_password
 from .dao import CompanyDAO, SessionsDAO, UsersDAO
 from .dependencies import get_current_user, get_session
 from .models import Users
-from .schemas import CompanyProjectResponse, SUserRegister, UserResponse, UserSessionsRespnse
+from .schemas import ChangePasswordRequest, CompanyProjectResponse, SUserRegister, UserResponse, UserSessionsRespnse
 from app.db import async_session_maker
 
 router = APIRouter(prefix="/account", tags=["Account"])
@@ -125,7 +125,7 @@ async def get_sessions(
     return sessions_data
 
 @router.delete("/users/sessions/{session_id}", description="Get list of projects")
-async def get_sessions(
+async def delete_session(
       session_id: UUID4,
       user: Users = Depends(get_current_user),
       session: AsyncSession = Depends(get_session)
@@ -142,3 +142,21 @@ async def get_sessions(
         raise UserNotFound
     sessions_data = []
     await SessionsDAO.delete_(session, model_id=user_session.id)
+
+
+@router.patch("/users/password", description="Change password")
+async def change_password(
+      change_password: ChangePasswordRequest,
+      user: Users = Depends(get_current_user),
+      session: AsyncSession = Depends(get_session)
+) -> None:
+    if not verify_password(change_password.current_password, user.hashed_password):
+        raise IncorrectCurrentPasswordException
+    if change_password.new_password == change_password.current_password:
+        raise ChangePasswordException
+    hashed_password = get_password_hash(change_password.new_password)
+    await UsersDAO.update_(
+        session,
+        model_id=user.id,
+        hashed_password=hashed_password
+    )

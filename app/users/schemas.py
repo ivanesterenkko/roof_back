@@ -64,3 +64,9 @@ class SubscriptionResponse(BaseModel):
     expired_at: datetime
     tariff_id: UUID4
     company_id: UUID4
+
+
+class ChangePasswordRequest(BaseModel):
+
+    current_password: str
+    new_password: str

@@ -752,11 +752,13 @@ async def add_sizes(
                 if f:
                     p = await PointsSlopeDAO.update_(session, model_id=pid, x=round(pt.x - div_x, 3))
                     print(f"   R {p.id}: {p.x} {p.y}")
+                    point_stack.append(pid)
                     continue
                 elif pt.y == 0 or q == 2 or pt.x == 0:
                     point_stack.append(pid)
                     continue
                 p = await PointsSlopeDAO.update_(session, model_id=pid, x=round(pt.x - div_x, 3))
+                point_stack.append(pid)
                 print(f"   R {p.id}: {p.x} {p.y}")
             break
 
