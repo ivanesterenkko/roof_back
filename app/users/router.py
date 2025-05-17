@@ -47,7 +47,8 @@ async def register_admin(user_data: SAdminRegister) -> dict:
             company = await CompanyDAO.add(
                 session,
                 name=user_data.company,
-                INN=user_data.INN
+                INN=user_data.INN,
+                OGRN=user_data.OGRN
             )
 
             # Проверяем, существует ли пользователь с таким логином

@@ -1,5 +1,8 @@
 from datetime import datetime
 
+import secrets
+import string
+from unidecode import unidecode
 from fastapi import Depends, HTTPException, Request
 from jose import JWTError, jwt
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -80,3 +83,26 @@ async def get_current_user(
         raise HTTPException(status_code=401, detail="Token mismatch")
 
     return user
+
+
+def generate_random_password(length: int = 12) -> str:
+    alphabet = string.ascii_letters + string.digits + "!@#$%^&*()"
+    return "".join(secrets.choice(alphabet) for _ in range(length))
+
+async def generate_unique_login(
+    full_name: str,
+    session: AsyncSession,
+    max_tries: int = 1000
+) -> str:
+    parts = full_name.strip().split()
+    surname, name = parts[0], parts[1]
+    lat_surname = unidecode(surname).lower()
+    lat_initial = unidecode(name[0]).lower()
+    base = f"{lat_initial}{lat_surname}"
+    for _ in range(max_tries):
+        suffix = secrets.randbelow(1000)
+        candidate = f"{base}{suffix}"
+        exists = await UsersDAO.find_one_or_none(session, login=candidate)
+        if not exists:
+            return candidate
+    raise RuntimeError("Не удалось сгенерировать уникальный логин")

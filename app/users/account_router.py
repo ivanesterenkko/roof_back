@@ -8,59 +8,113 @@ from ..exceptions import (ChangePasswordException, CompanyNotFound, IncorrectCur
 from ..projects.dao import ProjectsDAO
 from .auth import get_password_hash, verify_password
 from .dao import CompanyDAO, SessionsDAO, UsersDAO
-from .dependencies import get_current_user, get_session
+from .dependencies import generate_random_password, generate_unique_login, get_current_user, get_session
 from .models import Users
-from .schemas import ChangePasswordRequest, CompanyProjectResponse, SUserRegister, UserResponse, UserSessionsRespnse
+from .schemas import ChangePasswordRequest, CompanyProjectResponse, CompanyRequest, CompanyResponse, NewUserResponse, SUserRegister, UserResponse, UserSessionsRespnse
 from app.db import async_session_maker
 
 router = APIRouter(prefix="/account", tags=["Account"])
 
 
-@router.get("/users")
-async def get_users(
+@router.get("/company", description="Get company info")
+async def get_company(
       user: Users = Depends(get_current_user),
       session: AsyncSession = Depends(get_session)
-) -> List[UserResponse]:
+) -> CompanyResponse:
     company = await CompanyDAO.find_by_id(session, user.company_id)
     if not company:
         raise CompanyNotFound
+    users = await UsersDAO.find_all(session, company_id=company.id)
+    if not users:
+        raise CompanyNotFound
+    users_data = []
+    for user in users:
+        sessions = await SessionsDAO.find_all(session, user_id=user.id)
+        is_active = True
+        if not sessions:
+            is_active = False
+        users_data.append(UserResponse(
+            name=user.name,
+            is_admin=user.is_admin,
+            is_active=is_active,
+            is_paid=True
+        ))
+    return CompanyResponse(
+            id=company.id,
+            name=company.name,
+            INN=company.INN,
+            OGRN=company.OGRN,
+            users=users_data
+    )
 
-    users = await UsersDAO.find_all(session, company_id=user.company_id)
-    return [UserResponse(
-          name=data.name,
-          is_admin=data.is_admin
-    ) for data in users]
 
+@router.delete("/company", description="Delete company")
+async def delete_company(
+      user: Users = Depends(get_current_user),
+      session: AsyncSession = Depends(get_session)
+) -> None:
+    company = await CompanyDAO.find_by_id(session, user.company_id)
+    if not company:
+        raise CompanyNotFound
+    if not user.is_admin:
+        raise PermissionDeniedException
+    await CompanyDAO.delete_(session, model_id=company.id)
+
+
+@router.patch("/company/{company_id}", description="Update company info")
+async def update_company(
+      company_id: UUID4,
+      company_data: CompanyRequest,
+      user: Users = Depends(get_current_user),
+      session: AsyncSession = Depends(get_session)
+) -> None:
+    company = await CompanyDAO.find_by_id(session, company_id)
+    if not company:
+        raise CompanyNotFound
+    await CompanyDAO.update_(
+        session, 
+        model_id=company.id,
+        name=company_data.name,
+        INN=company_data.INN,
+        OGRN=company_data.OGRN
+        )
 
 @router.post("/users/register")
 async def register_user(
       user_data: SUserRegister,
       user: Users = Depends(get_current_user),
       session: AsyncSession = Depends(get_session)
-) -> UserResponse:
+) -> NewUserResponse:
     if not user.is_admin:
         raise PermissionDeniedException
 
-    existing_user = await UsersDAO.find_one_or_none(session, login=user_data.login)
+    existing_user = await UsersDAO.find_one_or_none(session, name=user_data.name)
     if existing_user:
         raise UserAlreadyExistsException
 
-    company = await CompanyDAO.find_by_id(session, user_data.company_id)
+    company = await CompanyDAO.find_by_id(session, user.company_id)
     if not company:
         raise CompanyNotFound
-
-    hashed_password = get_password_hash(user_data.password)
+    raw_password = generate_random_password()
+    hashed_password = get_password_hash(raw_password)
+    login = await generate_unique_login(
+        full_name=user_data.name,
+        session=session
+    )
     new_user = await UsersDAO.add(
         session,
         name=user_data.name,
-        login=user_data.login,
+        login=login,
         hashed_password=hashed_password,
         is_admin=user_data.is_admin,
         company_id=company.id
     )
-    return UserResponse(
-          name=new_user.name,
-          is_admin=new_user.is_admin
+    return NewUserResponse(
+        id=new_user.id,
+        name=new_user.name,
+        login=new_user.login,
+        password=raw_password,
+        is_admin=new_user.is_admin
     )
 
 

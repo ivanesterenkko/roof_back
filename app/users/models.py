@@ -43,6 +43,7 @@ class Company(Base):
     id: Mapped[str] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
     name: Mapped[str] = mapped_column(nullable=False)
     INN: Mapped[str] = mapped_column(nullable=False)
+    OGRN: Mapped[str] = mapped_column(nullable=False)
 
     users = relationship("Users", back_populates="company", cascade="all, delete-orphan")
     subscription = relationship("Subscriptions", back_populates="company", cascade="all, delete-orphan")

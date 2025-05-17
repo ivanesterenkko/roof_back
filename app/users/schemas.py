@@ -1,26 +1,44 @@
 from datetime import datetime
-from pydantic import UUID4, BaseModel
+from pydantic import UUID4, BaseModel, Field
 
 
 class SUserRegister(BaseModel):
+    name: str = Field(
+        pattern=r'^[А-ЯЁ][а-яё]+ [А-ЯЁ][а-яё]+ [А-ЯЁ][а-яё]+$',
+        example="Нестеренко Иван Владимирович",
+    )
+    email: str = Field(
+        pattern=r'^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$',
+        example="ivan.nester@example.com",
+    )
+    is_admin: bool
+
+
+class SAdminRegister(BaseModel):
+    name: str = Field(
+        pattern=r'^[А-ЯЁ][а-яё]+ [А-ЯЁ][а-яё]+ [А-ЯЁ][а-яё]+$',
+        example="Нестеренко Иван Владимирович",
+    )
+    company: str
+    INN: str
+    OGRN: str
+    login: str
+    password: str
+
+
+class NewUserResponse(BaseModel):
+    id: UUID4
     name: str
     login: str
     password: str
     is_admin: bool
-    company_id: UUID4
-
-
-class SAdminRegister(BaseModel):
-    name: str
-    company: str
-    INN: str
-    login: str
-    password: str
 
 
 class UserResponse(BaseModel):
     name: str
     is_admin: bool
+    is_active: bool
+    is_paid: bool
 
 
 class SUserAuth(BaseModel):
@@ -70,3 +88,16 @@ class ChangePasswordRequest(BaseModel):
 
     current_password: str
     new_password: str
+
+
+class CompanyRequest(BaseModel):
+    name: str
+    INN: str
+    OGRN: str
+
+class CompanyResponse(BaseModel):
+    id: UUID4
+    name: str
+    INN: str
+    OGRN: str
+    users: list[UserResponse]
