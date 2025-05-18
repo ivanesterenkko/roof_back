@@ -190,14 +190,22 @@ async def add_tariff(
     tariff = await TariffsDAO.add(
         session,
         name=data.name,
+        type=data.type,
+        price=data.price,
+        price_sale=data.price_sale,
+        duration=data.duration,
         limit_users=data.limit_users,
-        price=data.price
+        atributes=data.atributes
     )
     return TariffResponse(
         id=tariff.id,
         name=tariff.name,
+        type=tariff.type,
+        price=tariff.price,
+        price_sale=tariff.price_sale,
         limit_users=tariff.limit_users,
-        price=tariff.price
+        duration=tariff.duration,
+        atributes=tariff.atributes
     )
 
 
@@ -221,8 +229,12 @@ async def get_tariffs(
         TariffResponse(
             id=tariff.id,
             name=tariff.name,
+            type=tariff.type,
+            price=tariff.price,
+            price_sale=tariff.price_sale,
             limit_users=tariff.limit_users,
-            price=tariff.price
+            duration=tariff.duration,
+            atributes=tariff.atributes
         )
         for tariff in tariffs
     ]

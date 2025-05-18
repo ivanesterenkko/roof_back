@@ -44,7 +44,11 @@ class Tariffs(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
     name: Mapped[str] = mapped_column(String, nullable=False)
-    limit_users: Mapped[int] = mapped_column(Integer, nullable=False)
+    type: Mapped[str] = mapped_column(String, nullable=False)
     price: Mapped[int] = mapped_column(Integer, nullable=False)
+    price_sale: Mapped[int] = mapped_column(Integer, nullable=False)
+    limit_users: Mapped[int] = mapped_column(Integer, nullable=False)
+    duration: Mapped[int] = mapped_column(Integer, nullable=False)
+    atributes: Mapped[str] = mapped_column(String, nullable=True)
 
     subscriptions = relationship("Subscriptions", back_populates="tariff")

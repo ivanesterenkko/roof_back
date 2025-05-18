@@ -19,6 +19,10 @@ class SAdminRegister(BaseModel):
         pattern=r'^[А-ЯЁ][а-яё]+ [А-ЯЁ][а-яё]+ [А-ЯЁ][а-яё]+$',
         example="Нестеренко Иван Владимирович",
     )
+    email: str = Field(
+        pattern=r'^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$',
+        example="ivan.nester@example.com",
+    )
     company: str
     INN: str
     OGRN: str
@@ -30,6 +34,7 @@ class NewUserResponse(BaseModel):
     id: UUID4
     name: str
     login: str
+    email: str
     password: str
     is_admin: bool
 

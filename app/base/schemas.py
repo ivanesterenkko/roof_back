@@ -52,12 +52,20 @@ class RoofResponse(BaseModel):
 
 class TariffRequest(BaseModel):
     name: str
-    limit_users: int
+    type: str
     price: int
+    price_sale: int
+    duration: int
+    limit_users: int
+    atributes: Optional[str] = None
 
 
 class TariffResponse(BaseModel):
     id: UUID4
     name: str
-    limit_users: int
+    type: str
     price: int
+    price_sale: int
+    duration: int
+    limit_users: int
+    atributes: Optional[str] = None

@@ -88,7 +88,7 @@ async def register_user(
     if not user.is_admin:
         raise PermissionDeniedException
 
-    existing_user = await UsersDAO.find_one_or_none(session, name=user_data.name)
+    existing_user = await UsersDAO.find_one_or_none(session, email=user_data.email)
     if existing_user:
         raise UserAlreadyExistsException
 
@@ -105,6 +105,7 @@ async def register_user(
         session,
         name=user_data.name,
         login=login,
+        email=user_data.email,
         hashed_password=hashed_password,
         is_admin=user_data.is_admin,
         company_id=company.id
@@ -113,6 +114,7 @@ async def register_user(
         id=new_user.id,
         name=new_user.name,
         login=new_user.login,
+        email=new_user.email,
         password=raw_password,
         is_admin=new_user.is_admin
     )
@@ -132,6 +134,31 @@ async def delete_user(
         raise UserNotFound
 
     await UsersDAO.delete_(session, model_id=user_id)
+
+
+@router.patch("/users/{user_id}", description="Update user info")
+async def update_user(
+      user_id: UUID4,
+      user_data: SUserRegister,
+      user: Users = Depends(get_current_user),
+      session: AsyncSession = Depends(get_session)
+) -> None:
+    if user.id != user_id:
+        raise PermissionDeniedException
+
+    user_update = await UsersDAO.find_by_id(session, user_id)
+    if not user_update:
+        raise UserNotFound
+    existing_user = await UsersDAO.find_one_or_none(session, email=user_data.email)
+    if existing_user:
+        raise UserAlreadyExistsException
+    await UsersDAO.update_(
+        session,
+        model_id=user_update.id,
+        name=user_data.name,
+        email=user_data.email,
+        is_admin=user_data.is_admin
+    )
 
 
 @router.get("/projects", description="Get list of projects")

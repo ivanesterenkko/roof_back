@@ -52,8 +52,8 @@ async def register_admin(user_data: SAdminRegister) -> dict:
             )
 
             # Проверяем, существует ли пользователь с таким логином
-            existing_user = await UsersDAO.find_one_or_none(session, login=user_data.login)
-            if existing_user:
+            existing_user = await UsersDAO.find_one_or_none(session, email=user_data.email)
+            if existing_user and existing_user.login == user_data.login:
                 raise UserAlreadyExistsException
 
             # Хэшируем пароль и создаем нового администратора
@@ -62,6 +62,7 @@ async def register_admin(user_data: SAdminRegister) -> dict:
                 session,
                 name=user_data.name,
                 login=user_data.login,
+                email=user_data.email,
                 hashed_password=hashed_password,
                 is_admin=True,
                 company_id=company.id
