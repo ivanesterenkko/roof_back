@@ -1899,7 +1899,8 @@ async def get_estimate(
         for slope in slopes:
             area_overall = 0
             area_usefull = 0
-            slopes_area += slope.area
+            if slope.area is not None:
+                slopes_area += slope.area
             sheets = await SheetsDAO.find_all(session, slope_id=slope.id)
             for sheet in sheets:
                 area_overall += sheet.area_overall
