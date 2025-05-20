@@ -201,6 +201,8 @@ async def get_sessions(
         sessions_data.append(UserSessionsRespnse(
             id=user_session.id,
             device=user_session.device,
+            name_device=user_session.name_device,
+            city=user_session.city,
             created_at=user_session.created_at
         ))
     return sessions_data

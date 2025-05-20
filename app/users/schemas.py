@@ -67,7 +67,10 @@ class CompanyProjectResponse(BaseModel):
 class UserSessionsRespnse(BaseModel):
     id: UUID4
     device: str
+    name_device: str
+    city: str
     created_at: datetime
+
 
 
 class OrderRequest(BaseModel):

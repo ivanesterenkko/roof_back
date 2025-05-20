@@ -1,8 +1,11 @@
+import ipaddress
 from fastapi import APIRouter, Depends, Request, Response, HTTPException
+import geoip2.database
 from user_agents import parse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.exceptions import (
+    AddressNotFoundError,
     CompanyAlreadyExistsException,
     IncorrectEmailOrPasswordException,
     UserAlreadyExistsException
@@ -19,6 +22,7 @@ from app.users.schemas import SAdminRegister, SUserAuth, TokenResponse
 from app.db import async_session_maker  # Функция для создания AsyncSession
 
 router = APIRouter(prefix="/auth", tags=["Auth & Пользователи"])
+reader = geoip2.database.Reader('/auto_app/service/GeoLite2-City.mmdb')
 
 
 @router.post("/register")
@@ -108,7 +112,20 @@ async def login_user(
                 device_type = "tablet"
             else:
                 device_type = "desktop"
-
+            name_device = user_agent.device.model if user_agent.device else "unknown"
+            client_ip = request.client.host
+            try:
+                ip = ipaddress.ip_address(client_ip)
+                if ip.is_private or ip.is_loopback or ip.is_reserved:
+                    city = "unknown"
+                else:
+                    try:
+                        geo = reader.city(client_ip)
+                        city = geo.city.name
+                    except AddressNotFoundError:
+                        city = "unknown"
+            except ValueError:
+                city = "unknown"
             # Если для данного устройства уже существует сессия, удаляем её
             existing_session = await SessionsDAO.find_one_or_none(session, user_id=user.id, device=device_type)
             if existing_session:
@@ -117,7 +134,14 @@ async def login_user(
             # Создаем новый токен доступа
             access_token = create_access_token({"sub": str(user.id)})
             # Сохраняем новую сессию с токеном
-            await SessionsDAO.add(session, user_id=user.id, jwt_token=access_token, device=device_type)
+            await SessionsDAO.add(
+                session, 
+                user_id=user.id, 
+                jwt_token=access_token, 
+                device=device_type,
+                name_device=name_device,
+                city=city
+            )
 
             # Устанавливаем токен в cookie с параметром httponly
             response.set_cookie("access_token", access_token, httponly=True)

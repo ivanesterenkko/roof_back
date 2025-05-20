@@ -163,3 +163,8 @@ class AccessoryBaseNotFound(AutoException):
 class AccessoryNotFound(AutoException):
     status_code = status.HTTP_400_BAD_REQUEST
     detail = "Доборный элемент не найден в проекте."
+
+
+class AddressNotFoundError(AutoException):
+    status_code = status.HTTP_400_BAD_REQUEST
+    detail = "Адрес не найден."
